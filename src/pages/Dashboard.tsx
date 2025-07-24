@@ -83,14 +83,7 @@ const recentCalls = [
 
 export default function Dashboard() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Übersicht über deine KI-Agenten Performance
-        </p>
-      </div>
-
+    <div className="space-y-8">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
@@ -112,40 +105,34 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Calls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Letzte Anrufe</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Die neuesten Anrufe deiner KI-Agenten
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentCalls.map((call) => (
-              <div
-                key={call.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${call.statusColor}`}></div>
-                  <div>
-                    <p className="font-medium">{call.lead}</p>
-                    <p className="text-sm text-muted-foreground">{call.phone}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <Badge variant="secondary">{call.agent}</Badge>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{call.status}</p>
-                    <p className="text-xs text-muted-foreground">{call.time}</p>
-                  </div>
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
+        
+        <div className="space-y-3">
+          {recentCalls.map((call) => (
+            <div
+              key={call.id}
+              className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+            >
+              <div className="flex items-center space-x-4">
+                <div className={`w-3 h-3 rounded-full ${call.statusColor}`}></div>
+                <div>
+                  <p className="font-medium">{call.lead}</p>
+                  <p className="text-sm text-muted-foreground">{call.phone}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              
+              <div className="flex items-center space-x-4">
+                <Badge variant="secondary">{call.agent}</Badge>
+                <div className="text-right">
+                  <p className="text-sm font-medium">{call.status}</p>
+                  <p className="text-xs text-muted-foreground">{call.time}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
