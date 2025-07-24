@@ -91,12 +91,7 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Lead Quellen</h1>
-          <p className="text-muted-foreground">
-            Verwalte deine Lead Quellen und Formulare
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">Lead Quellen</h2>
         
         <Button>
           <Plus className="mr-2 h-4 w-4" />

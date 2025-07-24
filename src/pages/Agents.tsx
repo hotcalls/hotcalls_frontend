@@ -53,12 +53,7 @@ export default function Agents() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">KI-Agenten</h1>
-          <p className="text-muted-foreground">
-            Verwalte und konfiguriere deine KI-Agenten
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">KI-Agenten</h2>
         
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />

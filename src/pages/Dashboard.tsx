@@ -84,6 +84,8 @@ const recentCalls = [
 export default function Dashboard() {
   return (
     <div className="space-y-8">
+      <h2 className="text-xl font-semibold">Dashboard</h2>
+      
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (

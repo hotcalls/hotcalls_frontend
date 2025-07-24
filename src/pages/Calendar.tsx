@@ -76,12 +76,7 @@ export default function Calendar() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Kalender</h1>
-          <p className="text-muted-foreground">
-            Verwalte Mitarbeiterkalender und Terminbuchungen
-          </p>
-        </div>
+        <h2 className="text-xl font-semibold">Kalender</h2>
         
         <Button>
           <Plus className="mr-2 h-4 w-4" />
