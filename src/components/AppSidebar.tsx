@@ -6,7 +6,8 @@ import {
   Settings,
   Phone,
   User,
-  LogOut
+  LogOut,
+  Webhook
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
@@ -27,6 +28,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
   { title: "Agenten", url: "/agents", icon: Bot },
+  { title: "Lead Quellen", url: "/lead-sources", icon: Webhook },
   { title: "Leads", url: "/leads", icon: Users },
   { title: "Kalender", url: "/calendar", icon: Calendar },
 ];

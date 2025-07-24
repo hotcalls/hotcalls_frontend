@@ -1,57 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, Facebook, Globe, Linkedin, Webhook, Filter } from "lucide-react";
-
-const leadSources = [
-  {
-    id: "1",
-    name: "Facebook Lead Ads",
-    type: "Facebook",
-    icon: Facebook,
-    status: "Aktiv",
-    leadsToday: 23,
-    leadsThisMonth: 687,
-    lastSync: "vor 2 Min",
-    statusColor: "bg-success",
-  },
-  {
-    id: "2",
-    name: "Google Lead Forms", 
-    type: "Google",
-    icon: Globe,
-    status: "Aktiv",
-    leadsToday: 18,
-    leadsThisMonth: 543,
-    lastSync: "vor 5 Min",
-    statusColor: "bg-success",
-  },
-  {
-    id: "3",
-    name: "LinkedIn Lead Gen",
-    type: "LinkedIn", 
-    icon: Linkedin,
-    status: "Pausiert",
-    leadsToday: 0,
-    leadsThisMonth: 234,
-    lastSync: "vor 3 Std",
-    statusColor: "bg-warning",
-  },
-  {
-    id: "4",
-    name: "Website Webhook",
-    type: "Webhook",
-    icon: Webhook,
-    status: "Aktiv", 
-    leadsToday: 7,
-    leadsThisMonth: 156,
-    lastSync: "vor 1 Min",
-    statusColor: "bg-success",
-  },
-];
+import { Search, Plus } from "lucide-react";
 
 const allLeads = [
   {
@@ -171,135 +122,71 @@ export default function Leads() {
         
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Neue Lead Quelle
+          Lead importieren
         </Button>
       </div>
 
-      <Tabs defaultValue="sources" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="sources">Lead Quellen</TabsTrigger>
-          <TabsTrigger value="leads">Aktuelle Leads</TabsTrigger>
-        </TabsList>
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Leads durchsuchen..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        
+        <select 
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="alle">Alle Status</option>
+          <option value="neu">Neu</option>
+          <option value="kontaktiert">Kontaktiert</option>
+          <option value="qualifiziert">Qualifiziert</option>
+          <option value="nicht erreicht">Nicht erreicht</option>
+        </select>
+      </div>
 
-        <TabsContent value="sources" className="space-y-6">
-          {/* Lead Sources */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-            {leadSources.map((source) => (
-              <Card key={source.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <source.icon className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{source.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground">{source.type}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <div className={`w-2 h-2 rounded-full ${source.statusColor}`}></div>
-                      <span className="text-xs font-medium">{source.status}</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Heute</p>
-                      <p className="font-semibold text-lg">{source.leadsToday}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Diesen Monat</p>
-                      <p className="font-semibold text-lg">{source.leadsThisMonth}</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm">Letzte Sync</p>
-                    <p className="text-sm">{source.lastSync}</p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2 pt-2">
-                    <Button size="sm" variant="outline">
-                      Konfigurieren
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      Formulare anzeigen
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="leads" className="space-y-6">
-          {/* Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Leads durchsuchen..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+      {/* Leads List */}
+      <div className="space-y-3">
+        {filteredLeads.map((lead) => (
+          <div
+            key={lead.id}
+            className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+          >
+            <div className="flex items-center space-x-4">
+              <div className={`w-3 h-3 rounded-full ${lead.statusColor}`}></div>
+              <div>
+                <p className="font-medium">{lead.name}</p>
+                <p className="text-sm text-muted-foreground">{lead.email}</p>
+                <p className="text-sm text-muted-foreground">{lead.phone}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">{lead.company}</p>
+                <p className="text-xs text-muted-foreground">{lead.notes}</p>
+              </div>
             </div>
             
-            <select 
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="alle">Alle Status</option>
-              <option value="neu">Neu</option>
-              <option value="kontaktiert">Kontaktiert</option>
-              <option value="qualifiziert">Qualifiziert</option>
-              <option value="nicht erreicht">Nicht erreicht</option>
-            </select>
-          </div>
-
-          {/* Leads List */}
-          <div className="space-y-3">
-            {filteredLeads.map((lead) => (
-              <div
-                key={lead.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${lead.statusColor}`}></div>
-                  <div>
-                    <p className="font-medium">{lead.name}</p>
-                    <p className="text-sm text-muted-foreground">{lead.email}</p>
-                    <p className="text-sm text-muted-foreground">{lead.phone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{lead.company}</p>
-                    <p className="text-xs text-muted-foreground">{lead.notes}</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <Badge variant="secondary">{lead.source}</Badge>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{lead.status}</p>
-                    <p className="text-xs text-muted-foreground">{lead.time}</p>
-                  </div>
-                </div>
+            <div className="flex items-center space-x-4">
+              <Badge variant="secondary">{lead.source}</Badge>
+              <div className="text-right">
+                <p className="text-sm font-medium">{lead.status}</p>
+                <p className="text-xs text-muted-foreground">{lead.time}</p>
               </div>
-            ))}
-          </div>
-
-          {filteredLeads.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              Keine Leads gefunden. Probiere andere Suchbegriffe oder Filter.
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </div>
+        ))}
+      </div>
+
+      {filteredLeads.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Keine Leads gefunden. Probiere andere Suchbegriffe oder Filter.
+        </div>
+      )}
     </div>
   );
 }
