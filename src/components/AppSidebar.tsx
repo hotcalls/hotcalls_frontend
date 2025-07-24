@@ -73,7 +73,7 @@ export function AppSidebar() {
                           end={item.url === "/"} 
                           className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             active 
-                              ? "bg-primary text-primary-foreground" 
+                              ? "bg-primary/10 text-primary" 
                               : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                           }`}
                         >
