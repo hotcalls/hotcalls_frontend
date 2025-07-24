@@ -39,20 +39,20 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium" 
-      : "hover:bg-accent hover:text-accent-foreground";
+      : "text-foreground hover:bg-accent hover:text-accent-foreground";
 
   return (
-    <Sidebar className="w-64">
+    <Sidebar className="w-64 border-r border-border bg-card">
       <SidebarContent>
-        <div className="p-6 border-b border-border">
+        <div className="p-6 border-b border-border bg-card">
           <div className="flex items-center gap-2">
             <Phone className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">hotcalls</span>
+            <span className="text-xl font-bold text-foreground">hotcalls</span>
           </div>
         </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+        <SidebarGroup className="px-3 py-2">
+          <SidebarGroupLabel className="text-muted-foreground">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
