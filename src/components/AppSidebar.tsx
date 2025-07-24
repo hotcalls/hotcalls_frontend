@@ -55,20 +55,27 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-muted-foreground">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      end={item.url === "/"} 
-                      className={getNavCls}
-                    >
-                      <item.icon className="mr-3 h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items.map((item) => {
+                const active = isActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink 
+                        to={item.url} 
+                        end={item.url === "/"} 
+                        className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          active 
+                            ? "bg-primary text-primary-foreground" 
+                            : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                        }`}
+                      >
+                        <item.icon className="mr-3 h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
