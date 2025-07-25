@@ -70,32 +70,23 @@ const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
   return data;
 };
 
-// Erweiterte Anruf-Daten
+// Letzte Anrufe Daten
 const generateRecentCalls = () => {
   const names = ["Max Mustermann", "Anna Schmidt", "Thomas Weber", "Julia Müller", "Robert Klein", "Sarah Wagner", "Michael Brown", "Lisa Davis", "Peter Johnson", "Maria Garcia"];
-  const agents = ["Sarah", "Marcus", "Lisa", "David", "Emma"];
-  const statuses = [
-    { text: "Termin vereinbart", color: "bg-success" },
-    { text: "Nicht erreicht", color: "bg-destructive" },
-    { text: "Callback angefordert", color: "bg-warning" },
-    { text: "Kein Interesse", color: "bg-muted" },
-    { text: "Interessiert", color: "bg-info" },
-    { text: "Qualifiziert", color: "bg-success" }
-  ];
+  const statuses = ["Erreicht", "Nicht erreicht"];
   
   const calls = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 15; i++) {
     const date = subDays(new Date(), Math.floor(Math.random() * 7));
     const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const hasFollowUp = Math.random() > 0.7; // 30% chance für Nachfolgetermin
     
     calls.push({
       id: i.toString(),
       lead: names[Math.floor(Math.random() * names.length)],
       phone: `+49 ${Math.floor(Math.random() * 900 + 100)} ${Math.floor(Math.random() * 9000000 + 1000000)}`,
-      status: status.text,
-      time: `vor ${Math.floor(Math.random() * 120 + 5)} Min`,
-      agent: agents[Math.floor(Math.random() * agents.length)],
-      statusColor: status.color,
+      status,
+      followUpDate: hasFollowUp ? format(new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000), 'dd.MM HH:mm') : null,
       date: format(date, 'yyyy-MM-dd'),
     });
   }
@@ -103,7 +94,27 @@ const generateRecentCalls = () => {
   return calls;
 };
 
+// Neue Termine Daten
+const generateNewAppointments = () => {
+  const names = ["Sarah Fischer", "Tom Schneider", "Nina Bauer", "Kevin Hoffmann", "Laura Zimmermann", "Daniel Koch", "Sophie Richter", "Marco Lehmann", "Jana Werner", "Felix Neumann"];
+  
+  const appointments = [];
+  for (let i = 0; i < 12; i++) {
+    const appointmentDate = new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000); // Nächste 14 Tage
+    
+    appointments.push({
+      id: i.toString(),
+      lead: names[Math.floor(Math.random() * names.length)],
+      appointmentDate: format(appointmentDate, 'dd.MM HH:mm'),
+      date: format(subDays(new Date(), Math.floor(Math.random() * 3)), 'yyyy-MM-dd'), // Vereinbart in den letzten 3 Tagen
+    });
+  }
+  
+  return appointments;
+};
+
 const recentCalls = generateRecentCalls();
+const newAppointments = generateNewAppointments();
 
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
@@ -203,6 +214,17 @@ export default function Dashboard() {
     return recentCalls.filter(call => {
       const callDate = new Date(call.date);
       return isWithinInterval(callDate, {
+        start: startOfDay(dateRange.from),
+        end: endOfDay(dateRange.to)
+      });
+    });
+  }, [dateRange]);
+
+  // Gefilterte Termine basierend auf Zeitraum
+  const filteredAppointments = useMemo(() => {
+    return newAppointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.date);
+      return isWithinInterval(appointmentDate, {
         start: startOfDay(dateRange.from),
         end: endOfDay(dateRange.to)
       });
@@ -321,40 +343,69 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Calls - nur anzeigen wenn nicht Single-Day View */}
+      {/* Recent Calls & New Appointments - nur anzeigen wenn nicht Single-Day View */}
       {!isSingleDay && (
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
-          
-          <div className="space-y-3">
-            {filteredCalls.map((call) => (
-              <div
-                key={call.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  <div className={`w-3 h-3 rounded-full ${call.statusColor}`}></div>
-                  <div>
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Letzte Anrufe */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
+            
+            <div className="space-y-3">
+              {filteredCalls.map((call) => (
+                <div
+                  key={call.id}
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                >
+                  <div className="flex-1">
                     <p className="font-medium">{call.lead}</p>
                     <p className="text-sm text-muted-foreground">{call.phone}</p>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <Badge variant="secondary">{call.agent}</Badge>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{call.status}</p>
-                    <p className="text-xs text-muted-foreground">{call.time}</p>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{call.status}</p>
+                      {call.followUpDate && (
+                        <p className="text-xs text-muted-foreground">Nachfolgetermin: {call.followUpDate}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+              
+              {filteredCalls.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Anrufe im gewählten Zeitraum gefunden.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Neue Termine */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Neue Termine</h2>
             
-            {filteredCalls.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                Keine Anrufe im gewählten Zeitraum gefunden.
-              </div>
-            )}
+            <div className="space-y-3">
+              {filteredAppointments.map((appointment) => (
+                <div
+                  key={appointment.id}
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{appointment.lead}</p>
+                  </div>
+                  
+                  <div className="text-right">
+                    <p className="text-sm font-medium">Termin: {appointment.appointmentDate}</p>
+                  </div>
+                </div>
+              ))}
+              
+              {filteredAppointments.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Termine im gewählten Zeitraum gefunden.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
