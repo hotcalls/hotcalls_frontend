@@ -7,38 +7,68 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { de } from 'date-fns/locale';
 
-// Erweiterte Mock-Daten für 60 Tage mit realistischen Zahlen
-const generateAnalyticsData = () => {
+// Generiere Analytics-Daten basierend auf Zeitraum
+const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
   const data = [];
-  const today = new Date();
+  const startDate = startOfDay(dateRange.from);
+  const endDate = endOfDay(dateRange.to);
   
-  for (let i = 59; i >= 0; i--) {
-    const date = subDays(today, i);
-    const dayOfWeek = date.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  // Prüfe ob es ein einzelner Tag ist
+  const isSingleDay = format(startDate, 'yyyy-MM-dd') === format(endDate, 'yyyy-MM-dd');
+  
+  if (isSingleDay) {
+    // Stündliche Daten für einen einzelnen Tag
+    for (let hour = 0; hour < 24; hour++) {
+      const date = new Date(startDate);
+      date.setHours(hour, 0, 0, 0);
+      
+      // Realistische Verteilung über den Tag (mehr Activity während Arbeitszeit)
+      const isWorkingHour = hour >= 8 && hour <= 18;
+      const baseLeads = isWorkingHour ? Math.floor(3 + Math.random() * 8) : Math.floor(Math.random() * 2);
+      const baseCallsRate = isWorkingHour ? 0.8 : 0.3;
+      const baseAppointmentRate = isWorkingHour ? 0.25 : 0.1;
+      
+      const leads = Math.max(0, baseLeads);
+      const calls = Math.max(0, Math.floor(leads * baseCallsRate + (Math.random() - 0.5) * 2));
+      const appointments = Math.max(0, Math.floor(leads * baseAppointmentRate + (Math.random() - 0.5) * 1));
+      
+      data.push({
+        date: date.toISOString(),
+        leads,
+        calls,
+        appointments,
+        hour
+      });
+    }
+  } else {
+    // Tägliche Daten für Zeiträume
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
     
-    // Weniger Activity am Wochenende
-    const baseLeads = isWeekend ? 15 : 45;
-    const baseCallsRate = isWeekend ? 0.6 : 0.85;
-    const baseAppointmentRate = isWeekend ? 0.15 : 0.25;
-    
-    // Zufällige Variationen
-    const leads = Math.floor(baseLeads + (Math.random() - 0.5) * 20);
-    const calls = Math.floor(leads * baseCallsRate + (Math.random() - 0.5) * 10);
-    const appointments = Math.floor(leads * baseAppointmentRate + (Math.random() - 0.5) * 5);
-    
-    data.push({
-      date: format(date, 'yyyy-MM-dd'),
-      leads: Math.max(0, leads),
-      calls: Math.max(0, calls),
-      appointments: Math.max(0, appointments)
+    days.forEach(day => {
+      const dayOfWeek = day.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      
+      // Weniger Activity am Wochenende
+      const baseLeads = isWeekend ? 15 : 45;
+      const baseCallsRate = isWeekend ? 0.6 : 0.85;
+      const baseAppointmentRate = isWeekend ? 0.15 : 0.25;
+      
+      // Zufällige Variationen
+      const leads = Math.floor(baseLeads + (Math.random() - 0.5) * 20);
+      const calls = Math.floor(leads * baseCallsRate + (Math.random() - 0.5) * 10);
+      const appointments = Math.floor(leads * baseAppointmentRate + (Math.random() - 0.5) * 5);
+      
+      data.push({
+        date: day.toISOString(),
+        leads: Math.max(0, leads),
+        calls: Math.max(0, calls),
+        appointments: Math.max(0, appointments)
+      });
     });
   }
   
   return data;
 };
-
-const analyticsData = generateAnalyticsData();
 
 // Erweiterte Anruf-Daten
 const generateRecentCalls = () => {
@@ -81,36 +111,27 @@ export default function Dashboard() {
     to: new Date()
   });
 
-  // Daten basierend auf gewähltem Zeitraum filtern
-  const filteredData = useMemo(() => {
-    return analyticsData.filter(item => {
-      const itemDate = new Date(item.date);
-      return isWithinInterval(itemDate, {
-        start: startOfDay(dateRange.from),
-        end: endOfDay(dateRange.to)
-      });
-    });
+  // Analytics-Daten generieren basierend auf aktuellem Zeitraum
+  const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
+  
+  // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
+  const isSingleDay = useMemo(() => {
+    return format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
   }, [dateRange]);
 
-  // Statistiken basierend auf gefilterter Daten berechnen
+  // Statistiken basierend auf generierten Daten berechnen
   const stats = useMemo(() => {
-    const totalLeads = filteredData.reduce((sum, item) => sum + item.leads, 0);
-    const totalCalls = filteredData.reduce((sum, item) => sum + item.calls, 0);
-    const totalAppointments = filteredData.reduce((sum, item) => sum + item.appointments, 0);
+    const totalLeads = analyticsData.reduce((sum, item) => sum + item.leads, 0);
+    const totalCalls = analyticsData.reduce((sum, item) => sum + item.calls, 0);
+    const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100).toFixed(1) : "0";
 
-    // Vergleichszeitraum berechnen (gleiche Anzahl Tage vor dem aktuellen Zeitraum)
+    // Vergleichszeitraum generieren
     const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const prevFromDate = subDays(dateRange.from, daysDiff);
     const prevToDate = subDays(dateRange.to, daysDiff);
     
-    const prevData = analyticsData.filter(item => {
-      const itemDate = new Date(item.date);
-      return isWithinInterval(itemDate, {
-        start: startOfDay(prevFromDate),
-        end: endOfDay(prevToDate)
-      });
-    });
+    const prevData = generateAnalyticsData({ from: prevFromDate, to: prevToDate });
     
     const prevTotalLeads = prevData.reduce((sum, item) => sum + item.leads, 0);
     const prevTotalCalls = prevData.reduce((sum, item) => sum + item.calls, 0);
@@ -147,12 +168,15 @@ export default function Dashboard() {
       {
         title: "Conversion Rate",
         value: `${conversionRate}%`,
-        change: "+2.1%",
+        change: calculateChange(
+          totalLeads > 0 ? (totalAppointments / totalLeads) * 100 : 0,
+          prevTotalLeads > 0 ? (prevTotalAppointments / prevTotalLeads) * 100 : 0
+        ),
         icon: TrendingUp,
         color: "text-primary",
       },
     ];
-  }, [filteredData, dateRange]);
+  }, [analyticsData, dateRange]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {
@@ -207,16 +231,42 @@ export default function Dashboard() {
         <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={filteredData}>
+              <LineChart data={analyticsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="date" 
-                  tickFormatter={(value) => format(new Date(value), "dd.MM", { locale: de })}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    if (isSingleDay) {
+                      // Stündliche Anzeige: "08:00", "12:00", etc.
+                      return format(date, "HH:mm");
+                    } else {
+                      // Prüfe ob der Zeitraum nahe der Gegenwart ist
+                      const today = new Date();
+                      const daysDiff = Math.ceil((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                      const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      if (totalDays <= 7 && daysDiff <= 7) {
+                        // Aktuelle Woche oder nah dran: Wochentage
+                        return format(date, "EEEE", { locale: de }).substring(0, 2);
+                      } else {
+                        // Weiter zurück: Datum + Wochentag
+                        return format(date, "dd.MM EE", { locale: de });
+                      }
+                    }
+                  }}
                   stroke="#64748b"
                 />
                 <YAxis stroke="#64748b" />
                 <Tooltip 
-                  labelFormatter={(value) => format(new Date(value), "dd. MMM yyyy", { locale: de })}
+                  labelFormatter={(value) => {
+                    const date = new Date(value);
+                    if (isSingleDay) {
+                      return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
+                    } else {
+                      return format(date, "dd. MMM yyyy", { locale: de });
+                    }
+                  }}
                   contentStyle={{
                     backgroundColor: '#fff',
                     border: '1px solid #e2e8f0',
@@ -250,41 +300,43 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Recent Calls */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
-        
-        <div className="space-y-3">
-          {filteredCalls.map((call) => (
-            <div
-              key={call.id}
-              className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-            >
-              <div className="flex items-center space-x-4">
-                <div className={`w-3 h-3 rounded-full ${call.statusColor}`}></div>
-                <div>
-                  <p className="font-medium">{call.lead}</p>
-                  <p className="text-sm text-muted-foreground">{call.phone}</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <Badge variant="secondary">{call.agent}</Badge>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{call.status}</p>
-                  <p className="text-xs text-muted-foreground">{call.time}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Recent Calls - nur anzeigen wenn nicht Single-Day View */}
+      {!isSingleDay && (
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
           
-          {filteredCalls.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              Keine Anrufe im gewählten Zeitraum gefunden.
-            </div>
-          )}
+          <div className="space-y-3">
+            {filteredCalls.map((call) => (
+              <div
+                key={call.id}
+                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className={`w-3 h-3 rounded-full ${call.statusColor}`}></div>
+                  <div>
+                    <p className="font-medium">{call.lead}</p>
+                    <p className="text-sm text-muted-foreground">{call.phone}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <Badge variant="secondary">{call.agent}</Badge>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">{call.status}</p>
+                    <p className="text-xs text-muted-foreground">{call.time}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {filteredCalls.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                Keine Anrufe im gewählten Zeitraum gefunden.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
