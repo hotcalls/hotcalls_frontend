@@ -1,88 +1,85 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Users, Phone, Calendar as CalendarIcon, TrendingUp, CalendarDays } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { format, subDays, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
-import { cn } from "@/lib/utils";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { Users, Phone, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
+import { de } from 'date-fns/locale';
 
-// Mock data für Analytics mit Zeitstempel
-const analyticsData = [
-  { date: '2024-01-15', leads: 45, calls: 38, appointments: 12 },
-  { date: '2024-01-16', leads: 52, calls: 44, appointments: 15 },
-  { date: '2024-01-17', leads: 38, calls: 31, appointments: 8 },
-  { date: '2024-01-18', leads: 61, calls: 52, appointments: 18 },
-  { date: '2024-01-19', leads: 49, calls: 41, appointments: 14 },
-  { date: '2024-01-20', leads: 55, calls: 47, appointments: 16 },
-  { date: '2024-01-21', leads: 43, calls: 36, appointments: 11 },
-  { date: '2024-01-22', leads: 68, calls: 58, appointments: 22 },
-  { date: '2024-01-23', leads: 41, calls: 35, appointments: 10 },
-  { date: '2024-01-24', leads: 57, calls: 48, appointments: 17 },
-];
+// Erweiterte Mock-Daten für 60 Tage mit realistischen Zahlen
+const generateAnalyticsData = () => {
+  const data = [];
+  const today = new Date();
+  
+  for (let i = 59; i >= 0; i--) {
+    const date = subDays(today, i);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    
+    // Weniger Activity am Wochenende
+    const baseLeads = isWeekend ? 15 : 45;
+    const baseCallsRate = isWeekend ? 0.6 : 0.85;
+    const baseAppointmentRate = isWeekend ? 0.15 : 0.25;
+    
+    // Zufällige Variationen
+    const leads = Math.floor(baseLeads + (Math.random() - 0.5) * 20);
+    const calls = Math.floor(leads * baseCallsRate + (Math.random() - 0.5) * 10);
+    const appointments = Math.floor(leads * baseAppointmentRate + (Math.random() - 0.5) * 5);
+    
+    data.push({
+      date: format(date, 'yyyy-MM-dd'),
+      leads: Math.max(0, leads),
+      calls: Math.max(0, calls),
+      appointments: Math.max(0, appointments)
+    });
+  }
+  
+  return data;
+};
 
-const recentCalls = [
-  {
-    id: "1",
-    lead: "Max Mustermann",
-    phone: "+49 151 12345678",
-    status: "Termin vereinbart",
-    time: "vor 5 Min",
-    agent: "Sarah",
-    statusColor: "bg-success",
-    date: "2024-01-24",
-  },
-  {
-    id: "2", 
-    lead: "Anna Schmidt",
-    phone: "+49 171 98765432",
-    status: "Nicht erreicht",
-    time: "vor 12 Min",
-    agent: "Marcus",
-    statusColor: "bg-destructive",
-    date: "2024-01-24",
-  },
-  {
-    id: "3",
-    lead: "Thomas Weber",
-    phone: "+49 162 55566677",
-    status: "Callback angefordert",
-    time: "vor 18 Min", 
-    agent: "Lisa",
-    statusColor: "bg-warning",
-    date: "2024-01-24",
-  },
-  {
-    id: "4",
-    lead: "Julia Müller",
-    phone: "+49 175 33344455",
-    status: "Kein Interesse",
-    time: "vor 25 Min",
-    agent: "Sarah",
-    statusColor: "bg-muted",
-    date: "2024-01-23",
-  },
-  {
-    id: "5",
-    lead: "Robert Klein",
-    phone: "+49 152 77788899",
-    status: "Termin vereinbart",
-    time: "vor 32 Min",
-    agent: "Marcus",
-    statusColor: "bg-success",
-    date: "2024-01-23",
-  },
-];
+const analyticsData = generateAnalyticsData();
+
+// Erweiterte Anruf-Daten
+const generateRecentCalls = () => {
+  const names = ["Max Mustermann", "Anna Schmidt", "Thomas Weber", "Julia Müller", "Robert Klein", "Sarah Wagner", "Michael Brown", "Lisa Davis", "Peter Johnson", "Maria Garcia"];
+  const agents = ["Sarah", "Marcus", "Lisa", "David", "Emma"];
+  const statuses = [
+    { text: "Termin vereinbart", color: "bg-success" },
+    { text: "Nicht erreicht", color: "bg-destructive" },
+    { text: "Callback angefordert", color: "bg-warning" },
+    { text: "Kein Interesse", color: "bg-muted" },
+    { text: "Interessiert", color: "bg-info" },
+    { text: "Qualifiziert", color: "bg-success" }
+  ];
+  
+  const calls = [];
+  for (let i = 0; i < 20; i++) {
+    const date = subDays(new Date(), Math.floor(Math.random() * 7));
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    calls.push({
+      id: i.toString(),
+      lead: names[Math.floor(Math.random() * names.length)],
+      phone: `+49 ${Math.floor(Math.random() * 900 + 100)} ${Math.floor(Math.random() * 9000000 + 1000000)}`,
+      status: status.text,
+      time: `vor ${Math.floor(Math.random() * 120 + 5)} Min`,
+      agent: agents[Math.floor(Math.random() * agents.length)],
+      statusColor: status.color,
+      date: format(date, 'yyyy-MM-dd'),
+    });
+  }
+  
+  return calls;
+};
+
+const recentCalls = generateRecentCalls();
 
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
-    from: subDays(new Date(), 7),
+    from: subDays(new Date(), 6),
     to: new Date()
   });
-  const [fromDate, setFromDate] = useState<Date | undefined>(dateRange.from);
-  const [toDate, setToDate] = useState<Date | undefined>(dateRange.to);
 
   // Daten basierend auf gewähltem Zeitraum filtern
   const filteredData = useMemo(() => {
@@ -102,25 +99,48 @@ export default function Dashboard() {
     const totalAppointments = filteredData.reduce((sum, item) => sum + item.appointments, 0);
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100).toFixed(1) : "0";
 
+    // Vergleichszeitraum berechnen (gleiche Anzahl Tage vor dem aktuellen Zeitraum)
+    const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const prevFromDate = subDays(dateRange.from, daysDiff);
+    const prevToDate = subDays(dateRange.to, daysDiff);
+    
+    const prevData = analyticsData.filter(item => {
+      const itemDate = new Date(item.date);
+      return isWithinInterval(itemDate, {
+        start: startOfDay(prevFromDate),
+        end: endOfDay(prevToDate)
+      });
+    });
+    
+    const prevTotalLeads = prevData.reduce((sum, item) => sum + item.leads, 0);
+    const prevTotalCalls = prevData.reduce((sum, item) => sum + item.calls, 0);
+    const prevTotalAppointments = prevData.reduce((sum, item) => sum + item.appointments, 0);
+    
+    const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) return "+100%";
+      const change = ((current - previous) / previous) * 100;
+      return `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+    };
+
     return [
       {
         title: "Leads",
-        value: totalLeads.toString(),
-        change: "+20.1%",
+        value: totalLeads.toLocaleString('de-DE'),
+        change: calculateChange(totalLeads, prevTotalLeads),
         icon: Users,
         color: "text-info",
       },
       {
         title: "Erreichte Leads", 
-        value: totalCalls.toString(),
-        change: "+15.3%",
+        value: totalCalls.toLocaleString('de-DE'),
+        change: calculateChange(totalCalls, prevTotalCalls),
         icon: Phone,
         color: "text-success",
       },
       {
         title: "Vereinbarte Termine",
-        value: totalAppointments.toString(),
-        change: "+8.7%", 
+        value: totalAppointments.toLocaleString('de-DE'),
+        change: calculateChange(totalAppointments, prevTotalAppointments),
         icon: CalendarIcon,
         color: "text-warning",
       },
@@ -132,7 +152,7 @@ export default function Dashboard() {
         color: "text-primary",
       },
     ];
-  }, [filteredData]);
+  }, [filteredData, dateRange]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {
@@ -145,63 +165,15 @@ export default function Dashboard() {
     });
   }, [dateRange]);
 
-  const updateDateRange = () => {
-    if (fromDate && toDate) {
-      setDateRange({ from: fromDate, to: toDate });
-    }
-  };
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Dashboard</h2>
         
-        {/* Datepicker für Zeitraum */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[140px] justify-start">
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {fromDate ? format(fromDate, "dd.MM.yyyy") : "Von"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={fromDate}
-                  onSelect={setFromDate}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <span className="text-muted-foreground">bis</span>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[140px] justify-start">
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {toDate ? format(toDate, "dd.MM.yyyy") : "Bis"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={toDate}
-                  onSelect={setToDate}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
-                />
-              </PopoverContent>
-            </Popover>
-            
-            <Button onClick={updateDateRange} size="sm">
-              Aktualisieren
-            </Button>
-          </div>
-        </div>
+        <DateRangePicker 
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
       </div>
 
       {/* Stats Cards */}
@@ -229,7 +201,7 @@ export default function Dashboard() {
         <CardHeader>
           <CardTitle>Performance Übersicht</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Zeitraum: {format(dateRange.from, "dd.MM.yyyy")} - {format(dateRange.to, "dd.MM.yyyy")}
+            Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
           </p>
         </CardHeader>
         <CardContent>
@@ -239,12 +211,12 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="date" 
-                  tickFormatter={(value) => format(new Date(value), "dd.MM")}
+                  tickFormatter={(value) => format(new Date(value), "dd.MM", { locale: de })}
                   stroke="#64748b"
                 />
                 <YAxis stroke="#64748b" />
                 <Tooltip 
-                  labelFormatter={(value) => format(new Date(value), "dd.MM.yyyy")}
+                  labelFormatter={(value) => format(new Date(value), "dd. MMM yyyy", { locale: de })}
                   contentStyle={{
                     backgroundColor: '#fff',
                     border: '1px solid #e2e8f0',
