@@ -221,15 +221,25 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Klickbar */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.title}>
+          <Card 
+            key={stat.title}
+            className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
+              selectedMetric === stat.id 
+                ? 'ring-2 ring-primary bg-primary/5' 
+                : 'hover:shadow-md'
+            }`}
+            onClick={() => setSelectedMetric(stat.id as any)}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
                 {stat.title}
               </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <stat.icon className={`h-4 w-4 ${
+                selectedMetric === stat.id ? 'text-primary' : stat.color
+              }`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
@@ -244,24 +254,10 @@ export default function Dashboard() {
       {/* Analytics Chart */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Performance Übersicht</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
-              </p>
-            </div>
-            
-            {/* Metrik Auswahl */}
-            <Tabs value={selectedMetric} onValueChange={(value) => setSelectedMetric(value as any)}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="leads" className="text-xs">Leads</TabsTrigger>
-                <TabsTrigger value="calls" className="text-xs">Erreicht</TabsTrigger>
-                <TabsTrigger value="appointments" className="text-xs">Termine</TabsTrigger>
-                <TabsTrigger value="conversion" className="text-xs">Rate</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          <CardTitle>Performance Übersicht</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
+          </p>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">

@@ -112,6 +112,31 @@ All colors MUST be HSL.
   }
 }
 
+/* Animationen für Dashboard Chart */
+@keyframes dasharray {
+  0% {
+    stroke-dashoffset: 100%;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chart-line {
+  animation: dasharray 1.5s ease-in-out forwards;
+}
+
 @layer base {
   * {
     @apply border-border;
