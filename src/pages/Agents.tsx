@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Bot, Settings, Play, Pause } from "lucide-react";
-import { CreateAgentDialog } from "@/components/CreateAgentDialog";
+import { Plus, Bot, Settings, Play, Pause, BarChart } from "lucide-react";
 
 const agents = [
   {
@@ -12,12 +12,12 @@ const agents = [
     gender: "weiblich",
     voice: "Freundlich",
     status: "Aktiv",
-    leadsToday: 47,
-    callsToday: 156,
+    kontaktierteLeads: 47,
+    gesetzteTermine: 12,
     conversionRate: "22.4%",
+    telefonierteminuten: 342,
     leadSource: "Facebook Ads",
     calendar: "Marcus Weber",
-    statusColor: "bg-success",
   },
   {
     id: "2", 
@@ -25,12 +25,12 @@ const agents = [
     gender: "männlich", 
     voice: "Professionell",
     status: "Aktiv",
-    leadsToday: 32,
-    callsToday: 89,
+    kontaktierteLeads: 32,
+    gesetzteTermine: 8,
     conversionRate: "18.7%",
+    telefonierteminuten: 267,
     leadSource: "Google Ads",
     calendar: "Lisa Müller",
-    statusColor: "bg-success",
   },
   {
     id: "3",
@@ -38,31 +38,31 @@ const agents = [
     gender: "weiblich",
     voice: "Energisch", 
     status: "Pausiert",
-    leadsToday: 0,
-    callsToday: 0,
+    kontaktierteLeads: 0,
+    gesetzteTermine: 0,
     conversionRate: "15.2%",
+    telefonierteminuten: 0,
     leadSource: "LinkedIn",
     calendar: "Thomas Klein",
-    statusColor: "bg-warning",
   },
 ];
 
 export default function Agents() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">KI-Agenten</h2>
         
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={() => navigate("/agents/create")}>
           <Plus className="mr-2 h-4 w-4" />
           Neuen Agenten erstellen
         </Button>
       </div>
 
       {/* Agents Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2">
         {agents.map((agent) => (
           <Card key={agent.id}>
             <CardHeader>
@@ -80,68 +80,76 @@ export default function Agents() {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${agent.statusColor}`}></div>
-                  <span className="text-xs font-medium">{agent.status}</span>
+                  <button 
+                    className={`px-3 py-2 rounded-lg border-2 flex items-center space-x-2 ${
+                      agent.status === "Aktiv" 
+                        ? "border-green-200 bg-green-50 text-green-600 hover:bg-green-100" 
+                        : "border-yellow-200 bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
+                    }`}
+                  >
+                    {agent.status === "Aktiv" ? (
+                      <>
+                        <Pause className="h-4 w-4" />
+                        <span className="text-sm font-medium">Aktiv</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" />
+                        <span className="text-sm font-medium">Pausiert</span>
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    onClick={() => navigate(`/agents/analytics/${agent.id}`)}
+                  >
+                    <BarChart className="h-4 w-4" />
+                  </button>
+                  <button 
+                    className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    onClick={() => navigate(`/agents/edit/${agent.id}`)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             </CardHeader>
             
             <CardContent className="space-y-4">
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Kontaktierte Leads</p>
+                  <p className="font-semibold text-lg">{agent.kontaktierteLeads}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Gesetzte Termine</p>
+                  <p className="font-semibold text-lg">{agent.gesetzteTermine}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Conversionrate</p>
+                  <p className="font-semibold text-lg">{agent.conversionRate}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Telefonierte Minuten</p>
+                  <p className="font-semibold text-lg">{agent.telefonierteminuten}</p>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Leads heute</p>
-                  <p className="font-semibold text-lg">{agent.leadsToday}</p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">Anrufe heute</p>
-                  <p className="font-semibold text-lg">{agent.callsToday}</p>
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-muted-foreground text-sm">Conversion Rate</p>
-                <p className="font-semibold text-lg text-success">{agent.conversionRate}</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Lead Quelle</p>
+                  <p className="text-muted-foreground">Verknüpfte Lead Quellen</p>
                   <Badge variant="outline">{agent.leadSource}</Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Kalender</p>
+                  <p className="text-muted-foreground">Verknüpfte Kalender</p>
                   <Badge variant="secondary">{agent.calendar}</Badge>
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-2 pt-2">
-                <Button size="sm" variant="outline">
-                  {agent.status === "Aktiv" ? (
-                    <>
-                      <Pause className="mr-2 h-3 w-3" />
-                      Pausieren
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 h-3 w-3" />
-                      Starten
-                    </>
-                  )}
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Settings className="mr-2 h-3 w-3" />
-                  Konfiguration
-                </Button>
-              </div>
+
             </CardContent>
           </Card>
         ))}
       </div>
-
-      <CreateAgentDialog 
-        open={isCreateDialogOpen} 
-        onOpenChange={setIsCreateDialogOpen} 
-      />
     </div>
   );
 }
