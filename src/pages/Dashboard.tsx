@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Users, Phone, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -214,11 +213,6 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Dashboard</h2>
-        
-        <DateRangePicker 
-          dateRange={dateRange}
-          onDateRangeChange={setDateRange}
-        />
       </div>
 
       {/* Stats Cards - Klickbar */}
@@ -252,76 +246,80 @@ export default function Dashboard() {
       </div>
 
       {/* Analytics Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Performance Übersicht</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={enhancedAnalyticsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis 
-                  dataKey="date" 
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    if (isSingleDay) {
-                      // Stündliche Anzeige: "08:00", "12:00", etc.
-                      return format(date, "HH:mm");
-                    } else {
-                      // Prüfe ob der Zeitraum nahe der Gegenwart ist
-                      const today = new Date();
-                      const daysDiff = Math.ceil((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                      const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-                      
-                      if (totalDays <= 7 && daysDiff <= 7) {
-                        // Aktuelle Woche oder nah dran: Wochentage
-                        return format(date, "EEEE", { locale: de }).substring(0, 2);
-                      } else {
-                        // Weiter zurück: Datum + Wochentag
-                        return format(date, "dd.MM EE", { locale: de });
-                      }
-                    }
-                  }}
-                  stroke="#64748b"
-                />
-                <YAxis stroke="#64748b" />
-                <Tooltip 
-                  labelFormatter={(value) => {
-                    const date = new Date(value);
-                    if (isSingleDay) {
-                      return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
-                    } else {
-                      return format(date, "dd. MMM yyyy", { locale: de });
-                    }
-                  }}
-                  formatter={(value, name) => {
-                    const suffix = selectedMetric === 'conversion' ? '%' : '';
-                    return [`${value}${suffix}`, metricConfig[selectedMetric].name];
-                  }}
-                  contentStyle={{
-                    backgroundColor: '#fff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey={selectedMetric} 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  name={metricConfig[selectedMetric].name}
-                  dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Performance Übersicht</h2>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Zeitraum</span>
+            <DateRangePicker 
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="h-[300px] bg-card rounded-lg border p-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={enhancedAnalyticsData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  if (isSingleDay) {
+                    // Stündliche Anzeige: "08:00", "12:00", etc.
+                    return format(date, "HH:mm");
+                  } else {
+                    // Prüfe ob der Zeitraum nahe der Gegenwart ist
+                    const today = new Date();
+                    const daysDiff = Math.ceil((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                    const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    if (totalDays <= 7 && daysDiff <= 7) {
+                      // Aktuelle Woche oder nah dran: Wochentage
+                      return format(date, "EEEE", { locale: de }).substring(0, 2);
+                    } else {
+                      // Weiter zurück: Datum + Wochentag
+                      return format(date, "dd.MM EE", { locale: de });
+                    }
+                  }
+                }}
+                stroke="#64748b"
+              />
+              <YAxis stroke="#64748b" />
+              <Tooltip 
+                labelFormatter={(value) => {
+                  const date = new Date(value);
+                  if (isSingleDay) {
+                    return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
+                  } else {
+                    return format(date, "dd. MMM yyyy", { locale: de });
+                  }
+                }}
+                formatter={(value, name) => {
+                  const suffix = selectedMetric === 'conversion' ? '%' : '';
+                  return [`${value}${suffix}`, metricConfig[selectedMetric].name];
+                }}
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px'
+                }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey={selectedMetric} 
+                stroke="hsl(var(--primary))" 
+                strokeWidth={3}
+                name={metricConfig[selectedMetric].name}
+                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
       {/* Recent Calls - nur anzeigen wenn nicht Single-Day View */}
       {!isSingleDay && (
