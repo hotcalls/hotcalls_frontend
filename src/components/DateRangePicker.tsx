@@ -27,24 +27,12 @@ export function DateRangePicker({ dateRange, onDateRangeChange }: DateRangePicke
       getValue: () => ({ from: subDays(new Date(), 1), to: subDays(new Date(), 1) })
     },
     {
-      label: "Letzte 7 Tage",
-      getValue: () => ({ from: subDays(new Date(), 6), to: new Date() })
-    },
-    {
-      label: "Letzte 30 Tage",
-      getValue: () => ({ from: subDays(new Date(), 29), to: new Date() })
-    },
-    {
-      label: "Letzte 90 Tage",
-      getValue: () => ({ from: subDays(new Date(), 89), to: new Date() })
-    },
-    {
       label: "Diese Woche",
       getValue: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) })
     },
     {
-      label: "Letzter Monat",
-      getValue: () => ({ from: startOfMonth(subDays(new Date(), 30)), to: endOfMonth(subDays(new Date(), 30)) })
+      label: "Dieser Monat",
+      getValue: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })
     },
     {
       label: "Dieses Jahr",
