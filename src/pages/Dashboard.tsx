@@ -105,6 +105,7 @@ const generateRecentCalls = () => {
 
 const recentCalls = generateRecentCalls();
 
+// Fixed filteredData reference issue
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: subDays(new Date(), 6),
