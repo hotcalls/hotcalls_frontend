@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Users, Phone, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -105,27 +106,44 @@ const generateRecentCalls = () => {
 
 const recentCalls = generateRecentCalls();
 
-// Fixed filteredData reference issue
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: subDays(new Date(), 6),
     to: new Date()
   });
+  
+  const [selectedMetric, setSelectedMetric] = useState<'leads' | 'calls' | 'appointments' | 'conversion'>('leads');
 
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
+  
+  // Erweiterte Analytics-Daten mit Conversion Rate
+  const enhancedAnalyticsData = useMemo(() => {
+    return analyticsData.map(item => ({
+      ...item,
+      conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
+    }));
+  }, [analyticsData]);
   
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
   const isSingleDay = useMemo(() => {
     return format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
   }, [dateRange]);
 
+  // Metriken-Definitionen
+  const metricConfig = {
+    leads: { key: 'leads', name: 'Leads', icon: Users },
+    calls: { key: 'calls', name: 'Erreichte Leads', icon: Phone },
+    appointments: { key: 'appointments', name: 'Vereinbarte Termine', icon: CalendarIcon },
+    conversion: { key: 'conversion', name: 'Conversion Rate', icon: TrendingUp, suffix: '%' }
+  };
+
   // Statistiken basierend auf generierten Daten berechnen
   const stats = useMemo(() => {
     const totalLeads = analyticsData.reduce((sum, item) => sum + item.leads, 0);
     const totalCalls = analyticsData.reduce((sum, item) => sum + item.calls, 0);
     const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
-    const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100).toFixed(1) : "0";
+    const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100) : 0;
 
     // Vergleichszeitraum generieren
     const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -137,6 +155,7 @@ export default function Dashboard() {
     const prevTotalLeads = prevData.reduce((sum, item) => sum + item.leads, 0);
     const prevTotalCalls = prevData.reduce((sum, item) => sum + item.calls, 0);
     const prevTotalAppointments = prevData.reduce((sum, item) => sum + item.appointments, 0);
+    const prevConversionRate = prevTotalLeads > 0 ? ((prevTotalAppointments / prevTotalLeads) * 100) : 0;
     
     const calculateChange = (current: number, previous: number) => {
       if (previous === 0) return "+100%";
@@ -146,6 +165,7 @@ export default function Dashboard() {
 
     return [
       {
+        id: 'leads',
         title: "Leads",
         value: totalLeads.toLocaleString('de-DE'),
         change: calculateChange(totalLeads, prevTotalLeads),
@@ -153,6 +173,7 @@ export default function Dashboard() {
         color: "text-info",
       },
       {
+        id: 'calls',
         title: "Erreichte Leads", 
         value: totalCalls.toLocaleString('de-DE'),
         change: calculateChange(totalCalls, prevTotalCalls),
@@ -160,6 +181,7 @@ export default function Dashboard() {
         color: "text-success",
       },
       {
+        id: 'appointments',
         title: "Vereinbarte Termine",
         value: totalAppointments.toLocaleString('de-DE'),
         change: calculateChange(totalAppointments, prevTotalAppointments),
@@ -167,12 +189,10 @@ export default function Dashboard() {
         color: "text-warning",
       },
       {
+        id: 'conversion',
         title: "Conversion Rate",
-        value: `${conversionRate}%`,
-        change: calculateChange(
-          totalLeads > 0 ? (totalAppointments / totalLeads) * 100 : 0,
-          prevTotalLeads > 0 ? (prevTotalAppointments / prevTotalLeads) * 100 : 0
-        ),
+        value: `${conversionRate.toFixed(1)}%`,
+        change: calculateChange(conversionRate, prevConversionRate),
         icon: TrendingUp,
         color: "text-primary",
       },
@@ -224,15 +244,29 @@ export default function Dashboard() {
       {/* Analytics Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Performance Übersicht</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Performance Übersicht</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Zeitraum: {format(dateRange.from, "dd. MMM yyyy", { locale: de })} - {format(dateRange.to, "dd. MMM yyyy", { locale: de })}
+              </p>
+            </div>
+            
+            {/* Metrik Auswahl */}
+            <Tabs value={selectedMetric} onValueChange={(value) => setSelectedMetric(value as any)}>
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="leads" className="text-xs">Leads</TabsTrigger>
+                <TabsTrigger value="calls" className="text-xs">Erreicht</TabsTrigger>
+                <TabsTrigger value="appointments" className="text-xs">Termine</TabsTrigger>
+                <TabsTrigger value="conversion" className="text-xs">Rate</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={analyticsData}>
+              <LineChart data={enhancedAnalyticsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="date" 
@@ -268,6 +302,10 @@ export default function Dashboard() {
                       return format(date, "dd. MMM yyyy", { locale: de });
                     }
                   }}
+                  formatter={(value, name) => {
+                    const suffix = selectedMetric === 'conversion' ? '%' : '';
+                    return [`${value}${suffix}`, metricConfig[selectedMetric].name];
+                  }}
                   contentStyle={{
                     backgroundColor: '#fff',
                     border: '1px solid #e2e8f0',
@@ -276,24 +314,12 @@ export default function Dashboard() {
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="leads" 
-                  stroke="hsl(217 91% 60%)" 
-                  strokeWidth={2}
-                  name="Leads"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="calls" 
-                  stroke="hsl(142 71% 45%)" 
-                  strokeWidth={2}
-                  name="Anrufe"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="appointments" 
-                  stroke="hsl(13 99% 57%)" 
-                  strokeWidth={2}
-                  name="Termine"
+                  dataKey={selectedMetric} 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={3}
+                  name={metricConfig[selectedMetric].name}
+                  dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
                 />
               </LineChart>
             </ResponsiveContainer>
