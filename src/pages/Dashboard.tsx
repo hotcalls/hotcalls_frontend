@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DateRangePicker } from "@/components/DateRangePicker";
-import { Users, Phone, Calendar as CalendarIcon, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Phone, Calendar as CalendarIcon, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -123,6 +124,8 @@ export default function Dashboard() {
   });
   
   const [selectedMetric, setSelectedMetric] = useState<'leads' | 'calls' | 'appointments' | 'conversion'>('leads');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
@@ -229,6 +232,45 @@ export default function Dashboard() {
         end: endOfDay(dateRange.to)
       });
     });
+  }, [dateRange]);
+
+  // Kombiniere Anrufe und Termine für einheitliche Darstellung
+  const allActivities = useMemo(() => {
+    const activities = [
+      ...filteredCalls.map(call => ({
+        id: `call-${call.id}`,
+        type: 'call' as const,
+        title: call.lead,
+        subtitle: call.phone,
+        status: call.status,
+        date: call.date,
+        followUpDate: call.followUpDate,
+        icon: Phone
+      })),
+      ...filteredAppointments.map(appointment => ({
+        id: `appointment-${appointment.id}`,
+        type: 'appointment' as const,
+        title: appointment.lead,
+        subtitle: `Termin: ${appointment.appointmentDate}`,
+        status: 'Geplant',
+        date: appointment.date,
+        followUpDate: undefined,
+        icon: CalendarIcon
+      }))
+    ];
+    
+    // Sortiere nach Datum (neueste zuerst)
+    return activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [filteredCalls, filteredAppointments]);
+
+  // Paginierung
+  const totalPages = Math.ceil(allActivities.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedActivities = allActivities.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset pagination wenn sich Daten ändern
+  useMemo(() => {
+    setCurrentPage(1);
   }, [dateRange]);
 
   return (
@@ -343,70 +385,137 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Calls & New Appointments - nur anzeigen wenn nicht Single-Day View */}
+      {/* Letzte Aktivitäten - nur anzeigen wenn nicht Single-Day View */}
       {!isSingleDay && (
-        <div className="grid gap-8 md:grid-cols-2">
-          {/* Letzte Anrufe */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Letzte Anrufe</h2>
-            
-            <div className="space-y-3">
-              {filteredCalls.map((call) => (
-                <div
-                  key={call.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{call.lead}</p>
-                    <p className="text-sm text-muted-foreground">{call.phone}</p>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{call.status}</p>
-                      {call.followUpDate && (
-                        <p className="text-xs text-muted-foreground">Nachfolgetermin: {call.followUpDate}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {filteredCalls.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Keine Anrufe im gewählten Zeitraum gefunden.
-                </div>
-              )}
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Letzte Aktivitäten</h2>
+            <div className="text-sm text-muted-foreground">
+              {allActivities.length} Einträge
             </div>
           </div>
-
-          {/* Neue Termine */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Neue Termine</h2>
-            
-            <div className="space-y-3">
-              {filteredAppointments.map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium">{appointment.lead}</p>
+          
+          {allActivities.length > 0 ? (
+            <>
+              {/* Cards Grid */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {paginatedActivities.map((activity) => {
+                  const IconComponent = activity.icon;
+                  const isCall = activity.type === 'call';
+                  
+                  return (
+                    <Card
+                      key={activity.id}
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className={`p-2 rounded-full ${
+                            isCall ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                          }`}>
+                            <IconComponent className="h-4 w-4" />
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate">
+                              {activity.title}
+                            </h3>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {activity.subtitle}
+                            </p>
+                            
+                            {/* Status Badge */}
+                            <div className="mt-2">
+                              <Badge 
+                                variant={
+                                  activity.status === 'Erreicht' ? 'default' : 
+                                  activity.status === 'Nicht erreicht' ? 'secondary' : 
+                                  'outline'
+                                }
+                                className="text-xs"
+                              >
+                                {activity.status}
+                              </Badge>
+                            </div>
+                            
+                            {/* Follow-up Info */}
+                            {activity.followUpDate && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Nachfolge: {activity.followUpDate}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center space-x-2 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center space-x-1"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>Zurück</span>
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {[...Array(totalPages)].map((_, i) => {
+                      const page = i + 1;
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {page}
+                          </Button>
+                        );
+                      } else if (
+                        (page === currentPage - 2 && currentPage > 3) ||
+                        (page === currentPage + 2 && currentPage < totalPages - 2)
+                      ) {
+                        return <span key={page} className="text-muted-foreground">...</span>;
+                      }
+                      return null;
+                    })}
                   </div>
                   
-                  <div className="text-right">
-                    <p className="text-sm font-medium">Termin: {appointment.appointmentDate}</p>
-                  </div>
-                </div>
-              ))}
-              
-              {filteredAppointments.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Keine Termine im gewählten Zeitraum gefunden.
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center space-x-1"
+                  >
+                    <span>Weiter</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
+            </>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="text-lg mb-2">Keine Aktivitäten gefunden</div>
+              <div className="text-sm">
+                Keine Anrufe oder Termine im gewählten Zeitraum vorhanden.
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
