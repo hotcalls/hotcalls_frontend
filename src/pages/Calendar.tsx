@@ -77,6 +77,8 @@ const initialEventTypesByCalendar = {};
 
 export default function Calendar() {
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("calendars");
+  const [activeDialogTab, setActiveDialogTab] = useState("basic");
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
   const [editingEventType, setEditingEventType] = useState<EventType | null>(null);
   const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>(() => loadInitialCalendars());
@@ -530,6 +532,7 @@ export default function Calendar() {
                     targetCalendar: firstConnectedCalendar.id
                   }));
                   setEditingEventType(null);
+                  setActiveDialogTab("basic");
                   setIsCreateEventDialogOpen(true);
                 }
               }}
@@ -595,11 +598,35 @@ export default function Calendar() {
       </Card>
 
       {/* Tab Navigation */}
-      <Tabs defaultValue="calendars" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="calendars">Kalender</TabsTrigger>
-          <TabsTrigger value="event-types">Event-Types</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {/* Custom Tab Navigation */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex space-x-8" role="tablist">
+            <button
+              onClick={() => setActiveTab("calendars")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "calendars"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              Kalender
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("event-types")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "event-types"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              Event-Types
+            </button>
+          </nav>
+        </div>
 
         {/* Kalender Tab */}
         <TabsContent value="calendars">
@@ -680,6 +707,7 @@ export default function Calendar() {
                                       maxBookingsPerDay: eventType.maxBookingsPerDay || 1
                                     });
                                     setEditingEventType(eventType);
+                                    setActiveDialogTab("basic");
                                     setIsCreateEventDialogOpen(true);
                                   }}
                                 >
@@ -734,6 +762,7 @@ export default function Calendar() {
                                 targetCalendar: firstConnectedCalendar.id
                               }));
                               setEditingEventType(null);
+                              setActiveDialogTab("basic");
                               setIsCreateEventDialogOpen(true);
                             }
                           }}
@@ -772,13 +801,59 @@ export default function Calendar() {
             </DialogTitle>
           </DialogHeader>
           
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Grundinformationen</TabsTrigger>
-              <TabsTrigger value="planning">Planung</TabsTrigger>
-              <TabsTrigger value="availability">Verfügbarkeit</TabsTrigger>
-              <TabsTrigger value="calendar">Kalender</TabsTrigger>
-            </TabsList>
+          <Tabs value={activeDialogTab} onValueChange={setActiveDialogTab} className="w-full">
+            {/* Custom Tab Navigation */}
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8" role="tablist">
+                <button
+                  onClick={() => setActiveDialogTab("basic")}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                    activeDialogTab === "basic"
+                      ? "border-[#FE5B25] text-[#FE5B25]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                  role="tab"
+                >
+                  Grundinformationen
+                </button>
+                
+                <button
+                  onClick={() => setActiveDialogTab("planning")}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                    activeDialogTab === "planning"
+                      ? "border-[#FE5B25] text-[#FE5B25]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                  role="tab"
+                >
+                  Planung
+                </button>
+                
+                <button
+                  onClick={() => setActiveDialogTab("availability")}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                    activeDialogTab === "availability"
+                      ? "border-[#FE5B25] text-[#FE5B25]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                  role="tab"
+                >
+                  Verfügbarkeit
+                </button>
+                
+                <button
+                  onClick={() => setActiveDialogTab("calendar")}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                    activeDialogTab === "calendar"
+                      ? "border-[#FE5B25] text-[#FE5B25]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                  role="tab"
+                >
+                  Kalender
+                </button>
+              </nav>
+            </div>
 
             {/* Grundinformationen Tab */}
             <TabsContent value="basic" className="space-y-4 mt-4">

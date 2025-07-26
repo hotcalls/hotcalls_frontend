@@ -34,6 +34,7 @@ export default function AgentConfig() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const [activeTab, setActiveTab] = useState("personality");
 
   const [config, setConfig] = useState({
     name: isEdit ? "Sarah" : "",
@@ -142,25 +143,71 @@ export default function AgentConfig() {
       </div>
 
       {/* Tabbed Interface */}
-      <Tabs defaultValue="personality" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="personality">
-            <User className={iconSizes.small} />
-            <span className="ml-2">Persönlichkeit</span>
-          </TabsTrigger>
-          <TabsTrigger value="script">
-            <FileText className={iconSizes.small} />
-            <span className="ml-2">Skript</span>
-          </TabsTrigger>
-          <TabsTrigger value="logic">
-            <Phone className={iconSizes.small} />
-            <span className="ml-2">Anruflogik</span>
-          </TabsTrigger>
-          <TabsTrigger value="integrations">
-            <SettingsIcon className={iconSizes.small} />
-            <span className="ml-2">Integrationen</span>
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* Custom Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8" role="tablist">
+            <button
+              onClick={() => setActiveTab("personality")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "personality"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <User className={iconSizes.small} />
+                <span className="ml-2">Persönlichkeit</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("script")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "script"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <FileText className={iconSizes.small} />
+                <span className="ml-2">Skript</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("logic")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "logic"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <Phone className={iconSizes.small} />
+                <span className="ml-2">Anruflogik</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("integrations")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "integrations"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <SettingsIcon className={iconSizes.small} />
+                <span className="ml-2">Integrationen</span>
+              </div>
+            </button>
+          </nav>
+        </div>
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6">
