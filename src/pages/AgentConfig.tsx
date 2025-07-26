@@ -92,50 +92,24 @@ export default function AgentConfig() {
 
       {/* Tabbed Interface */}
       <Tabs defaultValue="personality" className="space-y-6">
-        {/* Custom Tab Navigation */}
-        <div className="border-b border-gray-200">
-          <TabsList className="h-auto p-0 bg-transparent border-0">
-            <TabsTrigger 
-              value="personality" 
-              className="py-2 px-1 border-b-2 font-medium text-sm focus:outline-none data-[state=active]:border-[#FE5B25] data-[state=active]:text-[#FE5B25] data-[state=active]:bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-transparent shadow-none rounded-none"
-            >
-              <div className="flex items-center">
-                <User className={iconSizes.small} />
-                <span className="ml-2">Persönlichkeit</span>
-              </div>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="script" 
-              className="py-2 px-1 ml-8 border-b-2 font-medium text-sm focus:outline-none data-[state=active]:border-[#FE5B25] data-[state=active]:text-[#FE5B25] data-[state=active]:bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-transparent shadow-none rounded-none"
-            >
-              <div className="flex items-center">
-                <FileText className={iconSizes.small} />
-                <span className="ml-2">Skript</span>
-              </div>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="logic" 
-              className="py-2 px-1 ml-8 border-b-2 font-medium text-sm focus:outline-none data-[state=active]:border-[#FE5B25] data-[state=active]:text-[#FE5B25] data-[state=active]:bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-transparent shadow-none rounded-none"
-            >
-              <div className="flex items-center">
-                <Phone className={iconSizes.small} />
-                <span className="ml-2">Anruflogik</span>
-              </div>
-            </TabsTrigger>
-            
-            <TabsTrigger 
-              value="integrations" 
-              className="py-2 px-1 ml-8 border-b-2 font-medium text-sm focus:outline-none data-[state=active]:border-[#FE5B25] data-[state=active]:text-[#FE5B25] data-[state=active]:bg-transparent border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-transparent shadow-none rounded-none"
-            >
-              <div className="flex items-center">
-                <SettingsIcon className={iconSizes.small} />
-                <span className="ml-2">Integrationen</span>
-              </div>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="personality">
+            <User className={iconSizes.small} />
+            <span className="ml-2">Persönlichkeit</span>
+          </TabsTrigger>
+          <TabsTrigger value="script">
+            <FileText className={iconSizes.small} />
+            <span className="ml-2">Skript</span>
+          </TabsTrigger>
+          <TabsTrigger value="logic">
+            <Phone className={iconSizes.small} />
+            <span className="ml-2">Anruflogik</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations">
+            <SettingsIcon className={iconSizes.small} />
+            <span className="ml-2">Integrationen</span>
+          </TabsTrigger>
+        </TabsList>
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6">
