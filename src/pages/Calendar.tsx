@@ -22,6 +22,7 @@ import {
   Play,
   Pause
 } from "lucide-react";
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 // Mock data for connected calendars
 const connectedCalendars = [
@@ -49,17 +50,15 @@ const connectedCalendars = [
     isConnected: true,
     isDefault: false,
     eventTypesCount: 1,
-    totalBookings: 23,
-    bookingsThisWeek: 8,
-    subCalendars: [
-      { id: "team-general", name: "Team Allgemein", color: "#f4511e" }
-    ]
+    totalBookings: 15,
+    bookingsThisWeek: 3,
+    subCalendars: []
   },
   {
     id: "lisa",
     name: "Lisa Müller",
-    email: "lisa.mueller@company.com", 
-    provider: "Google Calendar",
+    email: "lisa.mueller@company.com",
+    provider: "Google Calendar", 
     isConnected: false,
     isDefault: false,
     eventTypesCount: 0,
@@ -131,397 +130,341 @@ export default function Calendar() {
   const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
   const [editingEventType, setEditingEventType] = useState<typeof eventTypesByCalendar.main[0] | null>(null);
 
-  const selectedCalendarData = selectedCalendar 
-    ? connectedCalendars.find(cal => cal.id === selectedCalendar)
-    : null;
+  const [formData, setFormData] = useState({
+    title: "",
+    duration: 30,
+    description: "",
+    bookingBuffer: 60,
+  });
 
-  const CalendarOverviewCard = ({ calendar }: { calendar: typeof connectedCalendars[0] }) => (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedCalendar(calendar.id)}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <CalendarIcon className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-lg">{calendar.name}</CardTitle>
-              <p className="text-sm text-muted-foreground">{calendar.email}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            {calendar.isConnected ? (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Button size="sm" onClick={(e) => { e.stopPropagation(); }}>
-                Verbinden
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-muted-foreground">Event-Types</p>
-            <p className="font-semibold text-lg">{calendar.eventTypesCount}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Diese Woche</p>
-            <p className="font-semibold text-lg">{calendar.bookingsThisWeek}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Gesamt</p>
-            <p className="font-semibold text-lg">{calendar.totalBookings}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      duration: 30,
+      description: "",
+      bookingBuffer: 60,
+    });
+    setEditingEventType(null);
+  };
+
+  const handleClose = () => {
+    setIsCreateEventDialogOpen(false);
+    resetForm();
+  };
+
+  const handleSave = () => {
+    console.log('Saving event type:', formData);
+    handleClose();
+  };
+
+  const isEdit = !!editingEventType;
+
+  useEffect(() => {
+    if (editingEventType) {
+      setFormData({
+        title: editingEventType.title,
+        duration: editingEventType.duration,
+        description: editingEventType.description,
+        bookingBuffer: editingEventType.bookingBuffer,
+      });
+      setIsCreateEventDialogOpen(true);
+    }
+  }, [editingEventType]);
 
   const EventTypeCard = ({ eventType }: { eventType: typeof eventTypesByCalendar.main[0] }) => (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Clock className="h-6 w-6 text-primary" />
+            <div className="p-2 bg-[#FFE1D7] rounded-lg">
+              <Clock className={`${iconSizes.large} text-[#FE5B25]`} />
             </div>
             <div>
-              <CardTitle className="text-lg">{eventType.title}</CardTitle>
-              <p className="text-sm text-muted-foreground">
+              <CardTitle className={textStyles.cardTitle}>{eventType.title}</CardTitle>
+              <p className={textStyles.cardSubtitle}>
                 {eventType.duration} Min • {eventType.bookingBuffer} Min Vorlauf
               </p>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
+          <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
             <button 
-              className={`px-3 py-2 rounded-lg border-2 flex items-center space-x-2 ${
-                eventType.isActive 
-                  ? "border-green-200 bg-green-50 text-green-600 hover:bg-green-100" 
-                  : "border-yellow-200 bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
-              }`}
+              className={eventType.isActive ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
             >
               {eventType.isActive ? (
                 <>
-                  <Pause className="h-4 w-4" />
-                  <span className="text-sm font-medium">Aktiv</span>
+                  <Pause className={iconSizes.small} />
+                  <span>Aktiv</span>
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4" />
-                  <span className="text-sm font-medium">Pausiert</span>
+                  <Play className={iconSizes.small} />
+                  <span>Pausiert</span>
                 </>
               )}
             </button>
             <button 
-              className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+              className={buttonStyles.cardAction.icon}
               onClick={() => setEditingEventType(eventType)}
             >
-              <Edit className="h-4 w-4" />
+              <Edit className={iconSizes.small} />
             </button>
             <button 
-              className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+              className={buttonStyles.cardAction.iconDelete}
               onClick={() => {
                 if (confirm(`Event-Type "${eventType.title}" wirklich löschen?`)) {
                   console.log('Delete event type:', eventType.title);
-                  // Delete logic would go here
                 }
               }}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className={iconSizes.small} />
             </button>
           </div>
         </div>
       </CardHeader>
-      
-      <CardContent className="space-y-4">
+      <CardContent className={layoutStyles.cardContent}>
         <div className="text-sm">
-          <p className="text-muted-foreground">Beschreibung</p>
+          <p className="text-gray-500">Beschreibung</p>
           <p className="text-sm">{eventType.description}</p>
         </div>
-        
         <div className="grid grid-cols-4 gap-4 text-sm">
           <div>
-            <p className="text-muted-foreground">Dauer</p>
-            <p className="font-semibold text-lg">{eventType.duration} Min</p>
+            <p className={textStyles.metricLabel}>Dauer</p>
+            <p className={textStyles.metric}>{eventType.duration} Min</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Vorlaufzeit</p>
-            <p className="font-semibold text-lg">{eventType.bookingBuffer} Min</p>
+            <p className={textStyles.metricLabel}>Vorlaufzeit</p>
+            <p className={textStyles.metric}>{eventType.bookingBuffer} Min</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Diese Woche</p>
-            <p className="font-semibold text-lg">{eventType.bookingsThisWeek}</p>
+            <p className={textStyles.metricLabel}>Diese Woche</p>
+            <p className={textStyles.metric}>{eventType.bookingsThisWeek}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Gesamt</p>
-            <p className="font-semibold text-lg">{eventType.totalBookings}</p>
+            <p className={textStyles.metricLabel}>Gesamt</p>
+            <p className={textStyles.metric}>{eventType.totalBookings}</p>
           </div>
         </div>
       </CardContent>
     </Card>
   );
 
-  const EventTypeDialog = ({ isEdit = false }: { isEdit?: boolean }) => {
-    const eventTypeToEdit = isEdit ? editingEventType : null;
-    const [formData, setFormData] = useState({
-      title: eventTypeToEdit?.title || "",
-      duration: eventTypeToEdit?.duration || 30,
-      description: eventTypeToEdit?.description || "",
-      bookingBuffer: eventTypeToEdit?.bookingBuffer || 60
-    });
+  const CalendarOverviewCard = ({ calendar }: { calendar: typeof connectedCalendars[0] }) => (
+    <Card className={calendar.isConnected ? "" : "opacity-50"} onClick={() => setSelectedCalendar(calendar.id)}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${calendar.isConnected ? "bg-[#FFE1D7]" : "bg-gray-100"}`}>
+              <CalendarIcon className={`${iconSizes.large} ${calendar.isConnected ? "text-[#FE5B25]" : "text-gray-400"}`} />
+            </div>
+            <div>
+              <CardTitle className={textStyles.cardTitle}>{calendar.name}</CardTitle>
+              <p className={textStyles.cardSubtitle}>{calendar.email}</p>
+            </div>
+          </div>
+          <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+            <button className={buttonStyles.cardAction.icon}>
+              <Settings className={iconSizes.small} />
+            </button>
+            <button className={buttonStyles.cardAction.iconDelete}>
+              <Trash2 className={iconSizes.small} />
+            </button>
+          </div>
+        </div>
+      </CardHeader>
+      
+      <CardContent className={layoutStyles.cardContent}>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className={textStyles.metricLabel}>Event-Types</p>
+            <p className={textStyles.metric}>{calendar.eventTypesCount}</p>
+          </div>
+          <div>
+            <p className={textStyles.metricLabel}>Diese Woche</p>
+            <p className={textStyles.metric}>{calendar.bookingsThisWeek}</p>
+          </div>
+          <div>
+            <p className={textStyles.metricLabel}>Gesamt</p>
+            <p className={textStyles.metric}>{calendar.totalBookings}</p>
+          </div>
+        </div>
 
-    // Reset form data when dialog opens/closes or when editing different event type
-    useEffect(() => {
-      if (isEdit && editingEventType) {
-        setFormData({
-          title: editingEventType.title,
-          duration: editingEventType.duration,
-          description: editingEventType.description,
-          bookingBuffer: editingEventType.bookingBuffer
-        });
-      } else if (!isEdit) {
-        setFormData({
-          title: "",
-          duration: 30,
-          description: "",
-          bookingBuffer: 60
-        });
-      }
-    }, [isEdit, editingEventType]);
+        {!calendar.isConnected && (
+          <div className="pt-3 border-t">
+            <button className={buttonStyles.primary.default}>
+              <span>Kalender verbinden</span>
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
-    const generateSlug = (title: string) => {
-      return title.toLowerCase()
-        .replace(/ä/g, 'ae')
-        .replace(/ö/g, 'oe') 
-        .replace(/ü/g, 'ue')
-        .replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-    };
-
-    const handleClose = () => {
-      if (isEdit) {
-        setEditingEventType(null);
-      } else {
-        setIsCreateEventDialogOpen(false);
-      }
-    };
-
-    const handleSave = () => {
-      console.log(isEdit ? 'Update event type:' : 'Create event type:', formData);
-      handleClose();
-    };
+  // Main render logic
+  if (selectedCalendar) {
+    const selectedCalendarData = connectedCalendars.find(cal => cal.id === selectedCalendar);
+    const eventTypes = eventTypesByCalendar[selectedCalendar as keyof typeof eventTypesByCalendar] || [];
 
     return (
-      <Dialog 
-        open={isEdit ? !!editingEventType : isCreateEventDialogOpen} 
-        onOpenChange={handleClose}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {isEdit ? `Event-Type "${eventTypeToEdit?.title}" bearbeiten` : `Neuen Event-Type für ${selectedCalendarData?.name} erstellen`}
-            </DialogTitle>
-          </DialogHeader>
+      <div className={layoutStyles.pageContainer}>
+        {/* Back Navigation */}
+        <div className="flex items-center space-x-2 mb-6">
+          <button 
+            className={buttonStyles.navigation.back}
+            onClick={() => setSelectedCalendar(null)}
+          >
+            <ArrowLeft className={iconSizes.small} />
+            <span>Zurück zu Kalendern</span>
+          </button>
+        </div>
+
+        {/* Page Header */}
+        <div className={layoutStyles.pageHeader}>
+          <div>
+            <h1 className={textStyles.pageTitle}>{selectedCalendarData?.name}</h1>
+            <p className={textStyles.pageSubtitle}>Event-Types für diesen Kalender verwalten</p>
+          </div>
           
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Event-Name</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => {
-                  const title = e.target.value;
-                  setFormData({ 
-                    ...formData, 
-                    title
-                  });
-                }}
-                placeholder="z.B. Beratungsgespräch"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="description">Beschreibung</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Kurze Beschreibung des Termins"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="duration">Dauer (Minuten)</Label>
-                <Select value={formData.duration.toString()} onValueChange={(value) => setFormData({ ...formData, duration: parseInt(value) })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">15 Min</SelectItem>
-                    <SelectItem value="30">30 Min</SelectItem>
-                    <SelectItem value="45">45 Min</SelectItem>
-                    <SelectItem value="60">60 Min</SelectItem>
-                    <SelectItem value="90">90 Min</SelectItem>
-                  </SelectContent>
-                </Select>
+          <button className={buttonStyles.create.default} onClick={() => setIsCreateEventDialogOpen(true)}>
+            <Plus className={iconSizes.small} />
+            <span>Event-Type erstellen</span>
+          </button>
+        </div>
+
+        {/* Event Types Grid */}
+        {eventTypes.length > 0 ? (
+          <div className={layoutStyles.cardGrid}>
+            {eventTypes.map((eventType) => (
+              <EventTypeCard key={eventType.id} eventType={eventType} />
+            ))}
+          </div>
+        ) : (
+          <Card className="p-8 text-center">
+            <div className="space-y-4">
+              <Clock className="h-12 w-12 text-gray-400 mx-auto" />
+              <div>
+                <h3 className={textStyles.sectionTitle}>Noch keine Event-Types</h3>
+                <p className={textStyles.cardSubtitle}>
+                  Erstellen Sie Ihren ersten Event-Type für {selectedCalendarData?.name}
+                </p>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="buffer">Vorlaufzeit (Minuten)</Label>
-                <Select value={formData.bookingBuffer.toString()} onValueChange={(value) => setFormData({ ...formData, bookingBuffer: parseInt(value) })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Keine</SelectItem>
-                    <SelectItem value="30">30 Min</SelectItem>
-                    <SelectItem value="60">1 Stunde</SelectItem>
-                    <SelectItem value="120">2 Stunden</SelectItem>
-                    <SelectItem value="1440">1 Tag</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <button className={buttonStyles.create.default} onClick={() => setIsCreateEventDialogOpen(true)}>
+                <Plus className={iconSizes.small} />
+                <span>Event-Type erstellen</span>
+              </button>
             </div>
+          </Card>
+        )}
+
+        {/* Create/Edit Event Type Dialog */}
+        <Dialog open={isCreateEventDialogOpen} onOpenChange={handleClose}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {isEdit ? 'Event-Type bearbeiten' : 'Neuen Event-Type erstellen'}
+              </DialogTitle>
+            </DialogHeader>
             
             <div className="space-y-4">
-              <Label>Verfügbarkeiten</Label>
-              <div className="space-y-3">
-                {Object.entries({
-                  monday: "Montag",
-                  tuesday: "Dienstag", 
-                  wednesday: "Mittwoch",
-                  thursday: "Donnerstag",
-                  friday: "Freitag",
-                  saturday: "Samstag",
-                  sunday: "Sonntag"
-                }).map(([day, label]) => (
+              <div>
+                <Label htmlFor="title">Event-Type Name</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="z.B. Beratungsgespräch"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="duration">Dauer (Minuten)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="15"
+                    max="480"
+                    value={formData.duration}
+                    onChange={(e) => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="buffer">Vorlaufzeit (Minuten)</Label>
+                  <Input
+                    id="buffer"
+                    type="number"
+                    min="0"
+                    max="1440"
+                    value={formData.bookingBuffer}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bookingBuffer: parseInt(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="description">Beschreibung</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Kurze Beschreibung des Event-Types"
+                />
+              </div>
+              
+              <div className="space-y-4">
+                <Label>Verfügbarkeiten</Label>
+                {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map((day, index) => (
                   <div key={day} className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Switch defaultChecked={day !== 'saturday' && day !== 'sunday'} />
-                      <span className="text-sm font-medium w-20">{label}</span>
+                    <div className="flex items-center space-x-2">
+                      <Switch id={day} defaultChecked={index < 5} />
+                      <Label htmlFor={day}>{day}</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Input 
-                        type="time" 
-                        defaultValue="09:00"
-                        className="w-24"
-                      />
-                      <span className="text-sm text-muted-foreground">bis</span>
-                      <Input 
-                        type="time" 
-                        defaultValue="17:00"
-                        className="w-24"
-                      />
+                      <Input type="time" defaultValue="09:00" className="w-20" />
+                      <span>bis</span>
+                      <Input type="time" defaultValue="17:00" className="w-20" />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
             
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleClose}>
-                Abbrechen
-              </Button>
-              <Button onClick={handleSave}>
-                {isEdit ? 'Änderungen speichern' : 'Event-Type erstellen'}
-              </Button>
+            <div className={`flex justify-end ${spacingStyles.buttonSpacing}`}>
+              <button className={buttonStyles.secondary.default} onClick={handleClose}>
+                <span>Abbrechen</span>
+              </button>
+              <button className={buttonStyles.create.default} onClick={handleSave}>
+                <span>{isEdit ? 'Änderungen speichern' : 'Event-Type erstellen'}</span>
+              </button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  };
-
-  // Calendar Overview (Default View)
-  if (!selectedCalendar) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">Kalender-Management</h2>
-            <p className="text-muted-foreground">
-              Verwalten Sie Ihre verbundenen Kalender und Event-Types
-            </p>
-          </div>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Google Calendar verbinden
-          </Button>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {connectedCalendars.map((calendar) => (
-            <CalendarOverviewCard key={calendar.id} calendar={calendar} />
-          ))}
-        </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
-  // Event Types View for Selected Calendar
-  const eventTypes = eventTypesByCalendar[selectedCalendar as keyof typeof eventTypesByCalendar] || [];
-  
+  // Main Calendar Overview
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => setSelectedCalendar(null)}
-          className="flex items-center space-x-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Zurück zu Kalendern</span>
-        </Button>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">{selectedCalendarData?.name}</h2>
-            <p className="text-muted-foreground">
-              Event-Types für diesen Kalender verwalten
-            </p>
-          </div>
-          
-          <Button onClick={() => setIsCreateEventDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Event-Type erstellen
-          </Button>
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header - PIXEL-PERFECT EINHEITLICH */}
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>Kalender & Event-Types</h1>
+          <p className={textStyles.pageSubtitle}>Verwalte deine Kalender-Integrationen und Event-Types</p>
         </div>
+        
+        <button className={buttonStyles.create.default}>
+          <Plus className={iconSizes.small} />
+          <span>Kalender verbinden</span>
+        </button>
       </div>
 
-      {eventTypes.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          {eventTypes.map((eventType) => (
-            <EventTypeCard key={eventType.id} eventType={eventType} />
-          ))}
-        </div>
-      ) : (
-        <Card className="p-8 text-center">
-          <div className="space-y-4">
-            <Clock className="h-12 w-12 text-muted-foreground mx-auto" />
-            <div>
-              <h3 className="text-lg font-semibold">Noch keine Event-Types</h3>
-              <p className="text-muted-foreground">
-                Erstellen Sie Ihren ersten Event-Type für {selectedCalendarData?.name}
-              </p>
-            </div>
-            <Button onClick={() => setIsCreateEventDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Event-Type erstellen
-            </Button>
-          </div>
-        </Card>
-             )}
-       
-       <EventTypeDialog isEdit={false} />
-       <EventTypeDialog isEdit={true} />
-     </div>
-   );
+      {/* Calendars Grid */}
+      <div className={layoutStyles.cardGrid}>
+        {connectedCalendars.map((calendar) => (
+          <CalendarOverviewCard key={calendar.id} calendar={calendar} />
+        ))}
+      </div>
+    </div>
+  );
  }

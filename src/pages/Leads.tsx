@@ -1,396 +1,375 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Search, Plus, User, Building, Phone, Mail, MessageSquare, Check, X, Clock } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Search, Filter, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { format, isToday, isThisWeek, getDay } from "date-fns";
 import { de } from "date-fns/locale";
 
-// Follow-up Datum intelligent formatieren (wie im Dashboard)
-const formatFollowUpDate = (dateString: string) => {
-  const followUpDate = new Date(dateString);
-  
-  if (isToday(followUpDate)) {
-    // Heute: nur Uhrzeit
-    return format(followUpDate, 'HH:mm');
-  } else if (isThisWeek(followUpDate)) {
-    // Diese Woche: Wochentag + Uhrzeit
-    const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
-    return `${weekdays[getDay(followUpDate)]} ${format(followUpDate, 'HH:mm')}`;
-  } else {
-    // Weiter weg: Datum ohne Jahr + Uhrzeit
-    return format(followUpDate, 'dd.MM HH:mm');
-  }
-};
-
-const allLeads = [
+// Mock Leads Data
+const mockLeads = [
   {
     id: "1",
-    name: "Max Mustermann",
-    email: "max.mustermann@email.com", 
+    firstName: "Max",
+    lastName: "Mustermann",
+    email: "max.mustermann@email.com",
     phone: "+49 151 12345678",
-    source: "Facebook Lead Ads",
-    status: "Termin gebucht",
-    time: "vor 2 Min",
-    company: "Tech Solutions GmbH",
-    notes: "Interessiert an Premium Paket",
-    followUpDate: "2024-01-16T14:00:00",
-    calls: [
-      { id: "1", date: "2024-01-15T14:30:00", duration: "8 Min", status: "Termin gebucht", agent: "Sarah" },
-      { id: "2", date: "2024-01-14T10:15:00", duration: "12 Min", status: "Erreicht", agent: "Sarah" }
-    ],
-    totalCalls: 2,
-    totalMinutes: 20,
-    lastCall: "15.01.2024 14:30"
+    company: "Mustermann GmbH",
+    position: "Geschäftsführer",
+    source: "Meta Lead Ads",
+    status: "Neu",
+    priority: "Hoch",
+    lastContact: new Date("2024-01-15"),
+    nextFollowUp: new Date("2024-01-17"),
+    notes: "Interessiert an Premium-Paket",
+    assignedAgent: "Sarah",
+    tags: ["Premium", "Entscheider"],
+    leadScore: 85,
+    createdAt: new Date("2024-01-15"),
   },
   {
     id: "2",
-    name: "Anna Schmidt", 
-    email: "anna.schmidt@email.com",
-    phone: "+49 171 98765432",
-    source: "Google Lead Forms",
-    status: "Nicht erreicht",
-    time: "vor 8 Min", 
-    company: "Marketing Pro",
-    notes: "Callback um 15:00 vereinbart",
-    followUpDate: "2024-01-15T15:00:00",
-    calls: [
-      { id: "1", date: "2024-01-15T11:20:00", duration: "0 Min", status: "Nicht erreicht", agent: "Marcus" }
-    ],
-    totalCalls: 1,
-    totalMinutes: 0,
-    lastCall: "15.01.2024 11:20"
+    firstName: "Anna",
+    lastName: "Schmidt",
+    email: "anna.schmidt@example.com",
+    phone: "+49 170 98765432",
+    company: "Schmidt & Partner",
+    position: "Marketing Leiterin",
+    source: "Website",
+    status: "Kontaktiert",
+    priority: "Mittel",
+    lastContact: new Date("2024-01-14"),
+    nextFollowUp: new Date("2024-01-18"),
+    notes: "Benötigt weitere Informationen",
+    assignedAgent: "Marcus",
+    tags: ["Marketing"],
+    leadScore: 72,
+    createdAt: new Date("2024-01-14"),
   },
   {
     id: "3",
-    name: "Thomas Weber",
-    email: "thomas.weber@email.com",
-    phone: "+49 162 55566677", 
-    source: "Website Webhook",
-    status: "Termin gebucht",
-    time: "vor 15 Min",
-    company: "Digital Agency",
-    notes: "Bereit für Demo-Termin",
-    followUpDate: "2024-01-17T10:00:00",
-    calls: [
-      { id: "1", date: "2024-01-15T09:45:00", duration: "15 Min", status: "Termin gebucht", agent: "Lisa" }
-    ],
-    totalCalls: 1,
-    totalMinutes: 15,
-    lastCall: "15.01.2024 09:45"
-  },
-  {
-    id: "4",
-    name: "Julia Müller",
-    email: "julia.mueller@email.com",
-    phone: "+49 175 33344455",
-    source: "LinkedIn Lead Gen",
-    status: "Kein Interesse",
-    time: "vor 22 Min",
-    company: "Consulting Firm",
-    notes: "B2B Interesse",
-    calls: [
-      { id: "1", date: "2024-01-15T08:30:00", duration: "3 Min", status: "Kein Interesse", agent: "Sarah" }
-    ],
-    totalCalls: 1,
-    totalMinutes: 3,
-    lastCall: "15.01.2024 08:30"
-  },
-  {
-    id: "5",
-    name: "Robert Klein",
-    email: "robert.klein@email.com",
-    phone: "+49 152 77788899",
-    source: "Facebook Lead Ads",
-    status: "Nicht erreicht",
-    time: "vor 35 Min",
-    company: "Software Development",
-    notes: "Möchte Preise vergleichen",
-    calls: [
-      { id: "1", date: "2024-01-15T07:15:00", duration: "0 Min", status: "Nicht erreicht", agent: "Marcus" },
-      { id: "2", date: "2024-01-14T16:45:00", duration: "0 Min", status: "Nicht erreicht", agent: "Marcus" }
-    ],
-    totalCalls: 2,
-    totalMinutes: 0,
-    lastCall: "15.01.2024 07:15"
-  },
-  {
-    id: "6",
-    name: "Sarah Wagner",
-    email: "sarah.wagner@email.com",
-    phone: "+49 160 11223344",
-    source: "Google Lead Forms",
-    status: "Nicht erreicht",
-    time: "vor 1 Std",
-    company: "E-Commerce Store",
-    notes: "3 Anrufversuche",
-    calls: [
-      { id: "1", date: "2024-01-15T06:00:00", duration: "0 Min", status: "Nicht erreicht", agent: "Lisa" }
-    ],
-    totalCalls: 1,
-    totalMinutes: 0,
-    lastCall: "15.01.2024 06:00"
-    // Kein followUpDate = "Follow-Up nicht geplant"
+    firstName: "Thomas",
+    lastName: "Weber",
+    email: "thomas.weber@firma.de",
+    phone: "+49 160 55566677",
+    company: "Weber Consulting",
+    position: "Berater",
+    source: "LinkedIn",
+    status: "Qualifiziert",
+    priority: "Hoch",
+    lastContact: new Date("2024-01-16"),
+    nextFollowUp: new Date("2024-01-19"),
+    notes: "Termin vereinbart",
+    assignedAgent: "Lisa",
+    tags: ["Consulting", "B2B"],
+    leadScore: 91,
+    createdAt: new Date("2024-01-13"),
   }
 ];
 
-// Funktion für Status Badge Styling (von AgentAnalytics übernommen)
-const getStatusBadge = (status: string) => {
-  if (status === "Termin gebucht") {
-    return (
-      <Badge variant="outline" className="bg-green-50 border-green-600 text-green-700 hover:bg-green-100">
-        <Check className="h-3 w-3 mr-1" />
-        {status}
-      </Badge>
-    );
-  } else if (status === "Kein Interesse") {
-    return (
-      <Badge variant="outline" className="bg-red-50 border-red-600 text-red-700 hover:bg-red-100">
-        <X className="h-3 w-3 mr-1" />
-        {status}
-      </Badge>
-    );
-  } else if (status === "Nicht erreicht") {
-    return (
-      <Badge variant="outline" className="bg-yellow-50 border-yellow-600 text-yellow-700 hover:bg-yellow-100">
-        <Phone className="h-3 w-3 mr-1" />
-        {status}
-      </Badge>
-    );
-  } else {
-    return (
-      <Badge variant="outline" className="bg-blue-50 border-blue-600 text-blue-700 hover:bg-blue-100">
-        <Clock className="h-3 w-3 mr-1" />
-        {status}
-      </Badge>
-    );
-  }
-};
-
 export default function Leads() {
+  const [leads, setLeads] = useState(mockLeads);
+  const [selectedLead, setSelectedLead] = useState<typeof mockLeads[0] | null>(null);
+  const [filters, setFilters] = useState({
+    status: "alle",
+    source: "alle",
+    agent: "alle"
+  });
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("alle");
-  const [selectedLead, setSelectedLead] = useState<string | null>(null);
 
-  const filteredLeads = allLeads.filter(lead => {
-    const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         lead.company.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "alle" || lead.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
+  const statusColors = {
+    "Neu": "bg-blue-100 text-blue-800",
+    "Kontaktiert": "bg-yellow-100 text-yellow-800", 
+    "Qualifiziert": "bg-green-100 text-green-800",
+    "Termin": "bg-purple-100 text-purple-800",
+    "Abgeschlossen": "bg-gray-100 text-gray-800",
+    "Verloren": "bg-red-100 text-red-800"
+  };
+
+
+
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = searchTerm === "" || 
+      lead.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.company.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = filters.status === "alle" || lead.status === filters.status;
+    const matchesSource = filters.source === "alle" || lead.source === filters.source;
+    const matchesAgent = filters.agent === "alle" || lead.assignedAgent === filters.agent;
+
+    return matchesSearch && matchesStatus && matchesSource && matchesAgent;
   });
 
-  const selectedLeadData = selectedLead ? allLeads.find(lead => lead.name === selectedLead) : null;
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Leads</h2>
-        
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Lead importieren
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Leads durchsuchen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header - PIXEL-PERFECT EINHEITLICH */}
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>Leads</h1>
+          <p className={textStyles.pageSubtitle}>Verwalte und verfolge deine potenziellen Kunden</p>
         </div>
         
-        <select 
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="flex h-10 w-[180px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="alle">Alle Status</option>
-          <option value="termin gebucht">Termin gebucht</option>
-          <option value="nicht erreicht">Nicht erreicht</option>
-          <option value="kein interesse">Kein Interesse</option>
-        </select>
+        <button className={buttonStyles.create.default}>
+          <Plus className={iconSizes.small} />
+          <span>Lead importieren</span>
+        </button>
       </div>
 
-      {/* Leads als Cards (Design von AgentAnalytics übernommen) */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium">Alle Leads</h2>
-          <p className="text-sm text-muted-foreground">{filteredLeads.length} Leads gefunden</p>
-        </div>
-        
-        {filteredLeads.length > 0 ? (
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
-            {filteredLeads.map((lead) => (
-              <Card
-                key={lead.id}
-                className="hover:shadow-md transition-shadow min-h-[80px] cursor-pointer"
-                onClick={() => setSelectedLead(lead.name)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-muted rounded-lg">
-                        <User className="h-4 w-4" />
-                      </div>
+      {/* Filter Section */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Leads durchsuchen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            
+            {/* Filters */}
+            <div className="flex gap-3">
+              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({...prev, status: value}))}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Status</SelectItem>
+                  <SelectItem value="Neu">Neu</SelectItem>
+                  <SelectItem value="Kontaktiert">Kontaktiert</SelectItem>
+                  <SelectItem value="Qualifiziert">Qualifiziert</SelectItem>
+                  <SelectItem value="Termin">Termin</SelectItem>
+                  <SelectItem value="Abgeschlossen">Abgeschlossen</SelectItem>
+                  <SelectItem value="Verloren">Verloren</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filters.source} onValueChange={(value) => setFilters(prev => ({...prev, source: value}))}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Quelle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Quellen</SelectItem>
+                  <SelectItem value="Meta Lead Ads">Meta Lead Ads</SelectItem>
+                  <SelectItem value="Website">Website</SelectItem>
+                  <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                  <SelectItem value="Google Ads">Google Ads</SelectItem>
+                </SelectContent>
+              </Select>
+
+
+
+              <Select value={filters.agent} onValueChange={(value) => setFilters(prev => ({...prev, agent: value}))}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Agenten</SelectItem>
+                  <SelectItem value="Sarah">Sarah</SelectItem>
+                  <SelectItem value="Marcus">Marcus</SelectItem>
+                  <SelectItem value="Lisa">Lisa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Leads Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className={textStyles.sectionTitle}>
+            {filteredLeads.length} Lead{filteredLeads.length !== 1 ? 's' : ''} gefunden
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3 font-medium text-gray-500">Lead</th>
+                  <th className="text-left p-3 font-medium text-gray-500">Unternehmen</th>
+                  <th className="text-left p-3 font-medium text-gray-500">Quelle</th>
+                  <th className="text-left p-3 font-medium text-gray-500">Status</th>
+                                     <th className="text-left p-3 font-medium text-gray-500">Agent</th>
+                  <th className="text-right p-3 font-medium text-gray-500">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.map((lead) => (
+                  <tr key={lead.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3">
                       <div>
-                        <p className="font-medium">{lead.name}</p>
-                        <p className="text-sm text-muted-foreground">{lead.source} • {lead.phone}</p>
+                        <div className="font-medium text-gray-900">
+                          {lead.firstName} {lead.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500">{lead.email}</div>
+                        <div className="text-sm text-gray-500">{lead.phone}</div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-muted-foreground">
-                        {lead.time}
+                    </td>
+                    <td className="p-3">
+                      <div className="font-medium text-gray-900">{lead.company}</div>
+                      <div className="text-sm text-gray-500">{lead.position}</div>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="outline">{lead.source}</Badge>
+                    </td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[lead.status as keyof typeof statusColors]}`}>
+                        {lead.status}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="secondary">{lead.assignedAgent}</Badge>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className={`flex items-center justify-end ${spacingStyles.buttonSpacing}`}>
+                        <button
+                          className={buttonStyles.cardAction.icon}
+                          onClick={() => {/* Handle call */}}
+                          title="Anrufen"
+                        >
+                          <Phone className={iconSizes.small} />
+                        </button>
+                        <button
+                          className={buttonStyles.cardAction.icon}
+                          onClick={() => setSelectedLead(lead)}
+                          title="Details anzeigen"
+                        >
+                          <Info className={iconSizes.small} />
+                        </button>
+                        <button
+                          className={buttonStyles.cardAction.iconDelete}
+                          onClick={() => {/* Handle delete */}}
+                          title="Lead löschen"
+                        >
+                          <Trash2 className={iconSizes.small} />
+                        </button>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {lead.totalCalls > 1 ? `${lead.totalCalls} Anrufe` : `${lead.totalCalls} Anruf`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lead Detail Sheet */}
+      <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+        <SheetContent side="right" className="w-[35vw] min-w-[500px] max-w-[40vw] focus:outline-none">
+          {selectedLead && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{selectedLead.firstName} {selectedLead.lastName}</SheetTitle>
+                <p className="text-muted-foreground">{selectedLead.position} bei {selectedLead.company}</p>
+              </SheetHeader>
+
+              <ScrollArea className="h-full pr-6">
+                <div className="space-y-6 pb-6">
+                  {/* Kontaktinformationen */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium mb-3">
+                      Kontaktinformationen
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{selectedLead.company}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {getStatusBadge(lead.status)}
-                        
-                        {/* Follow-up Badge wie im Dashboard */}
-                        {((lead as any).followUpDate || lead.status === 'Nicht erreicht') && (
-                          <Badge className={`text-xs flex items-center space-x-1 ${
-                            (lead as any).followUpDate 
-                              ? 'bg-orange-50 border-orange-500 text-orange-700 hover:bg-orange-100'
-                              : 'bg-gray-50 border-gray-400 text-gray-600 hover:bg-gray-100'
-                          }`}>
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {(lead as any).followUpDate 
-                                ? `Follow-Up: ${formatFollowUpDate((lead as any).followUpDate)}`
-                                : 'Follow-Up nicht geplant'
-                              }
-                            </span>
-                          </Badge>
-                        )}
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{selectedLead.phone}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{selectedLead.email}</span>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            Keine Leads gefunden. Probiere andere Suchbegriffe oder Filter.
-          </div>
-        )}
-      </div>
 
-      {/* Lead Details Sheet (von AgentAnalytics übernommen) */}
-      <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-        <SheetContent className="w-[35vw] min-w-[500px] max-w-[40vw] focus:outline-none">
-          <SheetHeader>
-            <SheetTitle className="text-left text-lg font-semibold">Lead Details: {selectedLead}</SheetTitle>
-          </SheetHeader>
-          
-          <ScrollArea className="h-[calc(100vh-100px)] mt-6">
-            {selectedLeadData && (
-              <div className="space-y-6">
-                {/* Kontaktinformationen */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Kontaktinformationen</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Building className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLeadData.company}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLeadData.phone}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLeadData.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{selectedLeadData.source}</span>
-                    </div>
-                  </div>
-                </div>
+                  <Separator />
 
-                <Separator />
-
-                {/* Gesprächsstatistik */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Gesprächsstatistik</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="text-lg font-bold">{selectedLeadData.totalCalls}</div>
-                        <p className="text-xs text-muted-foreground">Anrufe gesamt</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="text-lg font-bold">{selectedLeadData.totalMinutes}</div>
-                        <p className="text-xs text-muted-foreground">Minuten gesamt</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="text-lg font-bold">{selectedLeadData.lastCall}</div>
-                        <p className="text-xs text-muted-foreground">Letzter Anruf</p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="p-3">
-                        <div className="text-lg font-bold">{selectedLeadData.status}</div>
-                        <p className="text-xs text-muted-foreground">Status</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Gesprächshistorie */}
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Gesprächshistorie</h3>
+                  {/* Lead-Status */}
                   <div className="space-y-3">
-                    {selectedLeadData.calls.map((call) => (
-                      <Card key={call.id}>
+                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                      Lead-Status
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Status */}
+                      <Card>
                         <CardContent className="p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <MessageSquare className="h-4 w-4" />
-                              <div>
-                                <p className="text-sm font-medium">Anruf von Agent {call.agent}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(call.date).toLocaleDateString('de-DE', {
-                                    day: '2-digit',
-                                    month: '2-digit', 
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <span className="text-sm text-muted-foreground">{call.duration}</span>
-                              {getStatusBadge(call.status)}
-                            </div>
+                          <div className="text-lg font-bold">
+                            {selectedLead.status}
                           </div>
+                          <p className="text-xs text-muted-foreground">Status</p>
                         </CardContent>
                       </Card>
-                    ))}
+                      
+                      {/* Quelle */}
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="text-lg font-bold">
+                            {selectedLead.source}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Quelle</p>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Agent */}
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="text-lg font-bold">
+                            {selectedLead.assignedAgent}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Zugewiesener Agent</p>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Erstellt */}
+                      <Card>
+                        <CardContent className="p-3">
+                          <div className="text-lg font-bold">
+                            {format(selectedLead.createdAt, 'dd.MM.yyyy', { locale: de })}
+                          </div>
+                          <p className="text-xs text-muted-foreground">Erstellt am</p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
+
+                  <Separator />
+
+                  {/* Notizen */}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium mb-3">
+                      Notizen
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        {selectedLead.notes}
+                      </p>
+                    </div>
+                  </div>
+
+
                 </div>
-              </div>
-            )}
-          </ScrollArea>
+              </ScrollArea>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </div>

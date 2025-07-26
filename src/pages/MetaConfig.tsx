@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Facebook, CheckCircle, Circle } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 // Mock Meta Account Data
 const metaAccount = {
@@ -69,37 +70,38 @@ export default function MetaConfig() {
   const selectedCount = forms.filter(form => form.selected).length;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button 
-            variant="outline" 
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header */}
+      <div className={layoutStyles.pageHeader}>
+        <div className="space-y-4">
+          <button 
+            className={buttonStyles.navigation.back}
             onClick={() => navigate("/lead-sources")}
-            className="flex items-center space-x-2"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className={iconSizes.small} />
             <span>Zurück zu Lead Quellen</span>
-          </Button>
+          </button>
+          <div>
+            <h1 className={textStyles.pageTitle}>Meta Lead Ads Konfiguration</h1>
+            <p className={textStyles.pageSubtitle}>Verbinde und konfiguriere deine Meta Lead Formulare</p>
+          </div>
         </div>
         
-        <Button className="flex items-center space-x-2">
+        <button className={buttonStyles.create.default}>
           <span>Änderungen speichern</span>
-        </Button>
+        </button>
       </div>
-
-      <h2 className="text-xl font-semibold">Meta Lead Ads Konfiguration</h2>
 
       {/* Meta Account Info */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-                             <div className="p-2 bg-primary/10 rounded-lg">
-                 <Facebook className="h-6 w-6 text-primary" />
+              <div className="p-2 bg-[#FFE1D7] rounded-lg">
+                <Facebook className={`${iconSizes.medium} text-[#FE5B25]`} />
               </div>
               <div>
-                <CardTitle className="text-lg">Verbundener Meta Account</CardTitle>
+                <CardTitle className={textStyles.sectionTitle}>Verbundener Meta Account</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   Account ID: {metaAccount.id}
                 </p>
@@ -129,86 +131,89 @@ export default function MetaConfig() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 pt-2 border-t">
-            <Button size="sm" variant="outline">
-              Account trennen
-            </Button>
-            <Button size="sm" variant="outline">
-              Account wechseln
-            </Button>
+          <div className={`flex items-center ${spacingStyles.buttonSpacing} pt-2 border-t`}>
+            <button className={buttonStyles.secondary.default}>
+              <span>Account trennen</span>
+            </button>
+            <button className={buttonStyles.secondary.default}>
+              <span>Account wechseln</span>
+            </button>
           </div>
         </CardContent>
       </Card>
 
       {/* Lead Formulare */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">
-            Verfügbare Lead Formulare ({forms.length})
-          </h3>
-          <div className="text-sm text-muted-foreground">
-            {selectedCount} von {forms.length} ausgewählt
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className={textStyles.sectionTitle}>
+              Verfügbare Lead Formulare
+            </CardTitle>
+            <div className="text-sm text-muted-foreground">
+              {selectedCount} von {forms.length} ausgewählt
+            </div>
           </div>
-        </div>
-
-        <div className="grid gap-4">
-          {forms.map((form) => (
-            <Card 
-              key={form.id} 
-                             className={`cursor-pointer transition-all ${
-                 form.selected 
-                   ? "border-primary bg-primary/10" 
-                   : "hover:border-gray-300"
-               }`}
-              onClick={() => toggleFormSelection(form.id)}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                                         {form.selected ? (
-                       <CheckCircle className="h-5 w-5 text-primary" />
-                     ) : (
-                       <Circle className="h-5 w-5 text-gray-400" />
-                     )}
-                    <div>
-                      <CardTitle className="text-base">{form.name}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {forms.map((form) => (
+              <Card 
+                key={form.id} 
+                className={`cursor-pointer transition-all ${
+                  form.selected 
+                    ? "border-[#FE5B25] border-2" 
+                    : "hover:border-gray-300"
+                }`}
+                onClick={() => toggleFormSelection(form.id)}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {form.selected ? (
+                        <CheckCircle className={`${iconSizes.small} text-[#FE5B25]`} />
+                      ) : (
+                        <Circle className={`${iconSizes.small} text-gray-400`} />
+                      )}
+                      <div>
+                        <CardTitle className={textStyles.cardTitle}>{form.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {form.pageName}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
                       <p className="text-sm text-muted-foreground">
-                        {form.pageName}
+                        Letzte Aktivität {form.lastActivity}
                       </p>
                     </div>
                   </div>
-                  
-                                     <div className="text-right">
-                     <p className="text-sm text-muted-foreground">
-                       Letzte Aktivität {form.lastActivity}
-                     </p>
-                   </div>
-                </div>
-                             </CardHeader>
-            </Card>
-          ))}
-        </div>
-      </div>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-             {/* Info Box */}
-       <Card className="border-primary bg-primary/10">
-         <CardContent className="pt-6">
-           <div className="flex items-start space-x-3">
-             <div className="p-1 bg-primary/20 rounded-full">
-               <CheckCircle className="h-4 w-4 text-primary" />
-             </div>
-             <div className="space-y-1">
-               <p className="text-sm font-medium text-primary">
-                 Lead Formulare in Agent Konfiguration verfügbar
-               </p>
-               <p className="text-sm text-primary/80">
-                 Die ausgewählten Formulare werden automatisch in der Agent Konfiguration 
-                 als Lead Quellen angezeigt und können dort den Agenten zugewiesen werden.
-               </p>
-             </div>
-           </div>
-         </CardContent>
-       </Card>
+      {/* Info Box */}
+      <Card className="border-[#FE5B25] bg-[#FEF5F1]">
+        <CardContent className="pt-6">
+          <div className="flex items-start space-x-3">
+            <div className="p-1 bg-[#FFE1D7] rounded-full">
+              <CheckCircle className={`${iconSizes.small} text-[#FE5B25]`} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[#FE5B25]">
+                Lead Formulare in Agent Konfiguration verfügbar
+              </p>
+              <p className="text-sm text-[#FE5B25]/80">
+                Die ausgewählten Formulare werden automatisch in der Agent Konfiguration 
+                als Lead Quellen angezeigt und können dort den Agenten zugewiesen werden.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

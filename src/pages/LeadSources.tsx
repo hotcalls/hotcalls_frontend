@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus, Facebook, Globe, Linkedin, Webhook, Settings, Trash2, Play, Pause } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 const leadSources = [
   {
@@ -77,36 +78,36 @@ export default function LeadSources() {
 
   const handleConfigure = (id: string, name: string) => {
     if (name === "Meta Lead Ads") {
-      // Navigate zu Meta Konfiguration mit Account + Formularen
       navigate(`/lead-sources/meta/config`);
     } else if (name === "Website Webhook") {
-      // Navigate zu Webhook Konfiguration 
       navigate(`/lead-sources/webhook/config`);
     }
   };
 
   const handleAddLeadSource = (type: string) => {
     if (type === "Meta") {
-      // Navigate zu Meta Setup
       navigate(`/lead-sources/meta/config`);
     } else if (type === "Webhook") {
-      // Navigate zu Webhook Setup
       navigate(`/lead-sources/webhook/config`);
     }
     setIsAddDialogOpen(false);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Lead Quellen</h2>
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header - EINHEITLICH */}
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>Lead Quellen</h1>
+          <p className={textStyles.pageSubtitle}>Verwalte deine Lead-Kanäle und Integrationen</p>
+        </div>
         
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Lead Quelle hinzufügen
-            </Button>
+            <button className={buttonStyles.create.default}>
+              <Plus className={iconSizes.small} />
+              <span>Lead Quelle hinzufügen</span>
+            </button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -120,10 +121,10 @@ export default function LeadSources() {
               {/* Meta */}
               <button
                 onClick={() => handleAddLeadSource("Meta")}
-                className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary/10 transition-all group"
+                className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
               >
-                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-primary/10">
-                  <Facebook className="h-6 w-6 text-blue-600 group-hover:text-primary" />
+                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-[#FFE1D7]">
+                  <Facebook className={`${iconSizes.large} text-blue-600 group-hover:text-[#FE5B25]`} />
                 </div>
                 <div className="flex-1 text-left">
                   <h3 className="font-medium">Meta Lead Ads</h3>
@@ -136,10 +137,10 @@ export default function LeadSources() {
               {/* Webhook */}
               <button
                 onClick={() => handleAddLeadSource("Webhook")}
-                className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-primary/10 transition-all group"
+                className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
               >
-                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-primary/10">
-                  <Webhook className="h-6 w-6 text-gray-600 group-hover:text-primary" />
+                <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#FFE1D7]">
+                  <Webhook className={`${iconSizes.large} text-gray-600 group-hover:text-[#FE5B25]`} />
                 </div>
                 <div className="flex-1 text-left">
                   <h3 className="font-medium">Website Webhook</h3>
@@ -152,7 +153,7 @@ export default function LeadSources() {
               {/* LinkedIn - Coming Soon */}
               <div className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg opacity-60 cursor-not-allowed">
                 <div className="p-2 bg-gray-100 rounded-lg">
-                  <Linkedin className="h-6 w-6 text-gray-400" />
+                  <Linkedin className={`${iconSizes.large} text-gray-400`} />
                 </div>
                 <div className="flex-1 text-left">
                   <h3 className="font-medium text-gray-500">LinkedIn Lead Gen</h3>
@@ -165,7 +166,7 @@ export default function LeadSources() {
               {/* Google Ads - Coming Soon */}
               <div className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg opacity-60 cursor-not-allowed">
                 <div className="p-2 bg-gray-100 rounded-lg">
-                  <Globe className="h-6 w-6 text-gray-400" />
+                  <Globe className={`${iconSizes.large} text-gray-400`} />
                 </div>
                 <div className="flex-1 text-left">
                   <h3 className="font-medium text-gray-500">Google Ads</h3>
@@ -179,60 +180,56 @@ export default function LeadSources() {
         </Dialog>
       </div>
 
-      {/* Lead Sources Grid (wie Agent Cards) */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Lead Sources Grid - EINHEITLICH */}
+      <div className={layoutStyles.cardGrid}>
         {sources.map((source) => (
           <Card key={source.id} className={source.available ? "" : "opacity-60"}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${source.available ? "bg-primary/10" : "bg-gray-100"}`}>
-                    <source.icon className={`h-6 w-6 ${source.available ? "text-primary" : "text-gray-400"}`} />
+                  <div className={`p-2 rounded-lg ${source.available ? "bg-[#FFE1D7]" : "bg-gray-100"}`}>
+                    <source.icon className={`${iconSizes.large} ${source.available ? "text-[#FE5B25]" : "text-gray-400"}`} />
                   </div>
                   <div>
-                    <CardTitle className={`text-lg ${source.available ? "" : "text-gray-500"}`}>
+                    <CardTitle className={`${textStyles.cardTitle} ${source.available ? "" : "text-gray-500"}`}>
                       {source.name}
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">{source.type}</p>
+                    <p className={textStyles.cardSubtitle}>{source.type}</p>
                   </div>
                 </div>
                 
-                {/* Buttons wie bei Agent Cards */}
-                <div className="flex items-center space-x-2">
+                {/* Buttons - EINHEITLICH */}
+                <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
                   {source.available ? (
                     <>
                       <button
-                        className={`px-3 py-2 rounded-lg border-2 flex items-center space-x-2 ${
-                          source.status === "Aktiv"
-                            ? "border-green-200 bg-green-50 text-green-600 hover:bg-green-100"
-                            : "border-yellow-200 bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
-                        }`}
+                        className={source.status === "Aktiv" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
                         onClick={() => toggleStatus(source.id)}
                       >
                         {source.status === "Aktiv" ? (
                           <>
-                            <Pause className="h-4 w-4" />
-                            <span className="text-sm font-medium">Aktiv</span>
+                            <Pause className={iconSizes.small} />
+                            <span>Aktiv</span>
                           </>
                         ) : (
                           <>
-                            <Play className="h-4 w-4" />
-                            <span className="text-sm font-medium">Pausiert</span>
+                            <Play className={iconSizes.small} />
+                            <span>Pausiert</span>
                           </>
                         )}
                       </button>
                       
                       <button 
-                        className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                        className={buttonStyles.cardAction.icon}
                         onClick={() => handleConfigure(source.id, source.name)}
                       >
-                        <Settings className="h-4 w-4" />
+                        <Settings className={iconSizes.small} />
                       </button>
                       
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <button className="p-2 rounded-lg border-2 border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
-                            <Trash2 className="h-4 w-4" />
+                          <button className={buttonStyles.cardAction.iconDelete}>
+                            <Trash2 className={iconSizes.small} />
                           </button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -244,10 +241,10 @@ export default function LeadSources() {
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                            <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
                             <AlertDialogAction 
                               onClick={() => deleteSource(source.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white"
+                              className={buttonStyles.dialog.destructive}
                             >
                               Verbindung trennen
                             </AlertDialogAction>
@@ -264,30 +261,30 @@ export default function LeadSources() {
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
-              {/* 4 Metriken in einer Zeile (wie Agent Cards) */}
+            <CardContent className={layoutStyles.cardContent}>
+              {/* 4 Metriken in einer Zeile - EINHEITLICH */}
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground text-xs">Gesamte Leads</p>
-                  <p className={`font-semibold text-lg ${source.available ? "" : "text-gray-400"}`}>
+                  <p className={textStyles.metricLabel}>Gesamte Leads</p>
+                  <p className={`${textStyles.metric} ${source.available ? "" : "text-gray-400"}`}>
                     {source.gesamteLeads}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Erreichte Leads</p>
-                  <p className={`font-semibold text-lg ${source.available ? "" : "text-gray-400"}`}>
+                  <p className={textStyles.metricLabel}>Erreichte Leads</p>
+                  <p className={`${textStyles.metric} ${source.available ? "" : "text-gray-400"}`}>
                     {source.erreichteLeads}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Gebuchte Termine</p>
-                  <p className={`font-semibold text-lg ${source.available ? "" : "text-gray-400"}`}>
+                  <p className={textStyles.metricLabel}>Gebuchte Termine</p>
+                  <p className={`${textStyles.metric} ${source.available ? "" : "text-gray-400"}`}>
                     {source.gebuchteTermine}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Conversion Rate</p>
-                  <p className={`font-semibold text-lg ${source.available ? "" : "text-gray-400"}`}>
+                  <p className={textStyles.metricLabel}>Conversion Rate</p>
+                  <p className={`${textStyles.metric} ${source.available ? "" : "text-gray-400"}`}>
                     {source.conversionRate}%
                   </p>
                 </div>

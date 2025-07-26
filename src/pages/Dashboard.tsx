@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Users, Phone, Calendar as CalendarIcon, TrendingUp, ChevronLeft, ChevronRight, Info, Clock, MessageSquare, Check, X, PhoneMissed } from "lucide-react";
+import { Users, Phone, Calendar as CalendarIcon, TrendingUp, ChevronLeft, ChevronRight, Info, Clock, MessageSquare, Check, X, PhoneMissed, TrendingDown, PhoneCall, CheckCircle, XCircle, AlertCircle, BarChart } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval, isToday, isThisWeek, getDay } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -366,9 +367,12 @@ export default function Dashboard() {
 
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Dashboard</h2>
+    <div className={layoutStyles.pageContainer}>
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>Dashboard</h1>
+          <p className={textStyles.pageSubtitle}>Übersicht über deine KI-Agenten Performance</p>
+        </div>
       </div>
 
       {/* Stats Cards - Klickbar */}
@@ -378,7 +382,7 @@ export default function Dashboard() {
             key={stat.title}
             className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
               selectedMetric === stat.id 
-                ? 'ring-2 ring-primary bg-primary/5' 
+                ? 'bg-[#FEF5F1]' 
                 : 'hover:shadow-md'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
@@ -516,14 +520,12 @@ export default function Dashboard() {
                           </div>
                         </div>
                         
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 flex-shrink-0"
+                        <button
+                          className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
                           onClick={() => setSelectedLead(appointment.lead)}
                         >
-                          <Info className="h-4 w-4" />
-                        </Button>
+                          <Info className={iconSizes.small} />
+                        </button>
                       </div>
                     </CardContent>
                   </Card>
@@ -531,9 +533,9 @@ export default function Dashboard() {
                 
                 {filteredAppointments.length > 10 && (
                   <div className="text-center py-3">
-                    <Button variant="outline" size="sm">
-                      Alle {filteredAppointments.length} Termine anzeigen
-                    </Button>
+                    <button className={buttonStyles.primary.default}>
+                      <span>Alle {filteredAppointments.length} Termine anzeigen</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -591,7 +593,7 @@ export default function Dashboard() {
                               {(call.followUpDate || call.status === 'Nicht erreicht') && (
                                 <Badge className={`text-xs flex items-center space-x-1 ${
                                   call.followUpDate 
-                                    ? 'bg-orange-50 border-orange-500 text-orange-700 hover:bg-orange-100'
+                                    ? 'bg-[#FEF5F1] border-gray-300 text-[#FE5B25] hover:bg-[#FEF5F1]'
                                     : 'bg-gray-50 border-gray-400 text-gray-600 hover:bg-gray-100'
                                 }`}>
                                   <Clock className="h-3 w-3" />
@@ -618,14 +620,12 @@ export default function Dashboard() {
                             </p>
                           </div>
                           
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 flex-shrink-0"
+                          <button
+                            className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
                             onClick={() => setSelectedLead(call.lead)}
                           >
-                            <Info className="h-4 w-4" />
-                          </Button>
+                            <Info className={iconSizes.small} />
+                          </button>
                         </div>
                       </div>
 
@@ -635,9 +635,9 @@ export default function Dashboard() {
                 
                 {filteredCalls.length > 10 && (
                   <div className="text-center py-3">
-                    <Button variant="outline" size="sm">
-                      Alle {filteredCalls.length} Anrufe anzeigen
-                    </Button>
+                    <button className={buttonStyles.primary.default}>
+                      <span>Alle {filteredCalls.length} Anrufe anzeigen</span>
+                    </button>
                   </div>
                 )}
               </div>

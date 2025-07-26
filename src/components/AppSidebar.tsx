@@ -1,227 +1,143 @@
-import { 
-  BarChart3, 
-  Bot, 
-  Users, 
-  Calendar, 
-  Settings,
-  Phone,
-  User,
-  LogOut,
-  Webhook,
-  Clock,
-  CreditCard,
-  Eye
-} from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, Phone, FileText, Webhook } from "lucide-react";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { useLocation } from "react-router-dom";
+import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Agenten", url: "/agents", icon: Bot },
-  { title: "Leads", url: "/leads", icon: Users },
+  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Agenten", url: "/agents", icon: Users },
+  { title: "Leads", url: "/leads", icon: FileText },
   { title: "Kalender", url: "/calendar", icon: Calendar },
   { title: "Lead Quellen", url: "/lead-sources", icon: Webhook },
+  { title: "Einstellungen", url: "/settings", icon: Settings },
 ];
 
-// Mock data for current user plan - change this to test different scenarios
 const currentPlan = {
-  type: "Free Trial", // "Free Trial" | "Basic" | "Pro" | "Enterprise"
-  usedMinutes: 65,
-  totalMinutes: 100,
-  daysLeft: 12, // only for Free Trial
-  usagePercentage: 65
-};
-
-// Alternative scenarios to test:
-/*
-// Free Trial - almost expired
-const currentPlan = {
-  type: "Free Trial",
-  usedMinutes: 85,
-  totalMinutes: 100,
-  daysLeft: 3,
-  usagePercentage: 85
-};
-
-// Basic Plan - needs upgrade
-const currentPlan = {
-  type: "Basic",
-  usedMinutes: 750,
+  name: "Pro",
+  usedMinutes: 247,
   totalMinutes: 1000,
-  daysLeft: null,
-  usagePercentage: 75
+  needsUpgrade: false
 };
 
-// Pro Plan - good usage
-const currentPlan = {
-  type: "Pro",
-  usedMinutes: 1200,
-  totalMinutes: 5000,
-  daysLeft: null,
-  usagePercentage: 24
+const PlanSection = () => {
+  const progressPercentage = (currentPlan.usedMinutes / currentPlan.totalMinutes) * 100;
+  const needsUpgrade = progressPercentage > 80; // Show upgrade button if > 80% used
+
+  return (
+    <div className="px-2 py-3">
+      <div className="bg-white rounded-lg border p-4 space-y-3">
+        <div>
+          <div className="text-sm font-medium text-gray-900">{currentPlan.name} Plan</div>
+          <div className="text-xs text-gray-500">
+            {currentPlan.usedMinutes} / {currentPlan.totalMinutes} Minuten
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div 
+              className="bg-[#FE5B25] h-1.5 rounded-full transition-all" 
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+        
+        {needsUpgrade ? (
+          <button 
+            className={buttonStyles.highlight.button}
+            onClick={() => window.location.href = '/settings?tab=billing'}
+          >
+            <CreditCard className={iconSizes.small} />
+            <span>Guthaben auffüllen</span>
+          </button>
+        ) : (
+          <button 
+            className={buttonStyles.secondary.fullWidth}
+            onClick={() => window.location.href = '/settings?tab=billing'}
+          >
+            <Eye className={iconSizes.small} />
+            <span>Plan ansehen</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
 };
-*/
 
 export function AppSidebar() {
   const location = useLocation();
-  const currentPath = location.pathname;
 
-  const isActive = (path: string) => {
-    if (path === "/") return currentPath === "/";
-    return currentPath.startsWith(path);
-  };
-
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? "bg-primary text-primary-foreground font-medium" 
-      : "text-foreground hover:bg-accent hover:text-accent-foreground";
-
-  const PlanSection = () => {
-    const { type, usedMinutes, totalMinutes, daysLeft, usagePercentage } = currentPlan;
-    const needsUpgrade = usagePercentage >= 60;
-
-    return (
-      <div className="p-4">
-        <div className="bg-white rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-900">Plan: {type}</span>
-            {type === "Free Trial" && (
-              <div className="flex items-center space-x-1 text-gray-500">
-                <Clock className="h-3 w-3" />
-                <span className="text-xs">{daysLeft} Tage</span>
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Verbrauchte Minuten</span>
-              <span className="font-medium text-gray-900">{usedMinutes} / {totalMinutes}</span>
-            </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="h-2 rounded-full bg-gray-400 transition-all"
-                style={{ width: `${Math.min(usagePercentage, 100)}%` }}
-              />
-            </div>
-            
-            <div className="text-xs text-gray-500">
-              {usagePercentage}% verbraucht
-            </div>
-          </div>
-          
-          {needsUpgrade ? (
-            <button 
-              className="w-full px-3 py-2 rounded-md border border-orange-500 bg-orange-50 text-orange-600 text-sm font-medium hover:bg-orange-100 transition-colors flex items-center justify-center"
-              onClick={() => window.location.href = '/settings?tab=billing'}
-            >
-              <CreditCard className="h-4 w-4 mr-2" />
-              Guthaben auffüllen
-            </button>
-          ) : (
-            <button 
-              className="w-full px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-              onClick={() => window.location.href = '/settings?tab=billing'}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Plan ansehen
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  const isActive = (url: string) => {
+    if (url === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(url);
   };
 
   return (
-    <Sidebar className="w-64 border-r border-border bg-card">
-      <SidebarContent className="flex flex-col h-full">
-        {/* Logo & Workspace */}
-        <div className="p-6 border-b border-border bg-card">
-          <div className="flex items-center gap-2 mb-4">
-            <Phone className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold text-foreground">hotcalls</span>
+    <Sidebar className="border-r">
+      <SidebarHeader>
+        {/* hotcalls.ai Logo */}
+        <div className="px-2 py-3">
+          <div className="flex items-center gap-2">
+            <Phone className={`${iconSizes.large} text-[#FE5B25]`} />
+            <span className="text-xl font-bold text-gray-900">hotcalls.ai</span>
           </div>
-          <WorkspaceSelector />
         </div>
+        
+        <WorkspaceSelector />
+      </SidebarHeader>
+      
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => {
+                const active = isActive(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <a 
+                        href={item.url}
+                        className={`
+                          flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors
+                          ${active 
+                            ? "bg-[#FFE1D7] text-[#FE5B25]" 
+                            : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                          }
+                        `}
+                      >
+                        <item.icon className={`${iconSizes.small} ${active ? "text-[#FE5B25]" : "text-gray-500"}`} />
+                        <span>{item.title}</span>
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-        {/* Navigation */}
-        <div className="flex-1">
-          <SidebarGroup className="px-3 py-2">
-            <SidebarGroupLabel className="text-muted-foreground">Navigation</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {items.map((item) => {
-                  const active = isActive(item.url);
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink 
-                          to={item.url} 
-                          end={item.url === "/"} 
-                          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                            active 
-                              ? "bg-primary/10 text-primary" 
-                              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
-                          }`}
-                        >
-                          <item.icon className="mr-3 h-4 w-4" />
-                          <span>{item.title}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </div>
-
-        {/* Plan Section */}
+      <SidebarFooter>
+        {/* Plan Section - über dem Account */}
         <PlanSection />
-
+        
         {/* Account Section */}
-        <div className="border-t border-border p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
+        <div className="p-2">
+          <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
+            <div className="flex-shrink-0 w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-medium">MW</span>
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">John Doe</p>
-              <p className="text-xs text-muted-foreground truncate">john.doe@company.com</p>
+              <div className="text-sm font-medium text-gray-900 truncate">Marcus Weber</div>
+              <div className="text-xs text-gray-500 truncate">marcus@company.com</div>
             </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex-1"
-              onClick={() => window.location.href = '/settings'}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Einstellungen
-            </Button>
-            <Button variant="outline" size="sm">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
-      </SidebarContent>
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -14,6 +14,7 @@ import WebhookConfig from "./pages/WebhookConfig";
 import Leads from "./pages/Leads";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
+import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/leads" element={<Leads />} />
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/plans" element={<Plans />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

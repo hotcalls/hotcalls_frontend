@@ -1,151 +1,187 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Bot, Settings, Play, Pause, BarChart } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 const agents = [
   {
     id: "1",
     name: "Sarah",
-    gender: "weiblich",
-    voice: "Freundlich",
+    personality: "Freundlich & Professionell",
+    gender: "Weiblich",
+    voice: "sarah",
     status: "Aktiv",
-    kontaktierteLeads: 47,
-    gesetzteTermine: 12,
-    conversionRate: "22.4%",
-    telefonierteminuten: 342,
-    leadSource: "Facebook Ads",
-    calendar: "Marcus Weber",
+    kontaktierteLeads: 142,
+    gesetzteTermine: 28,
+    conversionRate: "19.7%",
+    telefonierteminuten: 340,
+    leadSource: "Meta Lead Ads",
+    calendar: "Google Calendar"
   },
   {
     id: "2", 
     name: "Marcus",
-    gender: "männlich", 
-    voice: "Professionell",
-    status: "Aktiv",
-    kontaktierteLeads: 32,
-    gesetzteTermine: 8,
-    conversionRate: "18.7%",
-    telefonierteminuten: 267,
-    leadSource: "Google Ads",
-    calendar: "Lisa Müller",
+    personality: "Direkt & Zielstrebig",
+    gender: "Männlich", 
+    voice: "marcus",
+    status: "Pausiert",
+    kontaktierteLeads: 89,
+    gesetzteTermine: 12,
+    conversionRate: "13.5%",
+    telefonierteminuten: 210,
+    leadSource: "Website",
+    calendar: "Outlook"
   },
   {
     id: "3",
-    name: "Lisa",
-    gender: "weiblich",
-    voice: "Energisch", 
-    status: "Pausiert",
-    kontaktierteLeads: 0,
-    gesetzteTermine: 0,
-    conversionRate: "15.2%",
-    telefonierteminuten: 0,
+    name: "Lisa", 
+    personality: "Empathisch & Hilfsbereit",
+    gender: "Weiblich",
+    voice: "lisa",
+    status: "Aktiv",
+    kontaktierteLeads: 95,
+    gesetzteTermine: 22,
+    conversionRate: "23.2%",
+    telefonierteminuten: 285,
     leadSource: "LinkedIn",
-    calendar: "Thomas Klein",
-  },
+    calendar: "Google Calendar"
+  }
 ];
 
 export default function Agents() {
   const navigate = useNavigate();
+  const [agentList, setAgentList] = useState(agents);
+
+  const deleteAgent = (id: string, name: string) => {
+    setAgentList(agentList.filter(agent => agent.id !== id));
+    console.log(`Agent "${name}" wurde gelöscht`);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">KI-Agenten</h2>
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header - EINHEITLICH */}
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>KI-Agenten</h1>
+          <p className={textStyles.pageSubtitle}>Verwalte und konfiguriere deine KI-Agenten</p>
+        </div>
         
-        <Button onClick={() => navigate("/agents/create")}>
-          <Plus className="mr-2 h-4 w-4" />
-          Neuen Agenten erstellen
-        </Button>
+        <button className={buttonStyles.create.default} onClick={() => navigate("/agents/create")}>
+          <Plus className={iconSizes.small} />
+          <span>Neuen Agenten erstellen</span>
+        </button>
       </div>
 
-      {/* Agents Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {agents.map((agent) => (
+      {/* Agents Grid - EINHEITLICH */}
+      <div className={layoutStyles.cardGrid}>
+        {agentList.map((agent) => (
           <Card key={agent.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Bot className="h-6 w-6 text-primary" />
+                  <div className="p-2 bg-[#FFE1D7] rounded-lg">
+                    <Bot className={`${iconSizes.large} text-[#FE5B25]`} />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">{agent.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <CardTitle className={textStyles.cardTitle}>{agent.name}</CardTitle>
+                    <p className={textStyles.cardSubtitle}>
                       {agent.gender} • {agent.voice}
                     </p>
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <button 
-                    className={`px-3 py-2 rounded-lg border-2 flex items-center space-x-2 ${
-                      agent.status === "Aktiv" 
-                        ? "border-green-200 bg-green-50 text-green-600 hover:bg-green-100" 
-                        : "border-yellow-200 bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
-                    }`}
+                <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+                  <button
+                    className={agent.status === "Aktiv" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
                   >
                     {agent.status === "Aktiv" ? (
                       <>
-                        <Pause className="h-4 w-4" />
-                        <span className="text-sm font-medium">Aktiv</span>
+                        <Pause className={iconSizes.small} />
+                        <span>Aktiv</span>
                       </>
                     ) : (
                       <>
-                        <Play className="h-4 w-4" />
-                        <span className="text-sm font-medium">Pausiert</span>
+                        <Play className={iconSizes.small} />
+                        <span>Pausiert</span>
                       </>
                     )}
                   </button>
                   <button 
-                    className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    className={buttonStyles.cardAction.icon}
                     onClick={() => navigate(`/agents/analytics/${agent.id}`)}
                   >
-                    <BarChart className="h-4 w-4" />
+                    <BarChart className={iconSizes.small} />
                   </button>
                   <button 
-                    className="p-2 rounded-lg border-2 border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                    className={buttonStyles.cardAction.icon}
                     onClick={() => navigate(`/agents/edit/${agent.id}`)}
                   >
-                    <Settings className="h-4 w-4" />
+                    <Settings className={iconSizes.small} />
                   </button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className={buttonStyles.cardAction.iconDelete}>
+                        <Trash2 className={iconSizes.small} />
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Agent löschen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Bist du sicher, dass du den Agent "{agent.name}" löschen möchtest? 
+                          Diese Aktion kann nicht rückgängig gemacht werden.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => deleteAgent(agent.id, agent.name)}
+                          className={buttonStyles.dialog.destructive}
+                        >
+                          Agent löschen
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent className="space-y-4">
+            <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Kontaktierte Leads</p>
-                  <p className="font-semibold text-lg">{agent.kontaktierteLeads}</p>
+                  <p className={textStyles.metricLabel}>Kontaktierte Leads</p>
+                  <p className={textStyles.metric}>{agent.kontaktierteLeads}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Gesetzte Termine</p>
-                  <p className="font-semibold text-lg">{agent.gesetzteTermine}</p>
+                  <p className={textStyles.metricLabel}>Gesetzte Termine</p>
+                  <p className={textStyles.metric}>{agent.gesetzteTermine}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Conversionrate</p>
-                  <p className="font-semibold text-lg">{agent.conversionRate}</p>
+                  <p className={textStyles.metricLabel}>Conversionrate</p>
+                  <p className={textStyles.metric}>{agent.conversionRate}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Telefonierte Minuten</p>
-                  <p className="font-semibold text-lg">{agent.telefonierteminuten}</p>
+                  <p className={textStyles.metricLabel}>Telefoniert</p>
+                  <p className={textStyles.metric}>{Math.floor(agent.telefonierteminuten / 60).toString().padStart(2, '0')}:{(agent.telefonierteminuten % 60).toString().padStart(2, '0')} Std</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Verknüpfte Lead Quellen</p>
+                  <p className={textStyles.metricLabel}>Verknüpfte Lead Quellen</p>
                   <Badge variant="outline">{agent.leadSource}</Badge>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Verknüpfte Kalender</p>
+                  <p className={textStyles.metricLabel}>Verknüpfte Kalender</p>
                   <Badge variant="secondary">{agent.calendar}</Badge>
                 </div>
               </div>
-
             </CardContent>
           </Card>
         ))}
