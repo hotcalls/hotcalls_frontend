@@ -1,4 +1,4 @@
-import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, Phone, FileText, Webhook, LogOut } from "lucide-react";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
@@ -10,7 +10,6 @@ const items = [
   { title: "Leads", url: "/dashboard/leads", icon: FileText },
   { title: "Kalender", url: "/dashboard/calendar", icon: Calendar },
   { title: "Lead Quellen", url: "/dashboard/lead-sources", icon: Webhook },
-  { title: "Einstellungen", url: "/dashboard/settings", icon: Settings },
 ];
 
 const currentPlan = {
@@ -88,11 +87,26 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r">
       <SidebarHeader>
-        {/* hotcalls.ai Logo */}
+        {/* hotcalls Logo */}
         <div className="px-2 py-3">
-          <div className="flex items-center gap-2">
-            <Phone className={`${iconSizes.large} text-[#FE5B25]`} />
-            <span className="text-xl font-bold text-gray-900">hotcalls.ai</span>
+          <div className="flex items-center">
+            <img 
+              src="/hotcalls-logo.png" 
+              alt="hotcalls" 
+              className="h-10 w-auto max-w-full"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                const fallback = img.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+                         <div className="items-center gap-3 hidden">
+               <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
+                 <span className="text-white text-sm font-bold">H</span>
+               </div>
+               <span className="text-xl font-bold text-gray-900">hotcalls</span>
+             </div>
           </div>
         </div>
         
@@ -134,6 +148,23 @@ export function AppSidebar() {
       <SidebarFooter>
         {/* Plan Section - über dem Account */}
         <PlanSection />
+        
+        {/* Einstellungen - zwischen Plan und Account */}
+        <div className="px-2 pb-3">
+          <a
+            href="/dashboard/settings"
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full
+              ${isActive("/dashboard/settings")
+                ? "bg-[#FFE1D7] text-[#FE5B25]" 
+                : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }
+            `}
+          >
+            <Settings className={`${iconSizes.small} ${isActive("/dashboard/settings") ? "text-[#FE5B25]" : "text-gray-500"}`} />
+            <span>Einstellungen</span>
+          </a>
+        </div>
         
         {/* Account Section */}
         <div className="p-2">

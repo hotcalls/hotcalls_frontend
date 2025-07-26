@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Phone } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -32,13 +32,28 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           {/* Logo */}
-          <div className="mx-auto mb-4 flex items-center gap-2">
-            <Phone className="h-8 w-8 text-[#FE5B25]" />
-            <span className="text-2xl font-bold text-gray-900">hotcalls.ai</span>
+          <div className="mx-auto mb-6">
+            <img 
+              src="/hotcalls-logo.png" 
+              alt="hotcalls" 
+              className="h-12 w-auto"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                const fallback = img.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+            <div className="items-center gap-2 justify-center hidden">
+              <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">H</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">hotcalls</span>
+            </div>
           </div>
           <CardTitle className="text-2xl font-bold">Willkommen zurück</CardTitle>
           <CardDescription>
@@ -110,6 +125,20 @@ const Login = () => {
           </form>
         </CardContent>
       </Card>
+      
+      {/* Footer Texte */}
+      <div className="mt-12 text-center space-y-3">
+        <div className="text-xs text-muted-foreground">
+          <Link to="/agb" className="hover:text-primary underline">AGB</Link>
+          <span className="mx-2">•</span>
+          <Link to="/datenschutz" className="hover:text-primary underline">Datenschutzerklärung</Link>
+          <span className="mx-2">•</span>
+          <Link to="/datenlöschung" className="hover:text-primary underline">Datenlöschung</Link>
+        </div>
+        <div className="text-xs text-gray-400">
+          © 2024 malmachen GbR. Alle Rechte vorbehalten.
+        </div>
+      </div>
     </div>
   );
 };

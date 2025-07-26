@@ -69,7 +69,7 @@ export const buttonStyles = {
 // EINHEITLICHE TYPOGRAPHY & SPACING
 export const layoutStyles = {
   // Page Layout (ÜBERALL gleich!)
-  pageContainer: "space-y-6",
+  pageContainer: "p-6 space-y-6",
   pageHeader: "flex items-center justify-between mb-6",
   
   // Card Layout

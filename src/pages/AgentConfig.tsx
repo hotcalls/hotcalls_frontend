@@ -492,7 +492,7 @@ export default function AgentConfig() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Label>Aktive Tage</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2 max-w-48">
+                  <div className="grid grid-cols-7 gap-2 mt-2">
                     {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => (
                       <button
                         key={day}

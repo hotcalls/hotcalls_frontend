@@ -21,6 +21,9 @@ import Login from "./pages/Login";
 import QuickSignUp from "./pages/QuickSignUp";
 import SignUp from "./pages/SignUp";
 import OAuthCallback from "./pages/OAuthCallback";
+import AGB from "./pages/AGB";
+import Datenschutz from "./pages/Datenschutz";
+import Datenlöschung from "./pages/Datenlöschung";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +41,11 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<QuickSignUp />} />
           <Route path="/signup/complete" element={<SignUp />} />
+          
+          {/* Legal Pages */}
+          <Route path="/agb" element={<AGB />} />
+          <Route path="/datenschutz" element={<Datenschutz />} />
+          <Route path="/datenlöschung" element={<Datenlöschung />} />
           
           {/* Main App Routes (with Layout and Welcome Overlay) */}
           <Route path="/dashboard/*" element={

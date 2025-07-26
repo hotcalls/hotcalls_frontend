@@ -395,11 +395,12 @@ export default function Dashboard() {
   }, [dateRange]);
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          {format(new Date(), "dd. MMMM yyyy", { locale: de })}
+    <div className={layoutStyles.pageContainer}>
+      {/* Page Header - EINHEITLICH */}
+      <div className={layoutStyles.pageHeader}>
+        <div>
+          <h1 className={textStyles.pageTitle}>Dashboard</h1>
+          <p className={textStyles.pageSubtitle}>Übersicht über deine KI-Agenten Performance</p>
         </div>
       </div>
 

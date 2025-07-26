@@ -11,6 +11,7 @@ import { ArrowLeft, Users, Phone, Calendar as CalendarIcon, TrendingUp, Trending
 import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { layoutStyles } from "@/lib/buttonStyles";
 
 // Agent-Daten (würde normalerweise aus einer API kommen)
 const agentData = {
@@ -281,7 +282,7 @@ export default function AgentAnalytics() {
   } as const;
 
   return (
-    <div className="space-y-8">
+    <div className={layoutStyles.pageContainer}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-4">
