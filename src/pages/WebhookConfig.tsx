@@ -13,7 +13,7 @@ export default function WebhookConfig() {
         <div className="flex items-center space-x-4">
           <Button 
             variant="outline" 
-            onClick={() => navigate("/lead-sources")}
+            onClick={() => navigate("/dashboard/lead-sources")}
             className="flex items-center space-x-2"
           >
             <ArrowLeft className="h-4 w-4" />

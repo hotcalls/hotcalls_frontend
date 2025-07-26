@@ -16,6 +16,10 @@ import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import QuickSignUp from "./pages/QuickSignUp";
+import SignUp from "./pages/SignUp";
 
 const queryClient = new QueryClient();
 
@@ -25,24 +29,37 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/agents" element={<Agents />} />
-            <Route path="/agents/create" element={<AgentConfig />} />
-            <Route path="/agents/edit/:id" element={<AgentConfig />} />
-            <Route path="/agents/analytics/:id" element={<AgentAnalytics />} />
-            <Route path="/lead-sources" element={<LeadSources />} />
-            <Route path="/lead-sources/meta/config" element={<MetaConfig />} />
-            <Route path="/lead-sources/webhook/config" element={<WebhookConfig />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/plans" element={<Plans />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
+        <Routes>
+          {/* Home redirect logic */}
+          <Route path="/" element={<Home />} />
+          
+          {/* Auth Routes (without Layout) */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<QuickSignUp />} />
+          <Route path="/signup/complete" element={<SignUp />} />
+          
+          {/* Main App Routes (with Layout and Welcome Overlay) */}
+          <Route path="/dashboard/*" element={
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/agents" element={<Agents />} />
+                <Route path="/agents/create" element={<AgentConfig />} />
+                <Route path="/agents/edit/:id" element={<AgentConfig />} />
+                <Route path="/agents/analytics/:id" element={<AgentAnalytics />} />
+                <Route path="/lead-sources" element={<LeadSources />} />
+                <Route path="/lead-sources/meta/config" element={<MetaConfig />} />
+                <Route path="/lead-sources/webhook/config" element={<WebhookConfig />} />
+                <Route path="/leads" element={<Leads />} />
+                <Route path="/calendar" element={<Calendar />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/plans" element={<Plans />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          } />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

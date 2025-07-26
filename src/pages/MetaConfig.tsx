@@ -76,7 +76,7 @@ export default function MetaConfig() {
         <div className="space-y-4">
           <button 
             className={buttonStyles.navigation.back}
-            onClick={() => navigate("/lead-sources")}
+            onClick={() => navigate("/dashboard/lead-sources")}
           >
             <ArrowLeft className={iconSizes.small} />
             <span>Zurück zu Lead Quellen</span>

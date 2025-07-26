@@ -139,20 +139,55 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="account">
-            <User className={iconSizes.small} />
-            <span className="ml-2">Account</span>
-          </TabsTrigger>
-          <TabsTrigger value="workspace">
-            <Building className={iconSizes.small} />
-            <span className="ml-2">Workspace</span>
-          </TabsTrigger>
-          <TabsTrigger value="billing">
-            <CreditCard className={iconSizes.small} />
-            <span className="ml-2">Pläne & Guthaben</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Custom Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8" role="tablist">
+            <button
+              onClick={() => setActiveTab("account")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "account"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <User className={iconSizes.small} />
+                <span className="ml-2">Account</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("workspace")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "workspace"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <Building className={iconSizes.small} />
+                <span className="ml-2">Workspace</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("billing")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "billing"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <CreditCard className={iconSizes.small} />
+                <span className="ml-2">Pläne & Guthaben</span>
+              </div>
+            </button>
+          </nav>
+        </div>
 
         {/* Account Tab */}
         <TabsContent value="account" className="space-y-6">
@@ -330,7 +365,7 @@ export default function Settings() {
                   <CardTitle className={textStyles.sectionTitle}>Aktueller Plan</CardTitle>
                   <button 
                     className={buttonStyles.primary.default}
-                    onClick={() => window.location.href = '/plans'}
+                    onClick={() => window.location.href = '/dashboard/plans'}
                   >
                     <SettingsIcon className={iconSizes.small} />
                     <span>{currentPlan.isTestPhase ? "Pläne vergleichen" : "Plan ändern"}</span>

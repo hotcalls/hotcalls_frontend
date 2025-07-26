@@ -70,7 +70,7 @@ export default function Agents() {
           <p className={textStyles.pageSubtitle}>Verwalte und konfiguriere deine KI-Agenten</p>
         </div>
         
-        <button className={buttonStyles.create.default} onClick={() => navigate("/agents/create")}>
+        <button className={buttonStyles.create.default} onClick={() => navigate("/dashboard/agents/create")}>
           <Plus className={iconSizes.small} />
           <span>Neuen Agenten erstellen</span>
         </button>
@@ -111,14 +111,15 @@ export default function Agents() {
                     )}
                   </button>
                   <button 
-                    className={buttonStyles.cardAction.icon}
-                    onClick={() => navigate(`/agents/analytics/${agent.id}`)}
+                    className="px-3 py-2 border-2 border-blue-200 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-2"
+                    onClick={() => navigate(`/dashboard/agents/analytics/${agent.id}`)}
                   >
                     <BarChart className={iconSizes.small} />
+                    <span>Analyse</span>
                   </button>
                   <button 
                     className={buttonStyles.cardAction.icon}
-                    onClick={() => navigate(`/agents/edit/${agent.id}`)}
+                    onClick={() => navigate(`/dashboard/agents/edit/${agent.id}`)}
                   >
                     <Settings className={iconSizes.small} />
                   </button>

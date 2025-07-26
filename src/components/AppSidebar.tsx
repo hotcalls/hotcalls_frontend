@@ -1,16 +1,16 @@
-import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, Phone, FileText, Webhook } from "lucide-react";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, Phone, FileText, Webhook, LogOut } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
 import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Agenten", url: "/agents", icon: Users },
-  { title: "Leads", url: "/leads", icon: FileText },
-  { title: "Kalender", url: "/calendar", icon: Calendar },
-  { title: "Lead Quellen", url: "/lead-sources", icon: Webhook },
-  { title: "Einstellungen", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Agenten", url: "/dashboard/agents", icon: Users },
+  { title: "Leads", url: "/dashboard/leads", icon: FileText },
+  { title: "Kalender", url: "/dashboard/calendar", icon: Calendar },
+  { title: "Lead Quellen", url: "/dashboard/lead-sources", icon: Webhook },
+  { title: "Einstellungen", url: "/dashboard/settings", icon: Settings },
 ];
 
 const currentPlan = {
@@ -46,7 +46,7 @@ const PlanSection = () => {
         {needsUpgrade ? (
           <button 
             className={buttonStyles.highlight.button}
-            onClick={() => window.location.href = '/settings?tab=billing'}
+            onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <CreditCard className={iconSizes.small} />
             <span>Guthaben auffüllen</span>
@@ -54,7 +54,7 @@ const PlanSection = () => {
         ) : (
           <button 
             className={buttonStyles.secondary.fullWidth}
-            onClick={() => window.location.href = '/settings?tab=billing'}
+            onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
             <span>Plan ansehen</span>
@@ -69,10 +69,20 @@ export function AppSidebar() {
   const location = useLocation();
 
   const isActive = (url: string) => {
-    if (url === "/") {
-      return location.pathname === "/";
+    if (url === "/dashboard") {
+      return location.pathname === "/dashboard" || location.pathname === "/dashboard/";
     }
     return location.pathname.startsWith(url);
+  };
+
+  const handleSignOut = () => {
+    // TODO: Implement actual sign out logic
+    console.log("Signing out...");
+    // Clear login status and welcome completed
+    localStorage.removeItem('userLoggedIn');
+    localStorage.removeItem('welcomeCompleted');
+    // Redirect to home page (which will redirect to login)
+    window.location.href = "/";
   };
 
   return (
@@ -135,6 +145,13 @@ export function AppSidebar() {
               <div className="text-sm font-medium text-gray-900 truncate">Marcus Weber</div>
               <div className="text-xs text-gray-500 truncate">marcus@company.com</div>
             </div>
+            <button
+              onClick={handleSignOut}
+              className="flex-shrink-0 p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+              title="Abmelden"
+            >
+              <LogOut className="h-4 w-4 text-gray-500" />
+            </button>
           </div>
         </div>
       </SidebarFooter>

@@ -78,17 +78,17 @@ export default function LeadSources() {
 
   const handleConfigure = (id: string, name: string) => {
     if (name === "Meta Lead Ads") {
-      navigate(`/lead-sources/meta/config`);
+      navigate(`/dashboard/lead-sources/meta/config`);
     } else if (name === "Website Webhook") {
-      navigate(`/lead-sources/webhook/config`);
+      navigate(`/dashboard/lead-sources/webhook/config`);
     }
   };
 
   const handleAddLeadSource = (type: string) => {
     if (type === "Meta") {
-      navigate(`/lead-sources/meta/config`);
+      navigate(`/dashboard/lead-sources/meta/config`);
     } else if (type === "Webhook") {
-      navigate(`/lead-sources/webhook/config`);
+      navigate(`/dashboard/lead-sources/webhook/config`);
     }
     setIsAddDialogOpen(false);
   };

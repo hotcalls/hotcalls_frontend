@@ -1,15 +1,45 @@
-import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { DateRangePicker } from "@/components/DateRangePicker";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Users, Phone, Calendar as CalendarIcon, TrendingUp, ChevronLeft, ChevronRight, Info, Clock, MessageSquare, Check, X, PhoneMissed, TrendingDown, PhoneCall, CheckCircle, XCircle, AlertCircle, BarChart } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval, isToday, isThisWeek, getDay } from 'date-fns';
+import React, { useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import {
+  CalendarIcon,
+  Clock,
+  Phone,
+  Users,
+  MessageSquare,
+  TrendingUp,
+  TrendingDown,
+  ArrowUp,
+  ArrowDown,
+  Target,
+  PhoneCall,
+  UserCheck,
+  DollarSign,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Info,
+  Check,
+  X,
+  PhoneMissed
+} from 'lucide-react';
+import {
+  ComposedChart,
+  Line,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInterval, isToday, isThisWeek, getDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
 // Generiere Analytics-Daten basierend auf Zeitraum
@@ -364,293 +394,388 @@ export default function Dashboard() {
     });
   }, [dateRange]);
 
-
-
   return (
-    <div className={layoutStyles.pageContainer}>
-      <div className={layoutStyles.pageHeader}>
-        <div>
-          <h1 className={textStyles.pageTitle}>Dashboard</h1>
-          <p className={textStyles.pageSubtitle}>Übersicht über deine KI-Agenten Performance</p>
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <div className="text-sm text-muted-foreground">
+          {format(new Date(), "dd. MMMM yyyy", { locale: de })}
         </div>
       </div>
 
-      {/* Stats Cards - Klickbar */}
+      {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card 
+          <div
             key={stat.title}
-            className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
+            className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
               selectedMetric === stat.id 
-                ? 'bg-[#FEF5F1]' 
-                : 'hover:shadow-md'
+                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
+                : 'border-gray-200'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${
-                selectedMetric === stat.id ? 'text-primary' : stat.color
-              }`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-success">{stat.change}</span> vs. letzter Zeitraum
-              </p>
-            </CardContent>
-          </Card>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-lg ${
+                  selectedMetric === stat.id 
+                    ? 'bg-[#FE5B25]/10 text-[#FE5B25]' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <stat.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <div className="flex items-end gap-3 mt-1">
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium mb-1 ${
+                      stat.change.startsWith('+') 
+                        ? 'bg-green-50 text-green-700 border border-green-200' 
+                        : stat.change.startsWith('-')
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-gray-50 text-gray-700 border border-gray-200'
+                    }`}>
+                      {stat.change.startsWith('+') ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : stat.change.startsWith('-') ? (
+                        <TrendingDown className="h-3 w-3" />
+                      ) : (
+                        <div className="h-3 w-3" />
+                      )}
+                      {stat.change}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Analytics Chart */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Performance Übersicht</h2>
-          
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Zeitraum</span>
-            <DateRangePicker 
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-            />
-          </div>
-        </div>
-        
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={enhancedAnalyticsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  if (isSingleDay) {
-                    // Stündliche Anzeige: "08:00", "12:00", etc.
-                    return format(date, "HH:mm");
-                  } else {
-                    // Prüfe ob der Zeitraum nahe der Gegenwart ist
-                    const today = new Date();
-                    const daysDiff = Math.ceil((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-                    const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    if (totalDays <= 7 && daysDiff <= 7) {
-                      // Aktuelle Woche oder nah dran: Wochentage
-                      return format(date, "EEEE", { locale: de }).substring(0, 2);
-                    } else {
-                      // Weiter zurück: Datum + Wochentag
-                      return format(date, "dd.MM EE", { locale: de });
-                    }
-                  }
-                }}
-                stroke="#64748b"
-              />
-              <YAxis stroke="#64748b" />
-              <Tooltip 
-                labelFormatter={(value) => {
-                  const date = new Date(value);
-                  if (isSingleDay) {
-                    return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
-                  } else {
-                    return format(date, "dd. MMM yyyy", { locale: de });
-                  }
-                }}
-                formatter={(value, name) => {
-                  const suffix = selectedMetric === 'conversion' ? '%' : '';
-                  return [`${value}${suffix}`, metricConfig[selectedMetric].name];
-                }}
-                contentStyle={{
-                  backgroundColor: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px'
-                }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey={selectedMetric} 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
-                name={metricConfig[selectedMetric].name}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Neue Termine und Letzte Anrufe - nur anzeigen wenn nicht Single-Day View */}
+      {/* Performance Chart + Neue Termine Grid - nur anzeigen wenn nicht Single-Day View */}
       {!isSingleDay && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Neue Termine - Links */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Neue Termine</h2>
-              <div className="text-sm text-muted-foreground">
-                {filteredAppointments.length} Termine
-              </div>
-            </div>
-            
-            {filteredAppointments.length > 0 ? (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {filteredAppointments.slice(0, 10).map((appointment) => (
-                  <Card
-                    key={appointment.id}
-                    className="hover:shadow-md transition-shadow min-h-[80px]"
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          <div className="p-2 rounded-full bg-warning/10 text-warning flex-shrink-0">
-                            <CalendarIcon className="h-4 w-4" />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm truncate">
-                              {appointment.lead}
-                            </h3>
-                            <div className="flex items-center space-x-1 mt-1">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
-                              <p className="text-xs text-muted-foreground">
-                                {appointment.appointmentDate}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <button
-                          className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
-                          onClick={() => setSelectedLead(appointment.lead)}
-                        >
-                          <Info className={iconSizes.small} />
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+        <div className="grid gap-6 grid-cols-5">
+          {/* Analytics Chart - 3/5 der Breite */}
+          <div className="col-span-3">
+            <div className="bg-white rounded-lg border p-6 h-[416px] flex flex-col">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="text-xl font-semibold">Performance Übersicht</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{metricConfig[selectedMetric].name}</p>
+                </div>
                 
-                {filteredAppointments.length > 10 && (
-                  <div className="text-center py-3">
-                    <button className={buttonStyles.primary.default}>
-                      <span>Alle {filteredAppointments.length} Termine anzeigen</span>
-                    </button>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">Zeitraum</span>
+                  <div className="[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
+                    <DateRangePicker 
+                      dateRange={dateRange}
+                      onDateRangeChange={setDateRange}
+                    />
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <div className="text-sm">Keine neuen Termine</div>
-                <div className="text-xs">
-                  Keine Termine im gewählten Zeitraum vereinbart.
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* Letzte Anrufe - Rechts */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Letzte Anrufe</h2>
-              <div className="text-sm text-muted-foreground">
-                {filteredCalls.length} Anrufe
+              
+              <div className="flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={enhancedAnalyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
+                    {/* Gradient Definition für Area */}
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
+                        <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Horizontale Gridlines */}
+                    <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 14, fill: '#6b7280' }}
+                      tickMargin={8}
+                      padding={{ left: 20, right: 20 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        if (isSingleDay) {
+                          return format(date, "HH:mm");
+                        } else {
+                          const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
+                          
+                          if (totalDays <= 7) {
+                            return format(date, "EEE", { locale: de });
+                          } else if (totalDays <= 31) {
+                            return format(date, "dd");
+                          } else {
+                            return format(date, "MMM", { locale: de });
+                          }
+                        }
+                      }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 14, fill: '#6b7280' }}
+                      width={35}
+                      tickMargin={5}
+                    />
+                    <Tooltip 
+                      labelFormatter={(value) => {
+                        const date = new Date(value);
+                        if (isSingleDay) {
+                          return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
+                        } else {
+                          return format(date, "dd. MMM yyyy", { locale: de });
+                        }
+                      }}
+                      formatter={(value, name) => {
+                        const suffix = selectedMetric === 'conversion' ? '%' : '';
+                        return [`${value}${suffix}`, metricConfig[selectedMetric].name];
+                      }}
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        fontSize: '14px'
+                      }}
+                      cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
+                    />
+                    {/* Area mit Gradient-Fill */}
+                    <Area
+                      type="monotone"
+                      dataKey={selectedMetric}
+                      stroke="none"
+                      fill="url(#areaGradient)"
+                      name={metricConfig[selectedMetric].name}
+                    />
+                    
+                    {/* Linie über der Area */}
+                    <Line 
+                      type="monotone" 
+                      dataKey={selectedMetric} 
+                      stroke="#FE5B25" 
+                      strokeWidth={2.5}
+                      name={metricConfig[selectedMetric].name}
+                      dot={false}
+                      activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
-            
-            {filteredCalls.length > 0 ? (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {filteredCalls.slice(0, 10).map((call) => (
-                  <Card
-                    key={call.id}
-                    className="hover:shadow-md transition-shadow min-h-[80px]"
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex items-center justify-between">
-                        {/* Links: Lead Name + Status */}
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 rounded-full bg-blue-500/10 text-blue-500 flex-shrink-0">
+          </div>
+
+          {/* Neue Termine - 2/5 der Breite */}
+          <div className="col-span-2">
+                        <div className="bg-white rounded-lg border p-6 h-[416px]">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Neue Termine</h2>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {filteredAppointments.length} Termine
+                  </span>
+                </div>
+              </div>
+              
+              {filteredAppointments.length > 0 ? (
+                <div className="space-y-2 h-[344px] overflow-y-auto">
+                    {filteredAppointments.slice(0, 5).map((appointment) => (
+                      <Card
+                        key={appointment.id}
+                        className="hover:shadow-md transition-shadow min-h-[60px]"
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                              <div className="p-1.5 rounded-full bg-warning/10 text-warning flex-shrink-0">
+                                <CalendarIcon className="h-3.5 w-3.5" />
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-sm truncate">
+                                  {appointment.lead}
+                                </h3>
+                                <div className="flex items-center space-x-1 mt-0.5">
+                                  <Clock className="h-3 w-3 text-muted-foreground" />
+                                  <p className="text-xs text-muted-foreground">
+                                    {appointment.appointmentDate}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <button
+                              className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
+                              onClick={() => setSelectedLead(appointment.lead)}
+                            >
+                              <Info className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                                        {filteredAppointments.length > 5 && (
+                      <div className="text-center py-2">
+                        <Button variant="outline" size="sm">
+                          <span>+{filteredAppointments.length - 5} weitere Termine</span>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <div className="text-sm">Keine neuen Termine</div>
+                  <div className="text-xs">
+                    Keine Termine im gewählten Zeitraum vereinbart.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Letzte Anrufe - moderne Tabelle */}
+      {!isSingleDay && (
+        <div className="bg-white rounded-lg border">
+          {/* Header mit Suche und Aktionen */}
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-2xl font-semibold">Letzte Anrufe</h2>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Suchen"
+                  className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">⌘</kbd>
+                  <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">F</kbd>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                Sortieren
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                </svg>
+                Filter
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabelle */}
+          {filteredCalls.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontakt Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead-Quelle</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredCalls.slice(0, 10).map((call) => (
+                    <tr key={call.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
                             <Phone className="h-4 w-4" />
                           </div>
-                          
-                          <div>
-                            <h3 className="font-semibold text-sm">
-                              {call.lead}
-                            </h3>
-                            <div className="mt-1 flex items-center space-x-2">
-                              {(() => {
-                                const statusBadge = getStatusBadge(call.status);
-                                const StatusIcon = statusBadge.icon;
-                                return (
-                                  <Badge className={`text-xs flex items-center space-x-1 ${statusBadge.className}`}>
-                                    <StatusIcon className="h-3 w-3" />
-                                    <span>{call.status}</span>
-                                  </Badge>
-                                );
-                              })()}
-                              
-                              {(call.followUpDate || call.status === 'Nicht erreicht') && (
-                                <Badge className={`text-xs flex items-center space-x-1 ${
-                                  call.followUpDate 
-                                    ? 'bg-[#FEF5F1] border-gray-300 text-[#FE5B25] hover:bg-[#FEF5F1]'
-                                    : 'bg-gray-50 border-gray-400 text-gray-600 hover:bg-gray-100'
-                                }`}>
-                                  <Clock className="h-3 w-3" />
-                                  <span>
-                                    {call.followUpDate 
-                                      ? `Follow-Up: ${formatFollowUpDate(call.followUpDate)}`
-                                      : 'Follow-Up nicht geplant'
-                                    }
-                                  </span>
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{call.lead}</div>
                         </div>
-                        
-                        {/* Rechts: Agent + Leadquelle + Info Icon */}
-                        <div className="flex items-center space-x-2">
-                          <div className="text-right">
-                            <h4 className="font-medium text-sm">
-                              {call.agent}
-                            </h4>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {call.leadSource}
-                            </p>
-                          </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {leadDetails[call.lead] ? leadDetails[call.lead].email : `${call.lead.toLowerCase().replace(' ', '.')}@example.com`}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {leadDetails[call.lead] ? leadDetails[call.lead].phone : `+49 ${Math.floor(Math.random() * 900 + 100)} ${Math.floor(Math.random() * 9000000 + 1000000)}`}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{call.agent}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {(() => {
+                          const statusBadge = getStatusBadge(call.status);
+                          const StatusIcon = statusBadge.icon;
                           
-                          <button
-                            className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
+                          // Vereinfachtes Follow-up: Wenn Follow-up geplant ist, "Nicht erreicht" durch Datum ersetzen
+                          let displayStatus = call.status;
+                          if (call.status === 'Nicht erreicht' && call.followUpDate) {
+                            displayStatus = `Follow-up ${formatFollowUpDate(call.followUpDate)}`;
+                          }
+                          
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {displayStatus}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{call.leadSource}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{call.date}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => setSelectedLead(call.lead)}
+                            className="h-8 w-8 p-0"
                           >
-                            <Info className={iconSizes.small} />
-                          </button>
+                            <Phone className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedLead(call.lead)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Info className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                      </div>
-
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {filteredCalls.length > 10 && (
-                  <div className="text-center py-3">
-                    <button className={buttonStyles.primary.default}>
-                      <span>Alle {filteredCalls.length} Anrufe anzeigen</span>
-                    </button>
-                  </div>
-                )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <Phone className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <div className="text-lg font-medium">Keine Anrufe</div>
+              <div className="text-sm">
+                Keine Anrufe im gewählten Zeitraum getätigt.
               </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Phone className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <div className="text-sm">Keine Anrufe</div>
-                <div className="text-xs">
-                  Keine Anrufe im gewählten Zeitraum getätigt.
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -858,8 +983,6 @@ export default function Dashboard() {
           )}
         </SheetContent>
       </Sheet>
-
-
     </div>
   );
 }
