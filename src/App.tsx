@@ -20,6 +20,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import QuickSignUp from "./pages/QuickSignUp";
 import SignUp from "./pages/SignUp";
+import OAuthCallback from "./pages/OAuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/lead-sources/webhook/config" element={<WebhookConfig />} />
                 <Route path="/leads" element={<Leads />} />
                 <Route path="/calendar" element={<Calendar />} />
+                <Route path="/oauth2callback" element={<OAuthCallback />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/plans" element={<Plans />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

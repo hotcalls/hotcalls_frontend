@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus } from "lucide-react";
-import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 
@@ -35,7 +37,7 @@ export default function AgentConfig() {
 
   const [config, setConfig] = useState({
     name: isEdit ? "Sarah" : "",
-    personality: isEdit ? "Freundlich & Professionell" : "",
+    personality: isEdit ? "friendly" : "",
     voice: isEdit ? "sarah" : "sarah",
     script: "",
     callLogic: isEdit ? "intelligent" : "standard", 
@@ -49,6 +51,55 @@ export default function AgentConfig() {
     workingTimeStart: "09:00",
     workingTimeEnd: "17:00",
   });
+
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playVoiceSample = (voice: string) => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    if (playingVoice === voice) {
+      // If clicking the same voice, stop playing
+      setPlayingVoice(null);
+      return;
+    }
+
+    // Create new audio element and play
+    const audio = new Audio(`/voice-samples/${voice}-sample.mp3`);
+    audioRef.current = audio;
+    
+    audio.play().catch(error => {
+      console.error('Error playing voice sample:', error);
+      // Fallback to .wav if .mp3 doesn't exist
+      const wavAudio = new Audio(`/voice-samples/${voice}-sample.wav`);
+      audioRef.current = wavAudio;
+      wavAudio.play().catch(err => {
+        console.error('Error playing WAV sample:', err);
+        alert('Voice sample nicht gefunden. Bitte fügen Sie die Audiodatei hinzu.');
+      });
+    });
+
+    setPlayingVoice(voice);
+
+    audio.onended = () => {
+      setPlayingVoice(null);
+      audioRef.current = null;
+    };
+  };
+
+  // Cleanup audio on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSave = () => {
     console.log("Saving agent config:", config);
@@ -130,12 +181,18 @@ export default function AgentConfig() {
               
               <div>
                 <Label htmlFor="personality">Persönlichkeit</Label>
-                <Input
-                  id="personality"
-                  value={config.personality}
-                  onChange={(e) => setConfig(prev => ({ ...prev, personality: e.target.value }))}
-                  placeholder="z.B. Freundlich & Professionell"
-                />
+                <Select 
+                  value={config.personality} 
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, personality: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Persönlichkeit auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="friendly">Freundlich und Empathisch</SelectItem>
+                    <SelectItem value="direct">Direkt und Zielstrebig</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
@@ -144,16 +201,27 @@ export default function AgentConfig() {
                   <div className="p-4 border rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium">S</span>
-                        </div>
+                        <Avatar className="h-14 w-14">
+                          <AvatarImage src="/avatars/sarah.jpg.png" alt="Sarah" />
+                          <AvatarFallback className="bg-blue-100 text-blue-600">
+                            <User className="h-7 w-7" />
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <p className="font-medium">Sarah</p>
                           <p className="text-sm text-gray-500">Weiblich, warm</p>
                         </div>
                       </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
+                      <button 
+                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
+                        onClick={() => playVoiceSample('sarah')}
+                        title={playingVoice === 'sarah' ? 'Stoppen' : 'Probe hören'}
+                      >
+                        {playingVoice === 'sarah' ? (
+                          <Pause className="h-3 w-3" />
+                        ) : (
+                          <Play className="h-3 w-3" />
+                        )}
                       </button>
                     </div>
                     <button
@@ -168,19 +236,40 @@ export default function AgentConfig() {
                     </button>
                   </div>
                   
-                  <div className="p-4 border rounded-lg space-y-2">
+                  <div className="p-4 border rounded-lg space-y-2 relative">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="absolute top-2 right-2 bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
+                          Empfohlen
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-sm">Über 1.000 Termine erfolgreich gelegt!</p>
+                      </TooltipContent>
+                    </Tooltip>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <span className="text-green-600 font-medium">M</span>
-                        </div>
+                        <Avatar className="h-14 w-14">
+                          <AvatarImage src="/avatars/marcus.jpg.png" alt="Marcus" />
+                          <AvatarFallback className="bg-green-100 text-green-600">
+                            <UserCircle className="h-7 w-7" />
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <p className="font-medium">Marcus</p>
                           <p className="text-sm text-gray-500">Männlich, ruhig</p>
                         </div>
                       </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
+                      <button 
+                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
+                        onClick={() => playVoiceSample('marcus')}
+                        title={playingVoice === 'marcus' ? 'Stoppen' : 'Probe hören'}
+                      >
+                        {playingVoice === 'marcus' ? (
+                          <Pause className="h-3 w-3" />
+                        ) : (
+                          <Play className="h-3 w-3" />
+                        )}
                       </button>
                     </div>
                     <button
@@ -198,16 +287,27 @@ export default function AgentConfig() {
                   <div className="p-4 border rounded-lg space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                          <span className="text-purple-600 font-medium">L</span>
-                        </div>
+                        <Avatar className="h-14 w-14">
+                          <AvatarImage src="/avatars/lisa.png" alt="Lisa" />
+                          <AvatarFallback className="bg-purple-100 text-purple-600">
+                            <Sparkles className="h-7 w-7" />
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <p className="font-medium">Lisa</p>
                           <p className="text-sm text-gray-500">Weiblich, energisch</p>
                         </div>
                       </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
+                      <button 
+                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
+                        onClick={() => playVoiceSample('lisa')}
+                        title={playingVoice === 'lisa' ? 'Stoppen' : 'Probe hören'}
+                      >
+                        {playingVoice === 'lisa' ? (
+                          <Pause className="h-3 w-3" />
+                        ) : (
+                          <Play className="h-3 w-3" />
+                        )}
                       </button>
                     </div>
                     <button
@@ -255,7 +355,26 @@ export default function AgentConfig() {
         <TabsContent value="script" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Gesprächsskript</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className={textStyles.sectionTitle}>Gesprächsskript</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Hier können Sie die Aufgabe des Agenten definieren und das Gesprächsskript erstellen.
+                      <br /><br />
+                      <strong>Format für optimale Ergebnisse:</strong>
+                      <br /><br />
+                      KI Assistent: [Ihre Nachricht]<br />
+                      Gegenüber:<br />
+                      KI Assistent: [Antwort]<br />
+                      Gegenüber:
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div>
@@ -278,7 +397,23 @@ export default function AgentConfig() {
         <TabsContent value="logic" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Anruflogik</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className={textStyles.sectionTitle}>Anruflogik</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Konfigurieren Sie hier die Anrufstrategie:
+                      <br />
+                      • Maximale Versuche: Wie oft soll ein Lead kontaktiert werden?<br />
+                      • Intervall: Wartezeit zwischen Anrufversuchen<br />
+                      • Aktive Zeiten: Wann darf der Agent anrufen?
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-2 gap-4">
@@ -363,7 +498,22 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className={textStyles.sectionTitle}>Kalender & Event-Types</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className={textStyles.sectionTitle}>Kalender & Event-Types</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        Verbinden Sie den Agenten mit:
+                        <br />
+                        • Kalender Event-Types für Terminbuchungen<br />
+                        • Lead-Quellen für automatische Kontaktaufnahme
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
                 <button className={buttonStyles.primary.default}>
                   <Plus className={iconSizes.small} />
                   <span>Event-Type hinzufügen</span>
@@ -435,7 +585,22 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className={textStyles.sectionTitle}>Lead-Quellen</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className={textStyles.sectionTitle}>Lead-Quellen</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        Verbinden Sie den Agenten mit:
+                        <br />
+                        • Kalender Event-Types für Terminbuchungen<br />
+                        • Lead-Quellen für automatische Kontaktaufnahme
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
                 <button className={buttonStyles.primary.default}>
                   <Plus className={iconSizes.small} />
                   <span>Lead-Quelle hinzufügen</span>

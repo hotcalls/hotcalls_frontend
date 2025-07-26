@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -83,9 +84,26 @@ export default function Agents() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-[#FFE1D7] rounded-lg">
-                    <Bot className={`${iconSizes.large} text-[#FE5B25]`} />
-                  </div>
+                  <Avatar className="h-12 w-12">
+                    {agent.voice === "sarah" && (
+                      <AvatarImage src="/avatars/sarah.jpg.png" alt="Sarah" />
+                    )}
+                    {agent.voice === "marcus" && (
+                      <AvatarImage src="/avatars/marcus.jpg.png" alt="Marcus" />
+                    )}
+                    {agent.voice === "lisa" && (
+                      <AvatarImage src="/avatars/lisa.png" alt="Lisa" />
+                    )}
+                    <AvatarFallback className={`
+                      ${agent.voice === "sarah" ? "bg-blue-100 text-blue-600" : ""}
+                      ${agent.voice === "marcus" ? "bg-green-100 text-green-600" : ""}
+                      ${agent.voice === "lisa" ? "bg-purple-100 text-purple-600" : ""}
+                    `}>
+                      {agent.voice === "sarah" && <User className="h-6 w-6" />}
+                      {agent.voice === "marcus" && <UserCircle className="h-6 w-6" />}
+                      {agent.voice === "lisa" && <Sparkles className="h-6 w-6" />}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <CardTitle className={textStyles.cardTitle}>{agent.name}</CardTitle>
                     <p className={textStyles.cardSubtitle}>
