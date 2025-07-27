@@ -5,9 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
+import { authService, agentService } from "@/lib/authService";
+import { toast } from "sonner";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -21,14 +24,89 @@ const Login = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement actual login logic
-    console.log("Login data:", formData);
-    // Set user as logged in
-    localStorage.setItem('userLoggedIn', 'true');
-    // Navigate to dashboard after successful login
-    navigate("/");
+    
+    if (!formData.email || !formData.password) {
+      toast.error("Bitte füllen Sie alle Felder aus");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      console.log('🔑 Attempting login for:', formData.email);
+      
+      // Login with API (cookie-based authentication)
+      const loginResponse = await authService.login(formData.email, formData.password);
+      
+      console.log('✅ Login successful:', loginResponse);
+      toast.success(`Willkommen zurück, ${loginResponse.user.first_name}!`);
+
+      // Wait a moment to ensure cookies are properly set
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify authentication state (cookies instead of tokens)
+      const cookiesPresent = document.cookie.length > 0;
+      const isLoggedIn = authService.isLoggedIn();
+      
+      console.log('🔍 Authentication state check:', {
+        cookiesPresent,
+        isLoggedIn,
+        cookieCount: document.cookie.split(';').length
+      });
+
+      if (!cookiesPresent) {
+        console.warn('⚠️ No cookies found after login - this might indicate a CORS issue');
+        // Don't fail completely, as the session might still work
+      }
+
+      // Smart routing: Always redirect to dashboard
+      // The welcome flow will be shown as an overlay if user hasn't completed it
+      console.log('📊 Redirecting to dashboard');
+      navigate("/dashboard");
+
+      // Optional: Check if user has agents for logging purposes (with better error handling)
+      try {
+        console.log('🤖 Attempting to fetch user agents...');
+        const agents = await agentService.getAgents();
+        console.log('✅ User agents fetched successfully:', agents.length > 0 ? `${agents.length} agents found` : 'No agents - welcome flow will show');
+      } catch (agentError: any) {
+        console.warn('⚠️ Could not check agents:', agentError);
+        
+        // If it's a 401, the cookie authentication might not be working
+        if (agentError.message?.includes('401')) {
+          console.error('🚨 401 error - cookie authentication failed');
+          console.log('🔍 Current auth state:', {
+            cookies: document.cookie ? 'present' : 'missing',
+            userLoggedIn: localStorage.getItem('userLoggedIn'),
+            cookiePreview: document.cookie.substring(0, 50) + '...'
+          });
+          
+          // Don't prevent navigation, but log the issue for debugging
+          toast.warning("Dashboard loaded - some features may need re-authentication");
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Login failed:', error);
+      
+      let errorMessage = "Login fehlgeschlagen. Bitte versuchen Sie es erneut.";
+      
+      if (error.message?.includes('verify') || error.message?.includes('verification')) {
+        errorMessage = "Ihr Konto ist noch nicht verifiziert. Bitte prüfen Sie Ihre E-Mails.";
+      } else if (error.message?.includes('credentials') || error.message?.includes('invalid')) {
+        errorMessage = "Ungültige E-Mail oder Passwort.";
+      } else if (error.message?.includes('suspended') || error.message?.includes('disabled')) {
+        errorMessage = "Ihr Konto wurde gesperrt. Kontaktieren Sie den Support.";
+      }
+      
+      toast.error("Login fehlgeschlagen", {
+        description: errorMessage
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -109,8 +187,8 @@ const Login = () => {
               </Link>
             </div>
 
-            <Button type="submit" className="w-full">
-              Anmelden
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Anmeldung läuft..." : "Anmelden"}
             </Button>
 
             <div className="text-center text-sm">

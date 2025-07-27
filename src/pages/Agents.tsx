@@ -4,58 +4,32 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-
-const agents = [
-  {
-    id: "1",
-    name: "Sarah",
-    personality: "Freundlich & Professionell",
-    gender: "Weiblich",
-    voice: "sarah",
-    status: "Aktiv",
-    kontaktierteLeads: 142,
-    gesetzteTermine: 28,
-    conversionRate: "19.7%",
-    telefonierteminuten: 340,
-    leadSource: "Meta Lead Ads",
-    calendar: "Google Calendar"
-  },
-  {
-    id: "2", 
-    name: "Marcus",
-    personality: "Direkt & Zielstrebig",
-    gender: "Männlich", 
-    voice: "marcus",
-    status: "Pausiert",
-    kontaktierteLeads: 89,
-    gesetzteTermine: 12,
-    conversionRate: "13.5%",
-    telefonierteminuten: 210,
-    leadSource: "Website",
-    calendar: "Outlook"
-  },
-  {
-    id: "3",
-    name: "Lisa", 
-    personality: "Empathisch & Hilfsbereit",
-    gender: "Weiblich",
-    voice: "lisa",
-    status: "Aktiv",
-    kontaktierteLeads: 95,
-    gesetzteTermine: 22,
-    conversionRate: "23.2%",
-    telefonierteminuten: 285,
-    leadSource: "LinkedIn",
-    calendar: "Google Calendar"
-  }
-];
+import { agentService, Agent } from "@/lib/authService";
 
 export default function Agents() {
   const navigate = useNavigate();
-  const [agentList, setAgentList] = useState(agents);
+  const [agentList, setAgentList] = useState<Agent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      try {
+        console.log('🤖 Loading agents from API...');
+        const agents = await agentService.getAgents();
+        console.log('✅ Agents loaded:', agents);
+        setAgentList(agents);
+      } catch (error) {
+        console.error('❌ Failed to load agents:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAgents();
+  }, []);
 
   const deleteAgent = (id: string, name: string) => {
     setAgentList(agentList.filter(agent => agent.id !== id));
@@ -79,7 +53,16 @@ export default function Agents() {
 
       {/* Agents Grid - EINHEITLICH */}
       <div className={layoutStyles.cardGrid}>
-        {agentList.map((agent) => (
+        {isLoading ? (
+          <div className="col-span-full flex items-center justify-center py-12">
+            <p className="text-gray-500">Lade Agenten...</p>
+          </div>
+        ) : agentList.length === 0 ? (
+          <div className="col-span-full flex items-center justify-center py-12">
+            <p className="text-gray-500">Keine Agenten gefunden. Erstelle deinen ersten Agenten!</p>
+          </div>
+        ) : (
+          agentList.map((agent) => (
           <Card key={agent.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -107,16 +90,16 @@ export default function Agents() {
                   <div>
                     <CardTitle className={textStyles.cardTitle}>{agent.name}</CardTitle>
                     <p className={textStyles.cardSubtitle}>
-                      {agent.gender} • {agent.voice}
+                      {agent.language} • {agent.status}
                     </p>
                   </div>
                 </div>
                 
                 <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
                   <button
-                    className={agent.status === "Aktiv" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
+                    className={agent.status === "active" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
                   >
-                    {agent.status === "Aktiv" ? (
+                    {agent.status === "active" ? (
                       <>
                         <Pause className={iconSizes.small} />
                         <span>Aktiv</span>
@@ -172,38 +155,33 @@ export default function Agents() {
             </CardHeader>
             
             <CardContent className={layoutStyles.cardContent}>
-              <div className="grid grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className={textStyles.metricLabel}>Kontaktierte Leads</p>
-                  <p className={textStyles.metric}>{agent.kontaktierteLeads}</p>
+                  <p className={textStyles.metricLabel}>Charakter</p>
+                  <p className={textStyles.metric}>{agent.character}</p>
                 </div>
                 <div>
-                  <p className={textStyles.metricLabel}>Gesetzte Termine</p>
-                  <p className={textStyles.metric}>{agent.gesetzteTermine}</p>
-                </div>
-                <div>
-                  <p className={textStyles.metricLabel}>Conversionrate</p>
-                  <p className={textStyles.metric}>{agent.conversionRate}</p>
-                </div>
-                <div>
-                  <p className={textStyles.metricLabel}>Telefoniert</p>
-                  <p className={textStyles.metric}>{Math.floor(agent.telefonierteminuten / 60).toString().padStart(2, '0')}:{(agent.telefonierteminuten % 60).toString().padStart(2, '0')} Std</p>
+                  <p className={textStyles.metricLabel}>Sprache</p>
+                  <p className={textStyles.metric}>{agent.language}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className={textStyles.metricLabel}>Verknüpfte Lead Quellen</p>
-                  <Badge variant="outline">{agent.leadSource}</Badge>
+                  <p className={textStyles.metricLabel}>Arbeitszeiten</p>
+                  <Badge variant="outline">{agent.call_from} - {agent.call_to}</Badge>
                 </div>
                 <div>
-                  <p className={textStyles.metricLabel}>Verknüpfte Kalender</p>
-                  <Badge variant="secondary">{agent.calendar}</Badge>
+                  <p className={textStyles.metricLabel}>Status</p>
+                  <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>
+                    {agent.status === 'active' ? 'Aktiv' : 'Inaktiv'}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

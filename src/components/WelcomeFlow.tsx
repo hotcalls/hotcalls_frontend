@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
+import { toast } from "sonner";
 
 interface WelcomeFlowProps {
   onComplete: () => void;
@@ -29,6 +31,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const [showComparison, setShowComparison] = useState(false);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [isLoadingVoices, setIsLoadingVoices] = useState(false);
 
   // Verhindere Body-Scrolling wenn Modal aktiv ist
   useEffect(() => {
@@ -38,11 +42,62 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     };
   }, []);
 
-  const voices = [
-    { id: "sarah", name: "Sarah", preview: "Weiblich, warm" },
-    { id: "marcus", name: "Marcus", preview: "Männlich, ruhig" },
-    { id: "lisa", name: "Lisa", preview: "Weiblich, energisch" }
-  ];
+  // Load voices from API
+  useEffect(() => {
+    const loadVoices = async () => {
+      setIsLoadingVoices(true);
+      try {
+        const voicesResponse = await voiceService.getVoices();
+        console.log('🎤 API Voice Response:', voicesResponse.results);
+        
+        // Debug each voice
+        voicesResponse.results.forEach(voice => {
+          console.log(`🔍 Voice "${voice.name}":`, {
+            id: voice.id,
+            voice_external_id: voice.voice_external_id,
+            voice_picture: voice.voice_picture,
+            voice_sample: voice.voice_sample,
+            gender: voice.gender,
+            provider: voice.provider,
+            recommend: voice.recommend
+          });
+        });
+        
+        // Sort voices: Markus (empfohlen) in die Mitte setzen
+        const sortedVoices = [...voicesResponse.results].sort((a, b) => {
+          // Definiere die gewünschte Reihenfolge: Lisa, Markus, Anna
+          const order = ['Lisa', 'Markus', 'Anna'];
+          const aIndex = order.indexOf(a.name);
+          const bIndex = order.indexOf(b.name);
+          
+          // Wenn beide Namen in der Liste sind, nach der Reihenfolge sortieren
+          if (aIndex !== -1 && bIndex !== -1) {
+            return aIndex - bIndex;
+          }
+          
+          // Markus (empfohlen) soll immer in der Mitte (Position 1) stehen
+          if (a.recommend && !b.recommend) return 1;
+          if (!a.recommend && b.recommend) return -1;
+          
+          // Fallback: alphabetisch
+          return a.name.localeCompare(b.name);
+        });
+        
+        console.log('🎯 Sorted voices order:', sortedVoices.map(v => `${v.name}${v.recommend ? ' (Empfohlen)' : ''}`));
+        setVoices(sortedVoices);
+      } catch (error) {
+        console.error('Failed to load voices:', error);
+        toast.error('Fehler beim Laden der Stimmen', {
+          description: 'Die verfügbaren Stimmen konnten nicht geladen werden.'
+        });
+        setVoices([]);
+      } finally {
+        setIsLoadingVoices(false);
+      }
+    };
+
+    loadVoices();
+  }, []);
 
   const personalities = [
     "Freundlich und hilfsbereit",
@@ -73,40 +128,74 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const playVoiceSample = (voice: string) => {
+  const playVoiceSample = (voice: Voice) => {
     // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
 
-    if (playingVoice === voice) {
+    if (playingVoice === voice.id) {
       // If clicking the same voice, stop playing
       setPlayingVoice(null);
       return;
     }
 
-    // Create new audio element and play
-    const audio = new Audio(`/voice-samples/${voice}-sample.mp3`);
-    audioRef.current = audio;
-    
-    audio.play().catch(error => {
-      console.error('Error playing voice sample:', error);
-      // Fallback to .wav if .mp3 doesn't exist
-      const wavAudio = new Audio(`/voice-samples/${voice}-sample.wav`);
-      audioRef.current = wavAudio;
-      wavAudio.play().catch(err => {
-        console.error('Error playing WAV sample:', err);
-        alert('Voice sample nicht gefunden. Bitte fügen Sie die Audiodatei hinzu.');
+    try {
+      // Get the correct audio URL for this voice
+      const audioUrl = getVoiceSampleUrl(voice);
+      console.log(`Playing voice sample for ${voice.name}: ${audioUrl}`);
+
+      // Create new audio element with CORS support
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous"; // Enable CORS
+      audio.preload = "auto";
+      audio.src = audioUrl;
+      
+      audioRef.current = audio;
+      
+      // Add event listeners
+      audio.onloadstart = () => {
+        console.log('Audio loading started...');
+      };
+      
+      audio.oncanplay = () => {
+        console.log('Audio can play');
+      };
+      
+      audio.onerror = (error) => {
+        console.error('Audio error:', error);
+        toast.error('Audio-Fehler', {
+          description: `Voice-Sample für ${voice.name} konnte nicht geladen werden.`
+        });
+        setPlayingVoice(null);
+        audioRef.current = null;
+      };
+
+      audio.onended = () => {
+        setPlayingVoice(null);
+        audioRef.current = null;
+      };
+
+      // Start playback
+      audio.play().then(() => {
+        setPlayingVoice(voice.id);
+        console.log(`Successfully playing ${voice.name}`);
+      }).catch(error => {
+        console.error('Error playing voice sample:', error);
+        toast.error('Wiedergabe-Fehler', {
+          description: `Voice-Sample für ${voice.name} konnte nicht abgespielt werden.`
+        });
+        setPlayingVoice(null);
+        audioRef.current = null;
       });
-    });
 
-    setPlayingVoice(voice);
-
-    audio.onended = () => {
-      setPlayingVoice(null);
-      audioRef.current = null;
-    };
+    } catch (error) {
+      console.error('Failed to create audio element:', error);
+      toast.error('Audio-Initialisierung fehlgeschlagen', {
+        description: 'Audio-Player konnte nicht initialisiert werden.'
+      });
+    }
   };
 
   // Cleanup audio on component unmount
@@ -119,14 +208,94 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     };
   }, []);
 
+  const createAgentViaAPI = async () => {
+    try {
+      // Find the selected voice object
+      const selectedVoice = voices.find(v => v.id === formData.voice);
+      if (!selectedVoice) {
+        throw new Error('Keine Stimme ausgewählt');
+      }
+
+      // Create agent data for API
+      const agentData: AgentCreateRequest = {
+        workspace: "123e4567-e89b-12d3-a456-426614174000", // Use a realistic looking UUID
+        name: formData.name,
+        status: 'active',
+        greeting_inbound: formData.script,
+        greeting_outbound: formData.script, // Add outbound greeting
+        voice: selectedVoice.id, // ✅ Use internal voice ID (database UUID)
+        language: 'de', // Default to German
+        retry_interval: 30, // Add retry interval in minutes
+        workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'], // English workday names  
+        call_from: '09:00:00',
+        call_to: '17:00:00', 
+        character: formData.personality,
+        prompt: formData.script
+        // calendar_configuration omitted - optional field
+      };
+
+      console.log('🚀 Creating agent with data:', agentData);
+      console.log('📋 Agent data structure:', {
+        workspace: agentData.workspace,
+        name: agentData.name,
+        voice: agentData.voice, // This is now the internal voice ID (UUID)
+        greeting_inbound: agentData.greeting_inbound,
+        language: agentData.language,
+        workdays: agentData.workdays,
+        call_from: agentData.call_from,
+        call_to: agentData.call_to,
+        character: agentData.character,
+        status: agentData.status
+      });
+      console.log('🎤 Selected voice details:', {
+        name: selectedVoice.name,
+        internal_id: selectedVoice.id,
+        external_id: selectedVoice.voice_external_id,
+        sending_id: selectedVoice.id, // This is what we're actually sending
+        provider: selectedVoice.provider
+      });
+      
+      console.log('📝 Form data collected:', {
+        name: formData.name,
+        voice: formData.voice,
+        personality: formData.personality,
+        script: formData.script,
+        testPhone: formData.testPhone,
+        selectedPlan: formData.selectedPlan
+      });
+      
+      const createdAgent = await agentService.createAgent(agentData);
+      console.log('✅ Agent created successfully:', createdAgent);
+      
+      toast.success('Agent erstellt!', {
+        description: `${formData.name} wurde erfolgreich erstellt und ist einsatzbereit.`
+      });
+
+      return createdAgent;
+    } catch (error) {
+      console.error('Agent creation failed:', error);
+      toast.error('Fehler bei der Agent-Erstellung', {
+        description: 'Der Agent konnte nicht erstellt werden. Bitte versuchen Sie es erneut.'
+      });
+      throw error;
+    }
+  };
+
   const nextStep = () => {
     if (currentStep === 4) {
       // Nach dem Script Step: Agent wird erstellt
       setIsCreatingAgent(true);
-      setTimeout(() => {
-        setIsCreatingAgent(false);
-        setCurrentStep(currentStep + 1);
-      }, 3000);
+      
+      // Create agent via API
+      createAgentViaAPI()
+        .then(() => {
+          setIsCreatingAgent(false);
+          setCurrentStep(currentStep + 1);
+        })
+        .catch(() => {
+          setIsCreatingAgent(false);
+          // Stay on current step if creation fails
+        });
     } else if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
@@ -230,28 +399,33 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <h2 className="text-3xl font-bold text-gray-900">
                 Welche Stimme soll {formData.name || 'dein Agent'} haben?
               </h2>
-              <div className="space-y-4">
-                {voices.map((voice, index) => {
-                  const voiceConfig = {
-                    sarah: { 
-                      avatar: "/avatars/sarah.jpg.png", 
-                      initial: "S",
-                      fallback: User, 
-                      fallbackColor: "bg-blue-100 text-blue-600" 
-                    },
-                    marcus: { 
-                      avatar: "/avatars/marcus.jpg.png", 
-                      initial: "M",
-                      fallback: UserCircle, 
-                      fallbackColor: "bg-green-100 text-green-600" 
-                    },
-                    lisa: { 
-                      avatar: "/avatars/lisa.png", 
-                      initial: "L",
-                      fallback: Sparkles, 
-                      fallbackColor: "bg-purple-100 text-purple-600" 
+              {isLoadingVoices ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-[#FE5B25]" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {voices.map((voice, index) => {
+                    // Create preview text from voice properties
+                    const preview = `${voice.gender === 'male' ? 'Männlich' : voice.gender === 'female' ? 'Weiblich' : 'Neutral'}${voice.tone ? `, ${voice.tone}` : ''}`;
+                    
+                    // Voice configuration with API picture support
+                    const voiceConfig = {
+                      avatar: voice.voice_picture || null, // Use API voice_picture if available
+                      initial: voice.name.charAt(0).toUpperCase(),
+                      fallbackColor: voice.gender === 'male' 
+                        ? "bg-blue-100 text-blue-600" 
+                        : voice.gender === 'female' 
+                        ? "bg-pink-100 text-pink-600" 
+                        : "bg-gray-100 text-gray-600"
+                    };
+                    
+                    // Debug picture URL
+                    if (voice.voice_picture) {
+                      console.log(`🖼️ Voice ${voice.name} has voice_picture: ${voice.voice_picture}`);
+                    } else {
+                      console.log(`📷 Voice ${voice.name} has no voice_picture, using fallback initial: ${voiceConfig.initial}`);
                     }
-                  }[voice.id];
 
                   return (
                     <div 
@@ -266,14 +440,22 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-12 w-12">
                           <AvatarImage 
-                            src={voiceConfig?.avatar} 
+                            src={voiceConfig.avatar} 
                             alt={voice.name}
-                            onError={() => {
-                              console.log(`Avatar image failed to load for ${voice.name}, showing fallback`);
+                            onLoad={() => {
+                              if (voiceConfig.avatar) {
+                                console.log(`✅ Avatar loaded successfully for ${voice.name}: ${voiceConfig.avatar}`);
+                              }
+                            }}
+                            onError={(e) => {
+                              console.error(`❌ Avatar failed to load for ${voice.name}:`, {
+                                src: voiceConfig.avatar,
+                                error: e
+                              });
                             }}
                           />
-                          <AvatarFallback className={`${voiceConfig?.fallbackColor} font-semibold text-lg`}>
-                            {voiceConfig?.initial}
+                          <AvatarFallback className={`${voiceConfig.fallbackColor} font-semibold text-lg`}>
+                            {voiceConfig.initial}
                           </AvatarFallback>
                         </Avatar>
                         
@@ -281,10 +463,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-medium text-base text-gray-900">{voice.name}</p>
-                              <p className="text-sm text-gray-500">{voice.preview}</p>
+                              <p className="text-sm text-gray-500">{preview}</p>
                             </div>
                             <div className="w-16 flex justify-end">
-                              {voice.id === 'marcus' && (
+                              {voice.recommend && (
                                 <Badge variant="secondary" className="text-xs">
                                   Empfohlen
                                 </Badge>
@@ -294,20 +476,20 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                         </div>
                         
                         <div className="flex items-center space-x-2">
-                          <button 
-                            className="w-8 h-8 border rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playVoiceSample(voice.id);
-                            }}
-                            title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
-                          >
-                            {playingVoice === voice.id ? (
-                              <Pause className="h-3 w-3" />
-                            ) : (
-                              <Play className="h-3 w-3" />
-                            )}
-                          </button>
+                                                      <button 
+                              className="w-8 h-8 border rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playVoiceSample(voice);
+                              }}
+                              title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
+                            >
+                              {playingVoice === voice.id ? (
+                                <Pause className="h-3 w-3" />
+                              ) : (
+                                <Play className="h-3 w-3" />
+                              )}
+                            </button>
                           
                           {formData.voice === voice.id && (
                             <div className="w-6 h-6 bg-[#FE5B25] rounded-full flex items-center justify-center">
@@ -319,7 +501,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     </div>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

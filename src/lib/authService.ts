@@ -39,6 +39,21 @@ export interface RegisterResponse {
   verification_required: boolean;
 }
 
+// Login request
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+// Login response
+export interface LoginResponse {
+  message?: string; // Added for cookie-based auth
+  user: UserResponse;
+  token?: string;
+  access_token?: string;
+  refresh_token?: string;
+}
+
 // Legacy interface for backwards compatibility
 export interface CreateUserRequest {
   username: string;
@@ -62,8 +77,258 @@ export interface UserResponse {
   created_at: string;
 }
 
+// New interfaces for Voice API
+export interface Voice {
+  id: string;
+  name: string;
+  voice_external_id: string;
+  provider: 'openai' | 'elevenlabs' | 'google' | 'azure' | 'aws';
+  gender: 'male' | 'female' | 'neutral';
+  tone?: string;
+  recommend?: boolean;
+  agent_count?: number;
+  created_date?: string;
+  updated_date?: string;
+  voice_sample?: string; // URL to voice sample audio file (from API)
+  voice_picture?: string; // URL to voice avatar/picture (from API)
+}
+
+export interface VoicesResponse {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: Voice[];
+}
+
+export interface VoiceListParams {
+  agent_count_max?: number;
+  agent_count_min?: number;
+  agent_workspace?: string;
+  created_after?: string;
+  created_before?: string;
+  created_date?: string;
+  gender?: 'male' | 'female' | 'neutral';
+  has_agents?: boolean;
+  name?: string;
+  ordering?: string;
+  page?: number;
+  provider?: string;
+  provider_exact?: 'openai' | 'elevenlabs' | 'google' | 'azure' | 'aws';
+  recommend?: boolean;
+  search?: string;
+  tone?: string;
+  updated_after?: string;
+  updated_before?: string;
+  voice_external_id?: string;
+}
+
+// New interfaces for Agent API
+export interface AgentCreateRequest {
+  workspace: string;
+  name: string;
+  status?: 'active' | 'inactive';
+  greeting_inbound: string;
+  greeting_outbound?: string;
+  voice: string; // Internal voice ID (database UUID)
+  language: string;
+  retry_interval?: number;
+  workdays: string[]; // Array of workdays (e.g., ['Mo', 'Di', 'Mi', 'Do', 'Fr'])
+  call_from: string; // Time format "HH:mm:ss"
+  call_to: string; // Time format "HH:mm:ss"
+  character: string;
+  prompt?: string;
+  config_id?: string;
+  calendar_configuration?: string;
+}
+
+export interface Agent {
+  id: string;
+  workspace: string;
+  name: string;
+  status: 'active' | 'inactive';
+  greeting_inbound: string;
+  greeting_outbound?: string;
+  voice: string;
+  language: string;
+  retry_interval: number;
+  workdays: string;
+  call_from: string;
+  call_to: string;
+  character: string;
+  prompt?: string;
+  config_id?: string;
+  calendar_configuration?: string;
+  created_date?: string;
+  updated_date?: string;
+}
+
+// Helper function to get voice sample URL
+export const getVoiceSampleUrl = (voice: Voice): string => {
+  // If backend provides voice_sample, use it directly
+  if (voice.voice_sample) {
+    console.log(`✅ Using API voice_sample for ${voice.name}: ${voice.voice_sample}`);
+    return voice.voice_sample;
+  }
+  
+  // Fallback: construct URL based on voice name/ID
+  // This maps to the actual audio files in the backend
+  const voiceUrlMap: Record<string, string> = {
+    'Marcus': 'marcus-sample.mp3',
+    'Markus': 'marcus-sample.mp3', // German name variant
+    'Anna': 'ElevenLabs_2025-07-27T08_34_08_Dana__Engaging_Confident_German_Female_pvc__28wjY1z.mp3',
+    'Lucy': 'ElevenLabs_2025-07-27T08_31_19_Lucy_Fennek_-_The_Upbeat_Vox_pvc_sp100_s30__miFIEZW.mp3',
+    'Lisa': 'ElevenLabs_2025-07-27T08_31_19_Lucy_Fennek_-_The_Upbeat_Vox_pvc_sp100_s30__miFIEZW.mp3' // Lisa might be using Lucy's file
+  };
+  
+  // Try exact name match first
+  if (voiceUrlMap[voice.name]) {
+    const filename = voiceUrlMap[voice.name];
+    const url = `${apiConfig.baseUrl}/media/voice_samples/${filename}`;
+    console.log(`🎵 Using mapped filename for ${voice.name}: ${filename}`);
+    return url;
+  }
+  
+  // Try case-insensitive match
+  const lowerName = voice.name.toLowerCase();
+  for (const [key, filename] of Object.entries(voiceUrlMap)) {
+    if (key.toLowerCase() === lowerName) {
+      const url = `${apiConfig.baseUrl}/media/voice_samples/${filename}`;
+      console.log(`🎵 Using case-insensitive match for ${voice.name}: ${filename}`);
+      return url;
+    }
+  }
+  
+  // Last resort: use voice_external_id
+  console.warn(`⚠️ No mapping found for voice "${voice.name}", using voice_external_id: ${voice.voice_external_id}`);
+  const filename = `${voice.voice_external_id}-sample.mp3`;
+  return `${apiConfig.baseUrl}/media/voice_samples/${filename}`;
+};
+
+// Voice service
+export const voiceService = {
+  async getVoices(params?: VoiceListParams): Promise<VoicesResponse> {
+    try {
+      console.log('Fetching voices with params:', params);
+      const response = await apiClient.get<VoicesResponse>(
+        apiConfig.endpoints.voices,
+        params
+      );
+      console.log('Voices fetched successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch voices:', error);
+      throw error;
+    }
+  },
+
+  async getRecommendedVoices(): Promise<Voice[]> {
+    try {
+      const response = await this.getVoices({ recommend: true });
+      return response.results;
+    } catch (error) {
+      console.error('Failed to fetch recommended voices:', error);
+      throw error;
+    }
+  }
+};
+
+// Agent service
+export const agentService = {
+  async createAgent(agentData: AgentCreateRequest): Promise<Agent> {
+    try {
+      console.log('Creating agent with data:', {
+        ...agentData,
+        prompt: agentData.prompt ? '[REDACTED]' : undefined
+      });
+      
+      const response = await apiClient.post<Agent>(
+        apiConfig.endpoints.agents,
+        agentData
+      );
+      
+      console.log('Agent created successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('Agent creation failed:', error);
+      throw error;
+    }
+  },
+
+  async getAgents(): Promise<Agent[]> {
+    try {
+      console.log('Fetching agents from API...');
+      
+      const response = await apiClient.get<{results: Agent[]}>(
+        apiConfig.endpoints.agents
+      );
+      
+      console.log('Agents fetched successfully:', response);
+      return response.results;
+    } catch (error) {
+      console.error('Failed to fetch agents:', error);
+      throw error;
+    }
+  }
+};
+
 // Auth service
 export const authService = {
+  // Login method
+  async login(email: string, password: string): Promise<LoginResponse> {
+    const loginRequest: LoginRequest = {
+      email,
+      password
+    };
+
+    console.log('🔑 Logging in user (cookie-based auth):', { email, password: '[REDACTED]' });
+
+    try {
+      const response = await apiClient.post<LoginResponse>(
+        apiConfig.endpoints.login,
+        loginRequest
+      );
+      
+      console.log('✅ Login API response received:', {
+        hasUser: !!response.user,
+        userEmail: response.user?.email,
+        message: response.message,
+        authMethod: 'cookies'
+      });
+
+      // For cookie-based auth, we don't need to store tokens
+      // The browser automatically handles session cookies
+      console.log('🍪 Authentication via cookies - session established by backend');
+      
+      // Check if cookies were set by examining document.cookie
+      const cookiesPresent = document.cookie.length > 0;
+      console.log('🔍 Cookie verification:', {
+        cookiesSet: cookiesPresent,
+        cookieCount: document.cookie.split(';').length,
+        cookiePreview: document.cookie ? document.cookie.substring(0, 50) + '...' : 'none'
+      });
+
+      // Store user data and logged in status
+      this.storeUser(response.user);
+      
+      // Set logged in flag
+      localStorage.setItem('userLoggedIn', 'true');
+      
+      console.log('✅ Authentication state saved:', {
+        userLoggedIn: localStorage.getItem('userLoggedIn'),
+        authMethod: 'cookies',
+        user: this.getStoredUser()?.email,
+        sessionActive: cookiesPresent
+      });
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Login failed:', error);
+      // Clear any partial authentication state
+      this.clearUser();
+      throw error;
+    }
+  },
+
   // New registration method using the updated endpoint with email verification
   async register(signupData: CompleteSignupData): Promise<RegisterResponse> {
     const registerRequest: RegisterRequest = {
@@ -177,6 +442,9 @@ export const authService = {
   clearUser() {
     localStorage.removeItem('user');
     localStorage.removeItem('userLoggedIn');
+    // Note: We don't clear authToken since we're using cookie-based auth
+    // Cookies are managed by the backend/browser automatically
+    console.log('🧹 Authentication data cleared (cookies remain managed by browser)');
   },
 
   // Get stored user
