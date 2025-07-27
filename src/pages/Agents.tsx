@@ -52,9 +52,9 @@ export default function Agents() {
     loadAgents();
   }, [primaryWorkspace?.id, workspaceLoading]);
 
-  const deleteAgent = (id: string, name: string) => {
+  const deleteAgent = (agentId: string, name: string) => {
     // TODO: Implement actual delete API call
-    setAgentList(agentList.filter(agent => agent.id !== id));
+    setAgentList(agentList.filter(agent => agent.agent_id !== agentId));
     console.log(`Agent "${name}" wurde gelöscht`);
   };
 
@@ -133,16 +133,8 @@ export default function Agents() {
             const voicePicture = getVoicePicture(agent.voice);
             const voiceName = getVoiceName(agent.voice);
             
-            // Debug: Check agent ID
-            console.log('🤖 Agent Debug:', { 
-              id: agent.id, 
-              name: agent.name, 
-              idType: typeof agent.id,
-              agentKeys: Object.keys(agent)
-            });
-            
             return (
-              <Card key={agent.id}>
+              <Card key={agent.agent_id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
@@ -185,7 +177,7 @@ export default function Agents() {
                       </button>
                       <button 
                         className="px-3 py-2 border-2 border-blue-200 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-2"
-                        onClick={() => navigate(`/dashboard/agents/analytics/${agent.id}`)}
+                        onClick={() => navigate(`/dashboard/agents/analytics/${agent.agent_id}`)}
                       >
                         <BarChart className={iconSizes.small} />
                         <span>Analyse</span>
@@ -194,16 +186,16 @@ export default function Agents() {
                         className={buttonStyles.cardAction.icon}
                         onClick={() => {
                           console.log('🔧 Settings clicked for agent:', { 
-                            id: agent.id, 
+                            agent_id: agent.agent_id, 
                             name: agent.name,
-                            navigationUrl: `/dashboard/agents/edit/${agent.id}` 
+                            navigationUrl: `/dashboard/agents/edit/${agent.agent_id}` 
                           });
-                          if (!agent.id || agent.id === 'undefined') {
+                          if (!agent.agent_id || agent.agent_id === 'undefined') {
                             console.error('❌ Cannot navigate: Invalid agent ID');
                             toast.error('Fehler: Ungültige Agent-ID');
                             return;
                           }
-                          navigate(`/dashboard/agents/edit/${agent.id}`);
+                          navigate(`/dashboard/agents/edit/${agent.agent_id}`);
                         }}
                       >
                         <Settings className={iconSizes.small} />
@@ -225,12 +217,12 @@ export default function Agents() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => deleteAgent(agent.id, agent.name)}
-                              className={buttonStyles.dialog.destructive}
-                            >
-                              Agent löschen
-                            </AlertDialogAction>
+                                                    <AlertDialogAction 
+                          onClick={() => deleteAgent(agent.agent_id, agent.name)}
+                          className={buttonStyles.dialog.destructive}
+                        >
+                          Agent löschen
+                        </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

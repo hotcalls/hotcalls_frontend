@@ -92,7 +92,7 @@ export interface CreateAgentRequest {
 }
 
 export interface AgentResponse {
-  id: string;
+  agent_id: string;
   workspace: string;
   name: string;
   status: string;
