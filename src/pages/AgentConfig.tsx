@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -73,6 +74,11 @@ export default function AgentConfig() {
 
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Test call states
+  const [testPopoverOpen, setTestPopoverOpen] = useState(false);
+  const [testPhoneNumber, setTestPhoneNumber] = useState("");
+  const [isTestCalling, setIsTestCalling] = useState(false);
 
   // Load agent data when editing
   useEffect(() => {
@@ -416,7 +422,39 @@ export default function AgentConfig() {
   };
 
   const handleTest = () => {
-    toast.info('Test-Funktionalität wird bald verfügbar sein');
+    // Now just opens the popover - the actual test happens in handleStartTestCall
+    setTestPopoverOpen(true);
+  };
+  
+  const handleStartTestCall = async () => {
+    if (!testPhoneNumber.trim()) {
+      toast.error('Bitte geben Sie eine Telefonnummer ein');
+      return;
+    }
+    
+    // Basic phone number validation
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    if (!phoneRegex.test(testPhoneNumber)) {
+      toast.error('Bitte geben Sie eine gültige Telefonnummer ein');
+      return;
+    }
+    
+    try {
+      setIsTestCalling(true);
+      console.log('📞 Starting test call to:', testPhoneNumber);
+      
+      // TODO: Call the test API endpoint when available
+      // await agentAPI.testCall(id, { phone_number: testPhoneNumber });
+      
+      toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
+      setTestPopoverOpen(false);
+      setTestPhoneNumber("");
+    } catch (err) {
+      console.error('❌ Failed to start test call:', err);
+      toast.error('Fehler beim Starten des Test-Anrufs');
+    } finally {
+      setIsTestCalling(false);
+    }
   };
 
   // Show loading state
@@ -472,10 +510,57 @@ export default function AgentConfig() {
         </div>
         
         <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-          <button className={buttonStyles.primary.default} onClick={handleTest}>
-            <TestTube className={iconSizes.small} />
-            <span>Testen</span>
-          </button>
+          <Popover open={testPopoverOpen} onOpenChange={setTestPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button className={buttonStyles.primary.default}>
+                <Phone className={iconSizes.small} />
+                <span>Testen</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-base">Test-Anruf starten</h4>
+                  <p className="text-sm text-gray-600">
+                    Geben Sie eine Telefonnummer ein, um den Agent zu testen.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test-phone">Telefonnummer</Label>
+                  <Input
+                    id="test-phone"
+                    type="tel"
+                    value={testPhoneNumber}
+                    onChange={(e) => setTestPhoneNumber(e.target.value)}
+                    placeholder="+49 123 4567890"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isTestCalling) {
+                        handleStartTestCall();
+                      }
+                    }}
+                  />
+                </div>
+                <Button 
+                  onClick={handleStartTestCall} 
+                  className="w-full"
+                  disabled={isTestCalling || !testPhoneNumber.trim()}
+                >
+                  {isTestCalling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Anruf wird gestartet...
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="h-4 w-4 mr-2" />
+                      Jetzt anrufen lassen
+                    </>
+                  )}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
           <button className={buttonStyles.create.default} onClick={handleSave}>
             <Save className={iconSizes.small} />
             <span>Speichern</span>
