@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play } from "lucide-react";
+import { voiceAPI, Voice } from "@/lib/apiService";
+import { useToast } from "@/hooks/use-toast";
 
 interface WelcomeFlowProps {
   onComplete: () => void;
@@ -15,6 +17,9 @@ interface WelcomeFlowProps {
 
 export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(true);
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
     voice: "",
@@ -35,12 +40,31 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     };
   }, []);
 
-  const voices = [
-    { id: "sarah", name: "Sarah", preview: "Freundlich und professionell" },
-    { id: "max", name: "Max", preview: "Selbstbewusst und energisch" },
-    { id: "anna", name: "Anna", preview: "Warm und vertrauensvoll" },
-    { id: "david", name: "David", preview: "Ruhig und kompetent" }
-  ];
+  // Load voices from API
+  useEffect(() => {
+    const loadVoices = async () => {
+      try {
+        setLoadingVoices(true);
+        console.log('🔊 WelcomeFlow: Loading voices from API...');
+        const response = await voiceAPI.getVoices();
+        console.log('🔊 WelcomeFlow: Loaded voices:', response);
+        setVoices(response.results);
+      } catch (error) {
+        console.error("❌ WelcomeFlow: Failed to load voices:", error);
+        toast({
+          title: "Fehler beim Laden der Stimmen",
+          description: "Stimmen konnten nicht geladen werden.",
+          variant: "destructive",
+        });
+        // Fallback to empty array if API fails
+        setVoices([]);
+      } finally {
+        setLoadingVoices(false);
+      }
+    };
+
+    loadVoices();
+  }, [toast]);
 
   const personalities = [
     "Freundlich und hilfsbereit",
@@ -179,7 +203,17 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 Welche Stimme soll {formData.name || 'dein Agent'} haben?
               </h2>
               <div className="grid grid-cols-2 gap-4">
-                {voices.map((voice) => (
+                {loadingVoices ? (
+                  <div className="col-span-2 flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Stimmen werden geladen...</span>
+                  </div>
+                ) : voices.length === 0 ? (
+                  <div className="col-span-2 text-center py-8 text-gray-500">
+                    Keine Stimmen verfügbar
+                  </div>
+                ) : (
+                  voices.map((voice) => (
                   <div
                     key={voice.id}
                     className={`p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
@@ -195,7 +229,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       </div>
                       <div>
                         <h4 className="font-semibold text-lg">{voice.name}</h4>
-                        <p className="text-sm text-gray-600 mb-3">{voice.preview}</p>
+                        <p className="text-sm text-gray-600 mb-3">{voice.tone || 'ElevenLabs Stimme'}</p>
                         <Button
                           variant="outline"
                           size="sm"
@@ -211,7 +245,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           )}
