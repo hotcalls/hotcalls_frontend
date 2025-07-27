@@ -76,7 +76,7 @@ export interface ApiError {
 export interface CreateAgentRequest {
   workspace: string;
   name: string;
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'paused'; // Backend uses 'paused' not 'inactive'
   greeting_inbound: string;
   greeting_outbound: string;
   voice: string;
@@ -207,11 +207,22 @@ async function apiCall<T>(
       url: url,
       errorData
     });
-    console.error('🔍 Backend Response Details:', errorData);
-    if (errorData.password) {
-      console.error('🔐 Password validation errors:', errorData.password);
+    console.log('🔍 Backend Response Details:', errorData);
+    
+    // If errorData contains field-specific errors (Django REST format)
+    if (errorData && typeof errorData === 'object') {
+      const fieldErrors: string[] = [];
+      for (const [field, errors] of Object.entries(errorData)) {
+        if (Array.isArray(errors)) {
+          fieldErrors.push(`${field}: ${errors.join(', ')}`);
+        }
+      }
+      if (fieldErrors.length > 0) {
+        throw new Error(`Validation errors: ${fieldErrors.join('; ')}`);
+      }
     }
-    throw new Error(errorData.error || errorData.message || `API call failed: ${response.statusText}`);
+    
+    throw new Error(errorData?.error || errorData?.message || `API call failed: ${response.statusText}`);
   }
 
   return response.json();
@@ -391,6 +402,26 @@ export const agentAPI = {
     });
     
     console.log('✅ Agent update successful:', response);
+    return response;
+  },
+
+  /**
+   * Partially update an agent using PATCH /api/agents/agents/{agent_id}/
+   * Used for status changes and other partial updates
+   */
+  async patchAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentResponse> {
+    console.log('🔄 PATCH /api/agents/agents/${agentId}/ - Patching agent with data:', {
+      agentId,
+      dataKeys: Object.keys(agentData),
+      agentData
+    });
+    
+    const response = await apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(agentData),
+    });
+    
+    console.log('✅ Agent patch successful:', response);
     return response;
   },
 };

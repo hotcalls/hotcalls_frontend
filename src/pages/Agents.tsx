@@ -31,26 +31,58 @@ export default function Agents() {
       try {
         setIsLoading(true);
         setError(null);
-        console.log('🤖 Loading agents from API...', { workspaceId: primaryWorkspace?.id });
         
-        // Load agents filtered by current workspace
-        const agents = await agentAPI.getAgents(primaryWorkspace?.id);
-        console.log('✅ Agents loaded:', agents);
+        if (!primaryWorkspace) {
+          console.log('No primary workspace yet, skipping agent load');
+          return;
+        }
         
-        // Ensure agents is always an array
-        const agentsArray = Array.isArray(agents) ? agents : [];
-        console.log('📦 Setting agent list:', agentsArray);
-        setAgentList(agentsArray);
-      } catch (error) {
-        console.error('❌ Failed to load agents:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load agents');
+        console.log('🤖 Loading agents for workspace:', primaryWorkspace.id);
+        const agents = await agentAPI.getAgents(primaryWorkspace.id);
+        console.log(`✅ Loaded ${agents.length} agents`);
+        console.log('🔍 Agent statuses:', agents.map(a => ({ id: a.agent_id, name: a.name, status: a.status })));
+        setAgentList(agents);
+      } catch (err) {
+        console.error('❌ Failed to load agents:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load agents');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadAgents();
-  }, [primaryWorkspace?.id, workspaceLoading]);
+  }, [primaryWorkspace, workspaceLoading]);
+
+  const toggleAgentStatus = async (agentId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'active' ? 'paused' : 'active';
+      console.log(`🔄 Toggling agent ${agentId} from ${currentStatus} to ${newStatus}`);
+      console.log('📤 Sending status update:', { status: newStatus });
+      
+      // Call API to update status
+      const updatedAgent = await agentAPI.patchAgent(agentId, {
+        status: newStatus
+      });
+      
+      // Update local state
+      setAgentList(prevAgents => 
+        prevAgents.map(agent => 
+          agent.agent_id === agentId 
+            ? { ...agent, status: updatedAgent.status }
+            : agent
+        )
+      );
+      
+      toast.success(`Agent ${newStatus === 'active' ? 'aktiviert' : 'pausiert'}`);
+    } catch (err: any) {
+      console.error('❌ Failed to toggle agent status:', err);
+      console.error('🔍 Error details:', err.message);
+      if (err.response) {
+        console.error('🔍 Response data:', err.response);
+      }
+      toast.error('Fehler beim Ändern des Agent-Status');
+    }
+  };
 
   const deleteAgent = (agentId: string, name: string) => {
     // TODO: Implement actual delete API call
@@ -162,6 +194,7 @@ export default function Agents() {
                     <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
                       <button
                         className={agent.status === "active" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
+                        onClick={() => toggleAgentStatus(agent.agent_id, agent.status)}
                       >
                         {agent.status === "active" ? (
                           <>
