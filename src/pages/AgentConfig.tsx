@@ -147,9 +147,23 @@ export default function AgentConfig() {
         };
 
         // Map API response to form config
+        const mappedPersonality = mapCharacterToPersonality(agentData.character || "");
+        console.log('🎭 Personality mapping:', {
+          originalCharacter: agentData.character,
+          mappedPersonality: mappedPersonality
+        });
+        
+        console.log('⏰ Time and interval values:', {
+          call_from_raw: agentData.call_from,
+          call_to_raw: agentData.call_to,
+          call_from_parsed: parseTime(agentData.call_from),
+          call_to_parsed: parseTime(agentData.call_to),
+          retry_interval: agentData.retry_interval
+        });
+        
         setConfig({
           name: agentData.name || "",
-          personality: mapCharacterToPersonality(agentData.character || ""),
+          personality: mappedPersonality,
           voice: agentData.voice || "",
           script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
@@ -276,8 +290,8 @@ export default function AgentConfig() {
         language: config.language,
         retry_interval: parseInt(config.callInterval) || 30,
         workdays: workdaysArray, // Send as array, not string
-        call_from: config.workingTimeStart + ":00", // Convert "09:00" to "09:00:00"
-        call_to: config.workingTimeEnd + ":00", // Convert "17:00" to "17:00:00"
+        call_from: config.workingTimeStart + ":00", // Convert "HH:MM" to "HH:MM:00"
+        call_to: config.workingTimeEnd + ":00", // Convert "HH:MM" to "HH:MM:00"
         character: mapPersonalityToCharacter(config.personality), // Map personality to character
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
@@ -296,6 +310,16 @@ export default function AgentConfig() {
         personalityToCharacterMapping: {
           personality: config.personality,
           character: agentData.character
+        },
+        timeDebug: {
+          workingTimeStart: config.workingTimeStart,
+          workingTimeEnd: config.workingTimeEnd,
+          call_from: agentData.call_from,
+          call_to: agentData.call_to
+        },
+        intervalDebug: {
+          callInterval: config.callInterval,
+          retry_interval: agentData.retry_interval
         }
       });
       
