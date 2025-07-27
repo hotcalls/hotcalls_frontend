@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
+import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
+import { workspaceAPI } from "@/lib/apiService";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -210,6 +211,19 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
   const createAgentViaAPI = async () => {
     try {
+      // Get user's workspaces using new endpoint
+      const workspaces = await workspaceAPI.getMyWorkspaces();
+      console.log('🔍 My Workspaces API response:', workspaces);
+      
+      if (!workspaces || workspaces.length === 0) {
+        throw new Error('Keine Workspace gefunden. Bitte melden Sie sich erneut an.');
+      }
+      
+      // Use the first workspace (user should have exactly one)
+      const userWorkspace = workspaces[0];
+      console.log('🏢 Selected workspace:', userWorkspace);
+      console.log('🆔 Workspace ID:', userWorkspace?.id);
+
       // Find the selected voice object
       const selectedVoice = voices.find(v => v.id === formData.voice);
       if (!selectedVoice) {
@@ -218,7 +232,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
       // Create agent data for API
       const agentData: AgentCreateRequest = {
-        workspace: "123e4567-e89b-12d3-a456-426614174000", // Use a realistic looking UUID
+        workspace: userWorkspace.id, // Use user's actual workspace ID
         name: formData.name,
         status: 'active',
         greeting_inbound: formData.script,

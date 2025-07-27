@@ -105,6 +105,7 @@ async function apiCall<T>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    credentials: 'include', // Include cookies for authentication
   };
 
   const response = await fetch(url, { ...defaultOptions, ...options });
@@ -181,6 +182,13 @@ export const workspaceAPI = {
    */
   async getWorkspaces(): Promise<CreateWorkspaceResponse[]> {
     return apiCall<CreateWorkspaceResponse[]>('/api/workspaces/workspaces/');
+  },
+
+  /**
+   * Get current user's workspaces (authenticated user's workspaces only)
+   */
+  async getMyWorkspaces(): Promise<CreateWorkspaceResponse[]> {
+    return apiCall<CreateWorkspaceResponse[]>('/api/workspaces/workspaces/my_workspaces/');
   },
 };
 

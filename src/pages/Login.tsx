@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, Mail } from "lucide-react";
 import { authService, agentService } from "@/lib/authService";
 import { toast } from "sonner";
 
@@ -17,17 +17,14 @@ const Login = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
 
   // Handle registration success message and pre-fill email
   useEffect(() => {
     const state = location.state as { message?: string; email?: string } | null;
     
     if (state?.message) {
-      toast({
-        title: "Registrierung erfolgreich!",
-        description: state.message,
-        duration: 8000,
+      toast.success("Registrierung erfolgreich! " + state.message, { 
+        duration: 8000 
       });
     }
 
@@ -128,9 +125,7 @@ const Login = () => {
         errorMessage = "Ihr Konto wurde gesperrt. Kontaktieren Sie den Support.";
       }
       
-      toast.error("Login fehlgeschlagen", {
-        description: errorMessage
-      });
+      toast.error("Login fehlgeschlagen: " + errorMessage);
     } finally {
       setIsLoading(false);
     }
