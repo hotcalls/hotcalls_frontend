@@ -40,6 +40,9 @@ export default function AgentConfig() {
   const isEdit = !!id;
   const [activeTab, setActiveTab] = useState("personality");
   
+  // Debug logging
+  console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
+  
   // Loading and error states
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
@@ -74,7 +77,17 @@ export default function AgentConfig() {
   // Load agent data when editing
   useEffect(() => {
     const loadAgentData = async () => {
-      if (!isEdit || !id) return;
+      if (!isEdit) {
+        console.log('🔧 Not editing mode, skipping data load');
+        return;
+      }
+      
+      if (!id || id === 'undefined') {
+        console.error('❌ No valid agent ID provided:', { id, isEdit });
+        setError('Keine gültige Agent-ID gefunden');
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);

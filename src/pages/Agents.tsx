@@ -132,6 +132,14 @@ export default function Agents() {
             const voicePicture = getVoicePicture(agent.voice);
             const voiceName = getVoiceName(agent.voice);
             
+            // Debug: Check agent ID
+            console.log('🤖 Agent Debug:', { 
+              id: agent.id, 
+              name: agent.name, 
+              idType: typeof agent.id,
+              agentKeys: Object.keys(agent)
+            });
+            
             return (
               <Card key={agent.id}>
                 <CardHeader>
