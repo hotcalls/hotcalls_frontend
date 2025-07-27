@@ -82,7 +82,7 @@ export interface CreateAgentRequest {
   voice: string;
   language: string;
   retry_interval?: number;
-  workdays: number[] | string; // Support both array and string format
+  workdays: number[]; // Backend requires array of numbers
   call_from: string;
   call_to: string;
   character: string;

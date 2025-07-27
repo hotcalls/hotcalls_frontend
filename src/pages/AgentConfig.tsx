@@ -107,6 +107,44 @@ export default function AgentConfig() {
           return 'friendly'; // default
         };
 
+        // Parse workdays from API response (can be string or array)
+        const parseWorkdays = (workdays: string | number[] | undefined) => {
+          const defaultWorkdays = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
+          
+          if (!workdays) return defaultWorkdays;
+          
+          // Handle string format (e.g., "1,2,3,4,5")
+          if (typeof workdays === 'string') {
+            const days = workdays.split(',').map(d => parseInt(d.trim()));
+            days.forEach(day => {
+              if (day >= 0 && day <= 6) {
+                defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
+              }
+            });
+          }
+          // Handle array format
+          else if (Array.isArray(workdays)) {
+            workdays.forEach(day => {
+              if (day >= 0 && day <= 6) {
+                defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
+              }
+            });
+          }
+          
+          return defaultWorkdays;
+        };
+
+        // Parse time fields (remove seconds and timezone if present)
+        const parseTime = (timeStr: string | undefined) => {
+          if (!timeStr) return "09:00";
+          // If time is in format "HH:MM:SS" or "HH:MM:SS.msZ", extract just "HH:MM"
+          const timeParts = timeStr.split(':');
+          if (timeParts.length >= 2) {
+            return `${timeParts[0]}:${timeParts[1]}`;
+          }
+          return timeStr;
+        };
+
         // Map API response to form config
         setConfig({
           name: agentData.name || "",
@@ -119,10 +157,10 @@ export default function AgentConfig() {
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
           maxAttempts: "3",
-          callInterval: "30",
-          workingDays: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false },
-          workingTimeStart: agentData.call_from || "09:00",
-          workingTimeEnd: agentData.call_to || "17:00",
+          callInterval: (agentData.retry_interval || 30).toString(),
+          workingDays: parseWorkdays(agentData.workdays),
+          workingTimeStart: parseTime(agentData.call_from),
+          workingTimeEnd: parseTime(agentData.call_to),
           character: agentData.character || "",
           language: agentData.language || "de"
         });
@@ -201,8 +239,32 @@ export default function AgentConfig() {
       }
       console.log('✅ Validation passed');
       
-                   // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
+      // Map personality to character for the API
+      const mapPersonalityToCharacter = (personality: string): string => {
+        switch (personality) {
+          case 'friendly':
+            return 'Freundlich und empathisch';
+          case 'professional':
+            return 'Professionell und direkt';
+          case 'warm':
+            return 'Warm und herzlich';
+          case 'energetic':
+            return 'Energisch und dynamisch';
+          case 'direct':
+            return 'Direkt und zielstrebig';
+          default:
+            return 'Freundlich und empathisch';
+        }
+      };
+      
+      // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       console.log('🔧 Preparing agentData...');
+      
+      // Convert workdays from object to array of numbers
+      const workdaysArray = Object.entries(config.workingDays)
+        .filter(([_, active]) => active)
+        .map(([day]) => parseInt(day));
+      
       const agentData = {
         workspace: primaryWorkspace.id,
         name: config.name,
@@ -211,13 +273,11 @@ export default function AgentConfig() {
         greeting_outbound: config.outgoingGreeting,
         voice: config.voice,
         language: config.language,
-        retry_interval: parseInt(config.callInterval) || 30, // From config
-        workdays: Object.entries(config.workingDays)
-          .filter(([_, active]) => active)
-          .map(([day]) => parseInt(day)),
+        retry_interval: parseInt(config.callInterval) || 30,
+        workdays: workdaysArray, // Send as array, not string
         call_from: config.workingTimeStart + ":00", // Convert "09:00" to "09:00:00"
         call_to: config.workingTimeEnd + ":00", // Convert "17:00" to "17:00:00"
-        character: config.character,
+        character: mapPersonalityToCharacter(config.personality), // Map personality to character
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
         calendar_configuration: null // Optional: Set if you have calendar config
@@ -230,7 +290,11 @@ export default function AgentConfig() {
         workdaysDebug: {
           originalWorkingDays: config.workingDays,
           filteredEntries: Object.entries(config.workingDays).filter(([_, active]) => active),
-          finalWorkdays: agentData.workdays
+          workdaysArray: workdaysArray
+        },
+        personalityToCharacterMapping: {
+          personality: config.personality,
+          character: agentData.character
         }
       });
       
