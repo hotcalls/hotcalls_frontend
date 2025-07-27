@@ -201,8 +201,7 @@ export default function AgentConfig() {
         retry_interval: parseInt(config.callInterval) || 30, // From config
         workdays: Object.entries(config.workingDays)
           .filter(([_, active]) => active)
-          .map(([day]) => parseInt(day))
-          .join(','),
+          .map(([day]) => parseInt(day)),
         call_from: config.workingTimeStart,
         call_to: config.workingTimeEnd,
         character: config.character,
@@ -211,7 +210,16 @@ export default function AgentConfig() {
         calendar_configuration: null // Optional: Set if you have calendar config
       };
       
-      console.log('💾 Saving agent...', { isEdit, agentId: id, agentData });
+      console.log('💾 Saving agent...', { 
+        isEdit, 
+        agentId: id, 
+        agentData,
+        workdaysDebug: {
+          originalWorkingDays: config.workingDays,
+          filteredEntries: Object.entries(config.workingDays).filter(([_, active]) => active),
+          finalWorkdays: agentData.workdays
+        }
+      });
       
       if (isEdit && id) {
         console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
