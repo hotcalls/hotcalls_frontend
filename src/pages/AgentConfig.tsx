@@ -97,12 +97,22 @@ export default function AgentConfig() {
         const agentData = await agentAPI.getAgent(id);
         console.log('✅ Agent data loaded:', agentData);
         
+        // Map character to personality options
+        const mapCharacterToPersonality = (character: string) => {
+          const lowerChar = character.toLowerCase();
+          if (lowerChar.includes('freundlich') || lowerChar.includes('empathisch')) return 'friendly';
+          if (lowerChar.includes('professionell') || lowerChar.includes('direkt')) return 'professional';
+          if (lowerChar.includes('warm') || lowerChar.includes('herzlich')) return 'warm';
+          if (lowerChar.includes('energisch') || lowerChar.includes('dynamisch')) return 'energetic';
+          return 'friendly'; // default
+        };
+
         // Map API response to form config
         setConfig({
           name: agentData.name || "",
-          personality: "", // Will map character to personality options
+          personality: mapCharacterToPersonality(agentData.character || ""),
           voice: agentData.voice || "",
-          script: "", // Will need to get from prompt field if available
+          script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
           selectedEventTypes: [],
           selectedLeadForms: [],
@@ -402,7 +412,7 @@ export default function AgentConfig() {
                       const voicePicture = getVoicePicture(voice.id);
                       
                       return (
-                        <div key={voice.id} className="p-4 border rounded-lg space-y-2 relative">
+                        <div key={voice.id} className="p-4 border rounded-lg space-y-2 relative h-48 flex flex-col">
                           {voice.recommend && (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -416,7 +426,7 @@ export default function AgentConfig() {
                             </Tooltip>
                           )}
                           
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between flex-grow">
                             <div className="flex items-center space-x-3">
                               <Avatar className="h-14 w-14">
                                 {voicePicture && (
@@ -449,11 +459,14 @@ export default function AgentConfig() {
                                   {voice.gender === 'female' ? 'Weiblich' : voice.gender === 'male' ? 'Männlich' : 'Neutral'}
                                   {voice.tone && `, ${voice.tone}`}
                                 </p>
-                                <p className="text-xs text-gray-400">{voice.provider}</p>
+                                {/* Entferne Provider-Anzeige außer wenn es nicht elevenlabs ist */}
+                                {voice.provider && voice.provider.toLowerCase() !== 'elevenlabs' && (
+                                  <p className="text-xs text-gray-400">{voice.provider}</p>
+                                )}
                               </div>
                             </div>
                             <button 
-                              className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
+                              className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50 shrink-0"
                               onClick={() => playVoiceSample(voice.id)}
                               title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
                             >
@@ -466,7 +479,7 @@ export default function AgentConfig() {
                           </div>
                           
                           <button
-                            className={`w-full py-2 px-3 rounded border text-sm font-medium ${
+                            className={`w-full py-2 px-3 rounded border text-sm font-medium mt-auto ${
                               isSelected
                                 ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
                                 : "border-gray-300 text-gray-700 hover:bg-gray-50"
