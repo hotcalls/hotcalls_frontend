@@ -181,20 +181,28 @@ export default function AgentConfig() {
   };
 
   const handleSave = async () => {
+    console.log('🚀 handleSave STARTED', { config, primaryWorkspace });
+    
     try {
       setSaving(true);
       setError(null);
+      console.log('🔄 Save state set, validating...');
       
       if (!primaryWorkspace) {
+        console.error('❌ No workspace available');
         throw new Error('Kein Workspace verfügbar');
       }
+      console.log('✅ Workspace available:', primaryWorkspace.id);
 
       // Validate required fields before sending to API
       if (!config.name || !config.voice) {
+        console.error('❌ Validation failed:', { name: config.name, voice: config.voice });
         throw new Error('Name und Voice sind erforderlich');
       }
+      console.log('✅ Validation passed');
       
                    // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
+      console.log('🔧 Preparing agentData...');
       const agentData = {
         workspace: primaryWorkspace.id,
         name: config.name,
