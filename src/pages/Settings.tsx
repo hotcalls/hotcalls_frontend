@@ -60,13 +60,18 @@ export default function Settings() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
-  const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading } = useWorkspace();
+  const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
 
   // Profile form data
   const [profileFormData, setProfileFormData] = useState({
     first_name: '',
     last_name: '',
     phone: ''
+  });
+
+  // Workspace form data
+  const [workspaceFormData, setWorkspaceFormData] = useState({
+    workspace_name: ''
   });
 
   // Update form data when profile loads
@@ -79,6 +84,15 @@ export default function Settings() {
       });
     }
   }, [profile]);
+
+  // Update workspace form data when workspace details load
+  useEffect(() => {
+    if (workspaceDetails) {
+      setWorkspaceFormData({
+        workspace_name: workspaceDetails.workspace_name || ''
+      });
+    }
+  }, [workspaceDetails]);
 
   // Handle profile form changes
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +111,53 @@ export default function Settings() {
       ...prev,
       [fieldName]: fieldValue
     }));
+  };
+
+  // Handle workspace form changes
+  const handleWorkspaceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fieldName = e.target.name;
+    const fieldValue = e.target.value;
+    
+    console.log('🏢 Workspace field changed:', {
+      fieldName,
+      fieldValue,
+      currentWorkspaceData: workspaceFormData
+    });
+    
+    setWorkspaceFormData(prev => ({
+      ...prev,
+      [fieldName]: fieldValue
+    }));
+  };
+
+  // Save workspace changes
+  const handleSaveWorkspace = async () => {
+    if (!workspaceDetails?.id) {
+      toast.error('Workspace ID nicht gefunden');
+      return;
+    }
+
+    try {
+      console.log('🏢 Settings - preparing to save workspace:', {
+        workspaceId: workspaceDetails.id,
+        originalWorkspace: workspaceDetails,
+        formData: workspaceFormData,
+        workspaceState: {
+          loading: workspaceLoading,
+          updating: isUpdatingWorkspace,
+          hasWorkspace: !!workspaceDetails
+        }
+      });
+      
+      await updateWorkspace(workspaceDetails.id, workspaceFormData);
+      
+      toast.success('Workspace erfolgreich aktualisiert!');
+    } catch (error: any) {
+      console.error('Failed to update workspace:', error);
+      toast.error('Fehler beim Speichern des Workspace', {
+        description: error.message || 'Bitte versuchen Sie es erneut.'
+      });
+    }
   };
 
   // Save profile changes
@@ -374,15 +435,23 @@ export default function Settings() {
                 <Label htmlFor="workspaceName">Workspace Name</Label>
                 <Input 
                   id="workspaceName" 
-                  defaultValue={workspaceDetails?.workspace_name || primaryWorkspace?.workspace_name || ""} 
-                  disabled={workspaceLoading}
+                  name="workspace_name"
+                  value={workspaceFormData.workspace_name}
+                  onChange={handleWorkspaceInputChange}
+                  disabled={workspaceLoading || isUpdatingWorkspace}
                   placeholder={workspaceLoading ? "Wird geladen..." : "Workspace Name"}
                 />
               </div>
               
               <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default} disabled={workspaceLoading}>
-                  <span>Workspace speichern</span>
+                <button 
+                  className={buttonStyles.create.default} 
+                  onClick={handleSaveWorkspace}
+                  disabled={workspaceLoading || isUpdatingWorkspace}
+                >
+                  <span>
+                    {isUpdatingWorkspace ? "Wird gespeichert..." : "Workspace speichern"}
+                  </span>
                 </button>
               </div>
             </CardContent>

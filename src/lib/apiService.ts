@@ -277,6 +277,16 @@ export const workspaceAPI = {
   },
 
   /**
+   * Update workspace information
+   */
+  async updateWorkspace(workspaceId: string, workspaceData: { workspace_name: string }): Promise<CreateWorkspaceResponse> {
+    return apiCall<CreateWorkspaceResponse>(`/api/workspaces/workspaces/${workspaceId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(workspaceData),
+    });
+  },
+
+  /**
    * Get team members for a workspace (deprecated - use getWorkspaceDetails instead)
    */
   async getWorkspaceMembers(workspaceId: string): Promise<any[]> {

@@ -10,6 +10,7 @@ export function useWorkspace() {
   const [workspaceDetails, setWorkspaceDetails] = useState<WorkspaceDetails | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchWorkspaces = async () => {
@@ -116,21 +117,32 @@ export function useWorkspace() {
     return `${diffDays} Tagen`;
   };
 
-  const updateWorkspace = async (workspaceId: string, updates: Partial<CreateWorkspaceResponse>) => {
+  const updateWorkspace = async (workspaceId: string, updates: { workspace_name: string }) => {
     try {
+      setUpdating(true);
+      setError(null);
       console.log('🔄 Updating workspace:', workspaceId, updates);
-      // TODO: Implement update API call when available
-      // const updatedWorkspace = await workspaceAPI.updateWorkspace(workspaceId, updates);
       
-      // For now, update local state
+      const updatedWorkspace = await workspaceAPI.updateWorkspace(workspaceId, updates);
+      console.log('✅ Workspace updated successfully:', updatedWorkspace);
+      
+      // Update local state
       setWorkspaces(prev => 
         prev.map(w => w.id === workspaceId ? { ...w, ...updates } : w)
       );
       
-      return true;
+      // Update workspace details if it's the current workspace
+      if (workspaceDetails?.id === workspaceId) {
+        setWorkspaceDetails(prev => prev ? { ...prev, ...updates } : null);
+      }
+      
+      return updatedWorkspace;
     } catch (err) {
       console.error('❌ Failed to update workspace:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update workspace');
       throw err;
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -140,6 +152,7 @@ export function useWorkspace() {
     workspaceDetails,
     teamMembers: getTeamMembers(),
     loading,
+    updating,
     error,
     refetch: fetchWorkspaces,
     updateWorkspace
