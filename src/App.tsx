@@ -18,8 +18,8 @@ import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
-import QuickSignUp from "./pages/QuickSignUp";
 import SignUp from "./pages/SignUp";
+import EmailVerificationPending from "./pages/EmailVerificationPending";
 import OAuthCallback from "./pages/OAuthCallback";
 import AGB from "./pages/AGB";
 import Datenschutz from "./pages/Datenschutz";
@@ -39,8 +39,8 @@ const App = () => (
           
           {/* Auth Routes (without Layout) */}
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<QuickSignUp />} />
-          <Route path="/signup/complete" element={<SignUp />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/email-verification-pending" element={<EmailVerificationPending />} />
           
           {/* Legal Pages */}
           <Route path="/agb" element={<AGB />} />

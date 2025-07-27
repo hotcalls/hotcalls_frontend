@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface WelcomeFlowProps {
   onComplete: () => void;
@@ -26,6 +27,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Verhindere Body-Scrolling wenn Modal aktiv ist
   useEffect(() => {
@@ -36,10 +39,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   }, []);
 
   const voices = [
-    { id: "sarah", name: "Sarah", preview: "Freundlich und professionell" },
-    { id: "max", name: "Max", preview: "Selbstbewusst und energisch" },
-    { id: "anna", name: "Anna", preview: "Warm und vertrauensvoll" },
-    { id: "david", name: "David", preview: "Ruhig und kompetent" }
+    { id: "sarah", name: "Sarah", preview: "Weiblich, warm" },
+    { id: "marcus", name: "Marcus", preview: "Männlich, ruhig" },
+    { id: "lisa", name: "Lisa", preview: "Weiblich, energisch" }
   ];
 
   const personalities = [
@@ -70,6 +72,52 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+
+  const playVoiceSample = (voice: string) => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    if (playingVoice === voice) {
+      // If clicking the same voice, stop playing
+      setPlayingVoice(null);
+      return;
+    }
+
+    // Create new audio element and play
+    const audio = new Audio(`/voice-samples/${voice}-sample.mp3`);
+    audioRef.current = audio;
+    
+    audio.play().catch(error => {
+      console.error('Error playing voice sample:', error);
+      // Fallback to .wav if .mp3 doesn't exist
+      const wavAudio = new Audio(`/voice-samples/${voice}-sample.wav`);
+      audioRef.current = wavAudio;
+      wavAudio.play().catch(err => {
+        console.error('Error playing WAV sample:', err);
+        alert('Voice sample nicht gefunden. Bitte fügen Sie die Audiodatei hinzu.');
+      });
+    });
+
+    setPlayingVoice(voice);
+
+    audio.onended = () => {
+      setPlayingVoice(null);
+      audioRef.current = null;
+    };
+  };
+
+  // Cleanup audio on component unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   const nextStep = () => {
     if (currentStep === 4) {
@@ -135,8 +183,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 0 && (
             <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
               <div className="space-y-6">
-                <div className="w-20 h-20 bg-[#FE5B25]/10 rounded-full flex items-center justify-center mx-auto">
-                  <Sparkles className="h-10 w-10 text-[#FE5B25]" />
+                <div className="flex justify-center mb-6">
+                  <img 
+                    src="/hotcalls-logo.png" 
+                    alt="Hotcalls Logo" 
+                    className="h-16 w-auto"
+                  />
                 </div>
                 <h2 className="text-4xl font-bold text-gray-900">
                   Erstelle deinen Agenten<br />in unter 5 Minuten
@@ -174,44 +226,99 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
           {/* Step 2: Voice Selection */}
           {currentStep === 2 && (
-            <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
+            <div className="w-full max-w-md space-y-8 text-center animate-slide-in">
               <h2 className="text-3xl font-bold text-gray-900">
                 Welche Stimme soll {formData.name || 'dein Agent'} haben?
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                {voices.map((voice) => (
-                  <div
-                    key={voice.id}
-                    className={`p-6 border-2 rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                      formData.voice === voice.id 
-                        ? 'border-[#FE5B25] bg-[#FE5B25]/5' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => handleInputChange('voice', voice.id)}
-                  >
-                    <div className="space-y-4">
-                      <div className="w-12 h-12 bg-[#FE5B25]/10 rounded-full flex items-center justify-center mx-auto">
-                        <span className="text-[#FE5B25] font-bold">{voice.name[0]}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-lg">{voice.name}</h4>
-                        <p className="text-sm text-gray-600 mb-3">{voice.preview}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/5 focus:ring-0 focus:ring-offset-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Voice preview functionality
-                          }}
-                        >
-                          <Play className="h-4 w-4 mr-2" />
-                          Anhören
-                        </Button>
+              <div className="space-y-4">
+                {voices.map((voice, index) => {
+                  const voiceConfig = {
+                    sarah: { 
+                      avatar: "/avatars/sarah.jpg.png", 
+                      initial: "S",
+                      fallback: User, 
+                      fallbackColor: "bg-blue-100 text-blue-600" 
+                    },
+                    marcus: { 
+                      avatar: "/avatars/marcus.jpg.png", 
+                      initial: "M",
+                      fallback: UserCircle, 
+                      fallbackColor: "bg-green-100 text-green-600" 
+                    },
+                    lisa: { 
+                      avatar: "/avatars/lisa.png", 
+                      initial: "L",
+                      fallback: Sparkles, 
+                      fallbackColor: "bg-purple-100 text-purple-600" 
+                    }
+                  }[voice.id];
+
+                  return (
+                    <div 
+                      key={voice.id} 
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#FE5B25] ${
+                        formData.voice === voice.id 
+                          ? "border-[#FE5B25] bg-[#FEF5F1]" 
+                          : "border-gray-200 hover:bg-gray-50"
+                      }`}
+                      onClick={() => handleInputChange('voice', voice.id)}
+                    >
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage 
+                            src={voiceConfig?.avatar} 
+                            alt={voice.name}
+                            onError={() => {
+                              console.log(`Avatar image failed to load for ${voice.name}, showing fallback`);
+                            }}
+                          />
+                          <AvatarFallback className={`${voiceConfig?.fallbackColor} font-semibold text-lg`}>
+                            {voiceConfig?.initial}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-base text-gray-900">{voice.name}</p>
+                              <p className="text-sm text-gray-500">{voice.preview}</p>
+                            </div>
+                            <div className="w-16 flex justify-end">
+                              {voice.id === 'marcus' && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Empfohlen
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            className="w-8 h-8 border rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              playVoiceSample(voice.id);
+                            }}
+                            title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
+                          >
+                            {playingVoice === voice.id ? (
+                              <Pause className="h-3 w-3" />
+                            ) : (
+                              <Play className="h-3 w-3" />
+                            )}
+                          </button>
+                          
+                          {formData.voice === voice.id && (
+                            <div className="w-6 h-6 bg-[#FE5B25] rounded-full flex items-center justify-center">
+                              <Check className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -324,7 +431,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
                 size="lg"
               >
-                14-tägige Testphase starten*
+                14-tägige kostenlose Testphase starten*
               </Button>
               
               <p className="text-xs text-gray-500">
