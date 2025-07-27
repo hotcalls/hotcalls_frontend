@@ -229,8 +229,10 @@ export const voiceAPI = {
     if (params?.page) searchParams.append('page', params.page.toString());
 
     const url = `/api/voices/voices/${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
-    console.log('🔊 Fetching voices from:', url);
-    return apiCall<VoicesResponse>(url);
+    console.log('🔊 Fetching voices from:', `${API_BASE_URL}${url}`);
+    const response = await apiCall<VoicesResponse>(url);
+    console.log('🔊 Voice API response:', response);
+    return response;
   },
 
   /**

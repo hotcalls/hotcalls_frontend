@@ -64,15 +64,24 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
     const loadVoices = async () => {
       try {
         setLoadingVoices(true);
-        const response = await voiceAPI.getVoices({ recommend: true });
+        console.log('🔊 Loading voices from API...');
+        const response = await voiceAPI.getVoices(); // Load all voices, not just recommended
+        console.log('🔊 Loaded voices:', response);
         setVoices(response.results);
+        
+        if (response.results.length === 0) {
+          console.warn('⚠️ No voices received from API');
+        }
       } catch (error) {
-        console.error("Failed to load voices:", error);
+        console.error("❌ Failed to load voices:", error);
         toast({
           title: "Fehler beim Laden der Stimmen",
           description: "Stimmen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
           variant: "destructive",
         });
+        
+        // Don't leave the user with no voices - this should not happen
+        setVoices([]);
       } finally {
         setLoadingVoices(false);
       }
