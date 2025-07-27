@@ -83,16 +83,18 @@ const SignUp = () => {
             : "Account wurde erstellt. Bitte überprüfen Sie Ihre E-Mails zur Verifizierung.",
         });
 
-        // Store registration info for potential future use
+        // Store registration info for agent creation
         localStorage.setItem('registrationPending', JSON.stringify({
           email: formData.email,
           workspace: result.workspace?.workspace_name || formData.company,
+          workspaceId: result.workspace?.id,
         }));
 
-        // Redirect to login with success message
-        navigate("/login", {
+        // Redirect to agent creation page
+        navigate("/create-agent", {
           state: {
-            message: "Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink, bevor Sie sich anmelden.",
+            workspaceId: result.workspace?.id,
+            workspaceName: result.workspace?.workspace_name || formData.company,
             email: formData.email,
           }
         });

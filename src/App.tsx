@@ -24,6 +24,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import AGB from "./pages/AGB";
 import Datenschutz from "./pages/Datenschutz";
 import Datenlöschung from "./pages/Datenlöschung";
+import CreateAgent from "./pages/CreateAgent";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<QuickSignUp />} />
           <Route path="/signup/complete" element={<SignUp />} />
+          <Route path="/create-agent" element={<CreateAgent />} />
           
           {/* Legal Pages */}
           <Route path="/agb" element={<AGB />} />
