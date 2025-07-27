@@ -11,11 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { toast } from "sonner";
 
 // Mock data für Minuten-Pakete basierend auf Plan
 const getMinutePackages = (plan: string) => {
@@ -58,8 +59,73 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
-  const { profile, loading: profileLoading, getDisplayName, getInitials } = useUserProfile();
+  const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading } = useWorkspace();
+
+  // Profile form data
+  const [profileFormData, setProfileFormData] = useState({
+    first_name: '',
+    last_name: '',
+    phone: ''
+  });
+
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setProfileFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: profile.phone || ''
+      });
+    }
+  }, [profile]);
+
+  // Handle profile form changes
+  const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fieldName = e.target.name;
+    const fieldValue = e.target.value;
+    
+    console.log('📝 Form field changed:', {
+      fieldName,
+      fieldValue,
+      fieldLength: fieldValue.length,
+      isFirstName: fieldName === 'first_name',
+      currentFormData: profileFormData
+    });
+    
+    setProfileFormData(prev => ({
+      ...prev,
+      [fieldName]: fieldValue
+    }));
+  };
+
+  // Save profile changes
+  const handleSaveProfile = async () => {
+    try {
+      console.log('📝 Settings - preparing to save profile:', {
+        originalProfile: profile,
+        formData: profileFormData,
+        hasFirstName: !!profileFormData.first_name,
+        firstNameValue: profileFormData.first_name,
+        firstNameLength: profileFormData.first_name?.length,
+        profileState: {
+          loading: profileLoading,
+          updating: isSavingProfile,
+          hasProfile: !!profile,
+          profileId: profile?.id
+        }
+      });
+      
+      await updateProfile(profileFormData);
+      
+      toast.success('Profil erfolgreich aktualisiert!');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      toast.error('Fehler beim Speichern des Profils', {
+        description: error.message || 'Bitte versuchen Sie es erneut.'
+      });
+    }
+  };
 
   // Billing functions
   const handlePurchase = async (packageId: string) => {
@@ -173,14 +239,10 @@ export default function Settings() {
             <CardContent className={layoutStyles.cardContent}>
               <div className="flex items-center space-x-4 mb-6">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src="/placeholder-avatar.jpg" />
                   <AvatarFallback>
                     {profileLoading ? "?" : getInitials()}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <Button variant="outline" size="sm">Foto ändern</Button>
-                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -188,8 +250,10 @@ export default function Settings() {
                   <Label htmlFor="firstName">Vorname</Label>
                   <Input 
                     id="firstName" 
-                    defaultValue={profile?.first_name || ""} 
-                    disabled={profileLoading}
+                    name="first_name"
+                    value={profileFormData.first_name}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
                     placeholder={profileLoading ? "Wird geladen..." : "Vorname"}
                   />
                 </div>
@@ -197,8 +261,10 @@ export default function Settings() {
                   <Label htmlFor="lastName">Nachname</Label>
                   <Input 
                     id="lastName" 
-                    defaultValue={profile?.last_name || ""} 
-                    disabled={profileLoading}
+                    name="last_name"
+                    value={profileFormData.last_name}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
                     placeholder={profileLoading ? "Wird geladen..." : "Nachname"}
                   />
                 </div>
@@ -207,25 +273,37 @@ export default function Settings() {
                   <Input 
                     id="email" 
                     type="email" 
-                    defaultValue={profile?.email || ""} 
-                    disabled={profileLoading}
-                    placeholder={profileLoading ? "Wird geladen..." : "E-Mail Adresse"}
+                    value={profile?.email || ""} 
+                    disabled={true}
+                    placeholder="E-Mail kann nicht geändert werden"
+                    className="bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    E-Mail-Adresse kann aus Sicherheitsgründen nicht geändert werden
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="phone">Telefon</Label>
                   <Input 
                     id="phone" 
-                    defaultValue={profile?.phone || ""} 
-                    disabled={profileLoading}
+                    name="phone"
+                    value={profileFormData.phone}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
                     placeholder={profileLoading ? "Wird geladen..." : "Telefonnummer"}
                   />
                 </div>
               </div>
               
               <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default}>
-                  <span>Änderungen speichern</span>
+                <button 
+                  className={buttonStyles.create.default}
+                  onClick={handleSaveProfile}
+                  disabled={profileLoading || isSavingProfile}
+                >
+                  <span>
+                    {isSavingProfile ? "Wird gespeichert..." : "Änderungen speichern"}
+                  </span>
                 </button>
               </div>
             </CardContent>

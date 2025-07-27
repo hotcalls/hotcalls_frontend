@@ -2,6 +2,43 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+// Helper function to get CSRF token from cookies
+const getCSRFToken = (): string | null => {
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    const [name, value] = cookie.trim().split('=');
+    if (name === 'csrftoken') {
+      console.log('🛡️ Found CSRF token in cookies');
+      return value;
+    }
+  }
+  console.warn('⚠️ No CSRF token found in cookies');
+  return null;
+};
+
+// Helper function to fetch CSRF token from Django
+const fetchCSRFToken = async (): Promise<string | null> => {
+  try {
+    console.log('🔄 Fetching CSRF token from Django...');
+    const response = await fetch(`${API_BASE_URL}/api/voices/voices/`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    
+    if (response.ok || response.status === 401) {
+      const csrfToken = getCSRFToken();
+      if (csrfToken) {
+        console.log('✅ CSRF token obtained from GET request');
+        return csrfToken;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch CSRF token:', error);
+  }
+  
+  return null;
+};
+
 // Types for API requests and responses
 export interface RegisterRequest {
   email: string;
@@ -100,11 +137,33 @@ async function apiCall<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
+  const method = options.method?.toUpperCase() || 'GET';
+  const needsCSRF = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  // Add CSRF token for non-GET requests
+  if (needsCSRF) {
+    let csrfToken = getCSRFToken();
+    
+    // If no CSRF token in cookies, try to fetch it
+    if (!csrfToken) {
+      csrfToken = await fetchCSRFToken();
+    }
+    
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+      console.log('🛡️ Added CSRF token to headers for', method, 'request');
+    } else {
+      console.warn('⚠️ No CSRF token available for', method, 'request - might fail');
+    }
+  }
+  
   const defaultOptions: RequestInit = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include', // Include cookies for authentication
   };
 
@@ -170,6 +229,16 @@ export const authAPI = {
   async getProfile(): Promise<any> {
     return apiCall('/api/auth/profile/', {
       method: 'GET',
+    });
+  },
+
+  /**
+   * Update user profile
+   */
+  async updateUser(userId: string, userData: any): Promise<any> {
+    return apiCall(`/api/users/users/${userId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
     });
   },
 };
