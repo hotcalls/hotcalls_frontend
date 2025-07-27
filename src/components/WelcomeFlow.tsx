@@ -18,9 +18,6 @@ interface WelcomeFlowProps {
 
 export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [voices, setVoices] = useState<Voice[]>([]);
-  const [loadingVoices, setLoadingVoices] = useState(true);
-  const { toast } = useToast();
   const [formData, setFormData] = useState({
     name: "",
     voice: "",
