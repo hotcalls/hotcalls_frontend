@@ -188,6 +188,11 @@ export default function AgentConfig() {
       if (!primaryWorkspace) {
         throw new Error('Kein Workspace verfügbar');
       }
+
+      // Validate required fields before sending to API
+      if (!config.name || !config.voice) {
+        throw new Error('Name und Voice sind erforderlich');
+      }
       
                    // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       const agentData = {
@@ -202,8 +207,8 @@ export default function AgentConfig() {
         workdays: Object.entries(config.workingDays)
           .filter(([_, active]) => active)
           .map(([day]) => parseInt(day)),
-        call_from: config.workingTimeStart,
-        call_to: config.workingTimeEnd,
+        call_from: config.workingTimeStart + ":00", // Convert "09:00" to "09:00:00"
+        call_to: config.workingTimeEnd + ":00", // Convert "17:00" to "17:00:00"
         character: config.character,
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
@@ -236,8 +241,24 @@ export default function AgentConfig() {
       
     } catch (err) {
       console.error('❌ Failed to save agent:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save agent');
-      toast.error('Fehler beim Speichern des Agents');
+      
+      // Enhanced error handling for different HTTP status codes
+      let errorMessage = 'Fehler beim Speichern des Agents';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('500')) {
+          errorMessage = 'Server-Fehler: Bitte Backend-Logs prüfen';
+        } else if (err.message.includes('400')) {
+          errorMessage = 'Ungültige Daten: Bitte Eingaben überprüfen';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Keine Berechtigung: Nur Staff/Admin können Agents bearbeiten';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
