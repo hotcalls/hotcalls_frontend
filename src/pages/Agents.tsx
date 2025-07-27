@@ -10,6 +10,7 @@ import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from
 import { agentAPI, AgentResponse } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useVoices } from "@/hooks/use-voices";
+import { toast } from "sonner";
 
 export default function Agents() {
   const navigate = useNavigate();
@@ -191,7 +192,19 @@ export default function Agents() {
                       </button>
                       <button 
                         className={buttonStyles.cardAction.icon}
-                        onClick={() => navigate(`/dashboard/agents/edit/${agent.id}`)}
+                        onClick={() => {
+                          console.log('🔧 Settings clicked for agent:', { 
+                            id: agent.id, 
+                            name: agent.name,
+                            navigationUrl: `/dashboard/agents/edit/${agent.id}` 
+                          });
+                          if (!agent.id || agent.id === 'undefined') {
+                            console.error('❌ Cannot navigate: Invalid agent ID');
+                            toast.error('Fehler: Ungültige Agent-ID');
+                            return;
+                          }
+                          navigate(`/dashboard/agents/edit/${agent.id}`);
+                        }}
                       >
                         <Settings className={iconSizes.small} />
                       </button>
