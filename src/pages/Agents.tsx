@@ -3,38 +3,69 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles } from "lucide-react";
+import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentService, Agent } from "@/lib/authService";
+import { agentAPI, AgentResponse } from "@/lib/apiService";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 export default function Agents() {
   const navigate = useNavigate();
-  const [agentList, setAgentList] = useState<Agent[]>([]);
+  const [agentList, setAgentList] = useState<AgentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get current workspace for filtering agents
+  const { primaryWorkspace, loading: workspaceLoading } = useWorkspace();
 
   useEffect(() => {
     const loadAgents = async () => {
+      if (workspaceLoading) return; // Wait for workspace to load
+      
       try {
-        console.log('🤖 Loading agents from API...');
-        const agents = await agentService.getAgents();
+        setIsLoading(true);
+        setError(null);
+        console.log('🤖 Loading agents from API...', { workspaceId: primaryWorkspace?.id });
+        
+        // Load agents filtered by current workspace
+        const agents = await agentAPI.getAgents(primaryWorkspace?.id);
         console.log('✅ Agents loaded:', agents);
-        setAgentList(agents);
+        
+        // Ensure agents is always an array
+        const agentsArray = Array.isArray(agents) ? agents : [];
+        console.log('📦 Setting agent list:', agentsArray);
+        setAgentList(agentsArray);
       } catch (error) {
         console.error('❌ Failed to load agents:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load agents');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadAgents();
-  }, []);
+  }, [primaryWorkspace?.id, workspaceLoading]);
 
   const deleteAgent = (id: string, name: string) => {
+    // TODO: Implement actual delete API call
     setAgentList(agentList.filter(agent => agent.id !== id));
     console.log(`Agent "${name}" wurde gelöscht`);
   };
+
+  // Show loading state while workspace is loading
+  if (workspaceLoading) {
+    return (
+      <div className={layoutStyles.pageContainer}>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500 mx-auto mb-2" />
+            <p className="text-gray-500">Lade Workspace...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -42,7 +73,10 @@ export default function Agents() {
       <div className={layoutStyles.pageHeader}>
         <div>
           <h1 className={textStyles.pageTitle}>KI-Agenten</h1>
-          <p className={textStyles.pageSubtitle}>Verwalte und konfiguriere deine KI-Agenten</p>
+          <p className={textStyles.pageSubtitle}>
+            Verwalte und konfiguriere deine KI-Agenten
+            {primaryWorkspace && ` • ${primaryWorkspace.workspace_name}`}
+          </p>
         </div>
         
         <button className={buttonStyles.create.default} onClick={() => navigate("/dashboard/agents/create")}>
@@ -51,15 +85,43 @@ export default function Agents() {
         </button>
       </div>
 
+      {/* Error State */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">Fehler beim Laden der Agenten: {error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+            onClick={() => window.location.reload()}
+          >
+            Neu laden
+          </Button>
+        </div>
+      )}
+
       {/* Agents Grid - EINHEITLICH */}
       <div className={layoutStyles.cardGrid}>
         {isLoading ? (
           <div className="col-span-full flex items-center justify-center py-12">
-            <p className="text-gray-500">Lade Agenten...</p>
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-500 mx-auto mb-2" />
+              <p className="text-gray-500">Lade Agenten...</p>
+            </div>
           </div>
         ) : agentList.length === 0 ? (
           <div className="col-span-full flex items-center justify-center py-12">
-            <p className="text-gray-500">Keine Agenten gefunden. Erstelle deinen ersten Agenten!</p>
+            <div className="text-center">
+              <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 mb-2">Keine Agenten gefunden</p>
+              <p className="text-sm text-gray-400 mb-4">
+                Erstelle deinen ersten Agenten um loszulegen!
+              </p>
+              <Button onClick={() => navigate("/dashboard/agents/create")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Ersten Agenten erstellen
+              </Button>
+            </div>
           </div>
         ) : (
           agentList.map((agent) => (
@@ -68,23 +130,9 @@ export default function Agents() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12">
-                    {agent.voice === "sarah" && (
-                      <AvatarImage src="/avatars/sarah.jpg.png" alt="Sarah" />
-                    )}
-                    {agent.voice === "marcus" && (
-                      <AvatarImage src="/avatars/marcus.jpg.png" alt="Marcus" />
-                    )}
-                    {agent.voice === "lisa" && (
-                      <AvatarImage src="/avatars/lisa.png" alt="Lisa" />
-                    )}
-                    <AvatarFallback className={`
-                      ${agent.voice === "sarah" ? "bg-blue-100 text-blue-600" : ""}
-                      ${agent.voice === "marcus" ? "bg-green-100 text-green-600" : ""}
-                      ${agent.voice === "lisa" ? "bg-purple-100 text-purple-600" : ""}
-                    `}>
-                      {agent.voice === "sarah" && <User className="h-6 w-6" />}
-                      {agent.voice === "marcus" && <UserCircle className="h-6 w-6" />}
-                      {agent.voice === "lisa" && <Sparkles className="h-6 w-6" />}
+                    {/* Voice-based avatar logic - might need to be updated based on API voice data */}
+                    <AvatarFallback className="bg-blue-100 text-blue-600">
+                      <Bot className="h-6 w-6" />
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -176,6 +224,19 @@ export default function Agents() {
                   <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>
                     {agent.status === 'active' ? 'Aktiv' : 'Inaktiv'}
                   </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                <div>
+                  <p className={textStyles.metricLabel}>Voice ID</p>
+                  <p className={textStyles.metric}>{agent.voice || 'Nicht zugewiesen'}</p>
+                </div>
+                <div>
+                  <p className={textStyles.metricLabel}>Erstellt</p>
+                  <p className={textStyles.metric}>
+                    {new Date(agent.created_at).toLocaleDateString('de-DE')}
+                  </p>
                 </div>
               </div>
             </CardContent>

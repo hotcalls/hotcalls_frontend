@@ -314,7 +314,22 @@ export const agentAPI = {
     const url = workspaceId 
       ? `/api/agents/agents/?workspace=${workspaceId}`
       : '/api/agents/agents/';
-    return apiCall<AgentResponse[]>(url);
+    
+    console.log('🤖 Calling agents API:', url);
+    const response = await apiCall<{ results: AgentResponse[]; count: number; next?: string; previous?: string }>(url);
+    console.log('📥 Raw agents API response:', response);
+    
+    // Handle both array and paginated response formats
+    if (Array.isArray(response)) {
+      console.log('✅ Got direct array response');
+      return response;
+    } else if (response && Array.isArray(response.results)) {
+      console.log('✅ Got paginated response with results array');
+      return response.results;
+    } else {
+      console.warn('⚠️ Unexpected API response format:', response);
+      return [];
+    }
   },
 };
 
