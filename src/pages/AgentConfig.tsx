@@ -97,6 +97,17 @@ export default function AgentConfig() {
         const agentData = await agentAPI.getAgent(id);
         console.log('✅ Agent data loaded:', agentData);
         
+        // Debug: Check if max_retries exists in the response
+        console.log('🔍 Checking max_retries:', {
+          has_max_retries: 'max_retries' in agentData,
+          max_retries_value: (agentData as any).max_retries,
+          retry_attempts: (agentData as any).retry_attempts,
+          max_attempts: (agentData as any).max_attempts,
+          retry_count: (agentData as any).retry_count,
+          max_retry: (agentData as any).max_retry,
+          all_fields: Object.keys(agentData).filter(key => key.includes('retry') || key.includes('attempt') || key.includes('max'))
+        });
+
         // Map character to personality options
         const mapCharacterToPersonality = (character: string) => {
           const lowerChar = character.toLowerCase();
@@ -108,26 +119,40 @@ export default function AgentConfig() {
           return 'friendly'; // default
         };
 
-        // Parse workdays from API response (can be string or array)
-        const parseWorkdays = (workdays: string | number[] | undefined) => {
+        // Parse workdays from API response (can be string or array of day names)
+        const parseWorkdays = (workdays: string | string[] | number[] | undefined) => {
           const defaultWorkdays = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
           
           if (!workdays) return defaultWorkdays;
           
-          // Handle string format (e.g., "1,2,3,4,5")
+          // Handle string format (e.g., "1,2,3,4,5" or "Monday,Tuesday,Wednesday")
           if (typeof workdays === 'string') {
-            const days = workdays.split(',').map(d => parseInt(d.trim()));
+            const days = workdays.split(',').map(d => d.trim().toLowerCase());
             days.forEach(day => {
-              if (day >= 0 && day <= 6) {
-                defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
+              // Check if it's a number
+              const dayNum = parseInt(day);
+              if (!isNaN(dayNum) && dayNum >= 0 && dayNum <= 6) {
+                defaultWorkdays[dayNum as keyof typeof defaultWorkdays] = true;
+              } else {
+                // Check if it's a day name
+                const dayIndex = dayNames.indexOf(day);
+                if (dayIndex !== -1) {
+                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
+                }
               }
             });
           }
           // Handle array format
           else if (Array.isArray(workdays)) {
             workdays.forEach(day => {
-              if (day >= 0 && day <= 6) {
+              if (typeof day === 'number' && day >= 0 && day <= 6) {
                 defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
+              } else if (typeof day === 'string') {
+                const dayIndex = dayNames.indexOf(day.toLowerCase());
+                if (dayIndex !== -1) {
+                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
+                }
               }
             });
           }
@@ -171,7 +196,7 @@ export default function AgentConfig() {
           selectedLeadForms: [],
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
-          maxAttempts: "3",
+          maxAttempts: (agentData.max_retries || 3).toString(), // Load max_retries from API
           callInterval: (agentData.retry_interval || 30).toString(),
           workingDays: parseWorkdays(agentData.workdays),
           workingTimeStart: parseTime(agentData.call_from),
@@ -252,6 +277,21 @@ export default function AgentConfig() {
         console.error('❌ Validation failed:', { name: config.name, voice: config.voice });
         throw new Error('Name und Voice sind erforderlich');
       }
+      
+      // Additional validation
+      if (!config.incomingGreeting || !config.outgoingGreeting) {
+        console.error('❌ Greetings missing:', { 
+          incomingGreeting: config.incomingGreeting, 
+          outgoingGreeting: config.outgoingGreeting 
+        });
+        throw new Error('Begrüßungen sind erforderlich');
+      }
+      
+      if (!config.script || config.script.trim() === '') {
+        console.error('❌ Script/Prompt missing');
+        throw new Error('Skript ist erforderlich');
+      }
+      
       console.log('✅ Validation passed');
       
       // Map personality to character for the API
@@ -275,10 +315,18 @@ export default function AgentConfig() {
       // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       console.log('🔧 Preparing agentData...');
       
-      // Convert workdays from object to array of numbers
+      // Convert workdays from object to array of English day names
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const workdaysArray = Object.entries(config.workingDays)
         .filter(([_, active]) => active)
-        .map(([day]) => parseInt(day));
+        .map(([day]) => dayNames[parseInt(day)]);
+      
+      console.log('📅 Workdays conversion:', {
+        configWorkingDays: config.workingDays,
+        filteredDays: Object.entries(config.workingDays).filter(([_, active]) => active),
+        workdaysArray: workdaysArray,
+        explanation: 'Backend expects English day names like ["Monday", "Tuesday", ...]'
+      });
       
       const agentData = {
         workspace: primaryWorkspace.id,
@@ -289,6 +337,7 @@ export default function AgentConfig() {
         voice: config.voice,
         language: config.language,
         retry_interval: parseInt(config.callInterval) || 30,
+        max_retries: parseInt(config.maxAttempts) || 3, // Add max retries
         workdays: workdaysArray, // Send as array, not string
         call_from: config.workingTimeStart + ":00", // Convert "HH:MM" to "HH:MM:00"
         call_to: config.workingTimeEnd + ":00", // Convert "HH:MM" to "HH:MM:00"
@@ -319,9 +368,14 @@ export default function AgentConfig() {
         },
         intervalDebug: {
           callInterval: config.callInterval,
-          retry_interval: agentData.retry_interval
+          retry_interval: agentData.retry_interval,
+          maxAttempts: config.maxAttempts,
+          max_retries: agentData.max_retries
         }
       });
+      
+      // Log the exact JSON that will be sent
+      console.log('📡 Exact API Request Body:', JSON.stringify(agentData, null, 2));
       
       if (isEdit && id) {
         console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');

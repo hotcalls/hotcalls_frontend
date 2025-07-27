@@ -82,7 +82,8 @@ export interface CreateAgentRequest {
   voice: string;
   language: string;
   retry_interval?: number;
-  workdays: number[]; // Backend requires array of numbers
+  max_retries?: number; // Maximum number of retry attempts
+  workdays: string[]; // Backend expects English day names like ["Monday", "Tuesday"]
   call_from: string;
   call_to: string;
   character: string;
@@ -104,7 +105,8 @@ export interface AgentResponse {
   voice_external_id?: string;
   language: string;
   retry_interval?: number;
-  workdays: number[] | string;
+  max_retries?: number; // Maximum number of retry attempts
+  workdays: string[]; // Backend returns English day names like ["Monday", "Tuesday"]
   call_from: string;
   call_to: string;
   character: string;
