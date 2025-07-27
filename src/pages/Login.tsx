@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, CheckCircle, Mail } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,33 @@ const Login = () => {
     password: "",
   });
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+
+  // Handle registration success message and pre-fill email
+  useEffect(() => {
+    const state = location.state as { message?: string; email?: string } | null;
+    
+    if (state?.message) {
+      toast({
+        title: "Registrierung erfolgreich!",
+        description: state.message,
+        duration: 8000,
+      });
+    }
+
+    if (state?.email) {
+      setFormData(prev => ({
+        ...prev,
+        email: state.email,
+      }));
+    }
+
+    // Clear the state to prevent showing the message again on refresh
+    if (state) {
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.state, toast, navigate, location.pathname]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -59,6 +87,21 @@ const Login = () => {
           <CardDescription>
             Melden Sie sich bei Ihrem HotCalls Konto an
           </CardDescription>
+          
+          {/* Show email verification reminder if user just registered */}
+          {formData.email && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left">
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900">E-Mail Verifizierung erforderlich</p>
+                  <p className="text-blue-700">
+                    Bitte überprüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink, bevor Sie sich anmelden.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
