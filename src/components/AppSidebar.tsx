@@ -3,6 +3,7 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarConten
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
 import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
+import { useUserProfile } from "@/hooks/use-user-profile";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
@@ -66,6 +67,7 @@ const PlanSection = () => {
 
 export function AppSidebar() {
   const location = useLocation();
+  const { profile, loading, getDisplayName, getInitials } = useUserProfile();
 
   const isActive = (url: string) => {
     if (url === "/dashboard") {
@@ -170,11 +172,17 @@ export function AppSidebar() {
         <div className="p-2">
           <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
             <div className="flex-shrink-0 w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">MW</span>
+              <span className="text-white text-sm font-medium">
+                {loading ? "?" : getInitials()}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">Marcus Weber</div>
-              <div className="text-xs text-gray-500 truncate">marcus@company.com</div>
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {loading ? "Wird geladen..." : getDisplayName() || "Unbekannt"}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {loading ? "..." : profile?.email || "Keine E-Mail"}
+              </div>
             </div>
             <button
               onClick={handleSignOut}

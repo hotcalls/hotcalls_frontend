@@ -163,6 +163,15 @@ export const authAPI = {
       body: JSON.stringify({ email, password }),
     });
   },
+
+  /**
+   * Get current user profile
+   */
+  async getProfile(): Promise<any> {
+    return apiCall('/api/auth/profile/', {
+      method: 'GET',
+    });
+  },
 };
 
 // Workspace API calls
@@ -189,6 +198,20 @@ export const workspaceAPI = {
    */
   async getMyWorkspaces(): Promise<CreateWorkspaceResponse[]> {
     return apiCall<CreateWorkspaceResponse[]>('/api/workspaces/workspaces/my_workspaces/');
+  },
+
+  /**
+   * Get detailed workspace information including members
+   */
+  async getWorkspaceDetails(workspaceId: string): Promise<any> {
+    return apiCall<any>(`/api/workspaces/workspaces/${workspaceId}/`);
+  },
+
+  /**
+   * Get team members for a workspace (deprecated - use getWorkspaceDetails instead)
+   */
+  async getWorkspaceMembers(workspaceId: string): Promise<any[]> {
+    return apiCall<any[]>(`/api/workspaces/workspaces/${workspaceId}/members/`);
   },
 };
 

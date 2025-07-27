@@ -14,6 +14,8 @@ import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 // Mock data für Minuten-Pakete basierend auf Plan
 const getMinutePackages = (plan: string) => {
@@ -49,42 +51,15 @@ const currentPlan = {
   isTestPhase: false // Ändere zu true für "Pläne vergleichen" statt "Plan ändern"
 };
 
-// Mock team members
-const teamMembers = [
-  {
-    id: "1",
-    name: "Marcus Weber",
-    email: "marcus.weber@company.com",
-    role: "Admin",
-    status: "Aktiv",
-    lastActive: "vor 5 Min",
-    avatar: "MW",
-  },
-  {
-    id: "2",
-    name: "Lisa Müller", 
-    email: "lisa.mueller@company.com",
-    role: "User",
-    status: "Aktiv",
-    lastActive: "vor 12 Min",
-    avatar: "LM",
-  },
-  {
-    id: "3",
-    name: "Thomas Klein",
-    email: "thomas.klein@company.com", 
-    role: "User",
-    status: "Offline",
-    lastActive: "vor 2 Std",
-    avatar: "TK",
-  },
-];
+// Note: Team members are now loaded via API hooks
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const { profile, loading: profileLoading, getDisplayName, getInitials } = useUserProfile();
+  const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading } = useWorkspace();
 
   // Billing functions
   const handlePurchase = async (packageId: string) => {
@@ -199,7 +174,9 @@ export default function Settings() {
               <div className="flex items-center space-x-4 mb-6">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src="/placeholder-avatar.jpg" />
-                  <AvatarFallback>MW</AvatarFallback>
+                  <AvatarFallback>
+                    {profileLoading ? "?" : getInitials()}
+                  </AvatarFallback>
                 </Avatar>
                 <div>
                   <Button variant="outline" size="sm">Foto ändern</Button>
@@ -209,19 +186,40 @@ export default function Settings() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">Vorname</Label>
-                  <Input id="firstName" defaultValue="Marcus" />
+                  <Input 
+                    id="firstName" 
+                    defaultValue={profile?.first_name || ""} 
+                    disabled={profileLoading}
+                    placeholder={profileLoading ? "Wird geladen..." : "Vorname"}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="lastName">Nachname</Label>
-                  <Input id="lastName" defaultValue="Weber" />
+                  <Input 
+                    id="lastName" 
+                    defaultValue={profile?.last_name || ""} 
+                    disabled={profileLoading}
+                    placeholder={profileLoading ? "Wird geladen..." : "Nachname"}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="email">E-Mail</Label>
-                  <Input id="email" type="email" defaultValue="marcus.weber@company.com" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    defaultValue={profile?.email || ""} 
+                    disabled={profileLoading}
+                    placeholder={profileLoading ? "Wird geladen..." : "E-Mail Adresse"}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="phone">Telefon</Label>
-                  <Input id="phone" defaultValue="+49 151 12345678" />
+                  <Input 
+                    id="phone" 
+                    defaultValue={profile?.phone || ""} 
+                    disabled={profileLoading}
+                    placeholder={profileLoading ? "Wird geladen..." : "Telefonnummer"}
+                  />
                 </div>
               </div>
               
@@ -296,11 +294,16 @@ export default function Settings() {
             <CardContent className={layoutStyles.cardContent}>
               <div>
                 <Label htmlFor="workspaceName">Workspace Name</Label>
-                <Input id="workspaceName" defaultValue="Mein Unternehmen" />
+                <Input 
+                  id="workspaceName" 
+                  defaultValue={workspaceDetails?.workspace_name || primaryWorkspace?.workspace_name || ""} 
+                  disabled={workspaceLoading}
+                  placeholder={workspaceLoading ? "Wird geladen..." : "Workspace Name"}
+                />
               </div>
               
               <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default}>
+                <button className={buttonStyles.create.default} disabled={workspaceLoading}>
                   <span>Workspace speichern</span>
                 </button>
               </div>
@@ -314,7 +317,7 @@ export default function Settings() {
                 <div>
                   <CardTitle className={textStyles.sectionTitle}>Team Mitglieder</CardTitle>
                   <p className="text-sm text-gray-500 mt-1">
-                    {currentPlan.currentUsers} / {currentPlan.maxUsers} User verwendet
+                    {workspaceLoading ? "Wird geladen..." : `${teamMembers.length} / ${currentPlan.maxUsers} User verwendet`}
                   </p>
                 </div>
                 <button className={buttonStyles.create.default}>
@@ -325,30 +328,40 @@ export default function Settings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {teamMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarFallback>{member.avatar}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        <p className="text-sm text-gray-500">{member.email}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4">
-                      <Badge variant="secondary">{member.role}</Badge>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">{member.status}</p>
-                        <p className="text-xs text-gray-500">{member.lastActive}</p>
-                      </div>
-                      <button className={buttonStyles.cardAction.iconDelete}>
-                        <Trash2 className={iconSizes.small} />
-                      </button>
-                    </div>
+                {workspaceLoading ? (
+                  <div className="p-4 text-center text-gray-500">
+                    Wird geladen...
                   </div>
-                ))}
+                ) : teamMembers.length > 0 ? (
+                  teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <Avatar>
+                          <AvatarFallback>{member.avatar}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{member.name}</p>
+                          <p className="text-sm text-gray-500">{member.email}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4">
+                        <Badge variant="secondary">{member.role}</Badge>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">{member.status}</p>
+                          <p className="text-xs text-gray-500">{member.lastActive}</p>
+                        </div>
+                        <button className={buttonStyles.cardAction.iconDelete}>
+                          <Trash2 className={iconSizes.small} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    Keine Team-Mitglieder gefunden
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
