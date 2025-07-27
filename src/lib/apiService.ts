@@ -87,24 +87,34 @@ export interface CreateAgentRequest {
   call_to: string;
   character: string;
   prompt: string;
-  config_id?: string;
-  calendar_configuration?: string;
+  config_id?: string | null;
+  calendar_configuration?: string | null;
 }
 
 export interface AgentResponse {
   agent_id: string;
   workspace: string;
+  workspace_name?: string;
   name: string;
   status: string;
   greeting_inbound: string;
   greeting_outbound: string;
   voice: string;
+  voice_provider?: string;
+  voice_external_id?: string;
   language: string;
+  retry_interval?: number;
   workdays: string;
   call_from: string;
   call_to: string;
   character: string;
+  prompt?: string;
+  config_id?: string | null;
+  phone_numbers?: any[];
+  phone_number_count?: number;
+  calendar_configuration?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 // Voice Types
@@ -343,14 +353,22 @@ export const agentAPI = {
   },
 
   /**
-   * Update an existing agent
+   * Update an existing agent using PUT /api/agents/agents/{agent_id}/
    */
   async updateAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentResponse> {
-    console.log('🔄 Updating agent:', agentId, agentData);
-    return apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`, {
+    console.log('🔄 PUT /api/agents/agents/${agentId}/ - Updating agent with data:', {
+      agentId,
+      dataKeys: Object.keys(agentData),
+      agentData
+    });
+    
+    const response = await apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`, {
       method: 'PUT',
       body: JSON.stringify(agentData),
     });
+    
+    console.log('✅ Agent update successful:', response);
+    return response;
   },
 };
 

@@ -189,31 +189,36 @@ export default function AgentConfig() {
         throw new Error('Kein Workspace verfügbar');
       }
       
-             // Prepare data for API
-       const agentData = {
-         workspace: primaryWorkspace.id,
-         name: config.name,
-         status: 'active' as const,
-         greeting_inbound: config.incomingGreeting,
-         greeting_outbound: config.outgoingGreeting,
-         voice: config.voice,
-         language: config.language,
-         workdays: Object.entries(config.workingDays)
-           .filter(([_, active]) => active)
-           .map(([day]) => parseInt(day))
-           .join(','),
-         call_from: config.workingTimeStart,
-         call_to: config.workingTimeEnd,
-         character: config.character,
-         prompt: config.script || "Du bist ein freundlicher KI-Agent."
-       };
+                   // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
+      const agentData = {
+        workspace: primaryWorkspace.id,
+        name: config.name,
+        status: 'active' as const,
+        greeting_inbound: config.incomingGreeting,
+        greeting_outbound: config.outgoingGreeting,
+        voice: config.voice,
+        language: config.language,
+        retry_interval: parseInt(config.callInterval) || 30, // From config
+        workdays: Object.entries(config.workingDays)
+          .filter(([_, active]) => active)
+          .map(([day]) => parseInt(day))
+          .join(','),
+        call_from: config.workingTimeStart,
+        call_to: config.workingTimeEnd,
+        character: config.character,
+        prompt: config.script || "Du bist ein freundlicher KI-Agent.",
+        config_id: null, // Optional: Set if you have a config_id
+        calendar_configuration: null // Optional: Set if you have calendar config
+      };
       
-      console.log('💾 Saving agent...', { isEdit, agentData });
+      console.log('💾 Saving agent...', { isEdit, agentId: id, agentData });
       
       if (isEdit && id) {
+        console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
         await agentAPI.updateAgent(id, agentData);
         toast.success('Agent erfolgreich aktualisiert!');
       } else {
+        console.log('🆕 Using POST /api/agents/agents/ for creation');
         await agentAPI.createAgent(agentData);
         toast.success('Agent erfolgreich erstellt!');
       }
