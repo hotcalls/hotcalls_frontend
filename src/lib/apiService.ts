@@ -331,6 +331,27 @@ export const agentAPI = {
       return [];
     }
   },
+
+  /**
+   * Get a specific agent by ID
+   */
+  async getAgent(agentId: string): Promise<AgentResponse> {
+    console.log('🤖 Fetching agent details:', agentId);
+    const response = await apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`);
+    console.log('✅ Agent details loaded:', response);
+    return response;
+  },
+
+  /**
+   * Update an existing agent
+   */
+  async updateAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentResponse> {
+    console.log('🔄 Updating agent:', agentId, agentData);
+    return apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(agentData),
+    });
+  },
 };
 
 // Voice API calls

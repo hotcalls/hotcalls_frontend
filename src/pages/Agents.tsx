@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { agentAPI, AgentResponse } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useVoices } from "@/hooks/use-voices";
 
 export default function Agents() {
   const navigate = useNavigate();
@@ -18,6 +19,9 @@ export default function Agents() {
   
   // Get current workspace for filtering agents
   const { primaryWorkspace, loading: workspaceLoading } = useWorkspace();
+  
+  // Get voices for lookup (names and pictures)
+  const { getVoiceName, getVoicePicture, loading: voicesLoading } = useVoices();
 
   useEffect(() => {
     const loadAgents = async () => {
@@ -53,8 +57,8 @@ export default function Agents() {
     console.log(`Agent "${name}" wurde gelöscht`);
   };
 
-  // Show loading state while workspace is loading
-  if (workspaceLoading) {
+  // Show loading state while workspace or voices are loading
+  if (workspaceLoading || voicesLoading) {
     return (
       <div className={layoutStyles.pageContainer}>
         <div className="flex items-center justify-center py-12">
@@ -124,124 +128,110 @@ export default function Agents() {
             </div>
           </div>
         ) : (
-          agentList.map((agent) => (
-          <Card key={agent.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-12 w-12">
-                    {/* Voice-based avatar logic - might need to be updated based on API voice data */}
-                    <AvatarFallback className="bg-blue-100 text-blue-600">
-                      <Bot className="h-6 w-6" />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className={textStyles.cardTitle}>{agent.name}</CardTitle>
-                    <p className={textStyles.cardSubtitle}>
-                      {agent.language} • {agent.status}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                  <button
-                    className={agent.status === "active" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
-                  >
-                    {agent.status === "active" ? (
-                      <>
-                        <Pause className={iconSizes.small} />
-                        <span>Aktiv</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play className={iconSizes.small} />
-                        <span>Pausiert</span>
-                      </>
-                    )}
-                  </button>
-                  <button 
-                    className="px-3 py-2 border-2 border-blue-200 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-2"
-                    onClick={() => navigate(`/dashboard/agents/analytics/${agent.id}`)}
-                  >
-                    <BarChart className={iconSizes.small} />
-                    <span>Analyse</span>
-                  </button>
-                  <button 
-                    className={buttonStyles.cardAction.icon}
-                    onClick={() => navigate(`/dashboard/agents/edit/${agent.id}`)}
-                  >
-                    <Settings className={iconSizes.small} />
-                  </button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button className={buttonStyles.cardAction.iconDelete}>
-                        <Trash2 className={iconSizes.small} />
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Agent löschen?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Bist du sicher, dass du den Agent "{agent.name}" löschen möchtest? 
-                          Diese Aktion kann nicht rückgängig gemacht werden.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={() => deleteAgent(agent.id, agent.name)}
-                          className={buttonStyles.dialog.destructive}
-                        >
-                          Agent löschen
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            </CardHeader>
+          agentList.map((agent) => {
+            const voicePicture = getVoicePicture(agent.voice);
+            const voiceName = getVoiceName(agent.voice);
             
-            <CardContent className={layoutStyles.cardContent}>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className={textStyles.metricLabel}>Charakter</p>
-                  <p className={textStyles.metric}>{agent.character}</p>
-                </div>
-                <div>
-                  <p className={textStyles.metricLabel}>Sprache</p>
-                  <p className={textStyles.metric}>{agent.language}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className={textStyles.metricLabel}>Arbeitszeiten</p>
-                  <Badge variant="outline">{agent.call_from} - {agent.call_to}</Badge>
-                </div>
-                <div>
-                  <p className={textStyles.metricLabel}>Status</p>
-                  <Badge variant={agent.status === 'active' ? 'default' : 'secondary'}>
-                    {agent.status === 'active' ? 'Aktiv' : 'Inaktiv'}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm mt-4">
-                <div>
-                  <p className={textStyles.metricLabel}>Voice ID</p>
-                  <p className={textStyles.metric}>{agent.voice || 'Nicht zugewiesen'}</p>
-                </div>
-                <div>
-                  <p className={textStyles.metricLabel}>Erstellt</p>
-                  <p className={textStyles.metric}>
-                    {new Date(agent.created_at).toLocaleDateString('de-DE')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          ))
+            return (
+              <Card key={agent.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="h-12 w-12">
+                        {voicePicture && (
+                          <AvatarImage 
+                            src={voicePicture} 
+                            alt={voiceName}
+                            onError={(e) => {
+                              // Fallback to Bot icon if image fails to load
+                              const img = e.target as HTMLImageElement;
+                              img.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <AvatarFallback className="bg-blue-100 text-blue-600">
+                          <Bot className="h-6 w-6" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className={textStyles.cardTitle}>{agent.name}</CardTitle>
+                      </div>
+                    </div>
+                    
+                    <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+                      <button
+                        className={agent.status === "active" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
+                      >
+                        {agent.status === "active" ? (
+                          <>
+                            <Pause className={iconSizes.small} />
+                            <span>Aktiv</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className={iconSizes.small} />
+                            <span>Pausiert</span>
+                          </>
+                        )}
+                      </button>
+                      <button 
+                        className="px-3 py-2 border-2 border-blue-200 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-2"
+                        onClick={() => navigate(`/dashboard/agents/analytics/${agent.id}`)}
+                      >
+                        <BarChart className={iconSizes.small} />
+                        <span>Analyse</span>
+                      </button>
+                      <button 
+                        className={buttonStyles.cardAction.icon}
+                        onClick={() => navigate(`/dashboard/agents/edit/${agent.id}`)}
+                      >
+                        <Settings className={iconSizes.small} />
+                      </button>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className={buttonStyles.cardAction.iconDelete}>
+                            <Trash2 className={iconSizes.small} />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Agent löschen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Bist du sicher, dass du den Agent "{agent.name}" löschen möchtest? 
+                              Diese Aktion kann nicht rückgängig gemacht werden.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteAgent(agent.id, agent.name)}
+                              className={buttonStyles.dialog.destructive}
+                            >
+                              Agent löschen
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className={layoutStyles.cardContent}>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className={textStyles.metricLabel}>Charakter</p>
+                      <p className={textStyles.metric}>{agent.character}</p>
+                    </div>
+                    <div>
+                      <p className={textStyles.metricLabel}>Stimme</p>
+                      <p className={textStyles.metric}>{voiceName}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

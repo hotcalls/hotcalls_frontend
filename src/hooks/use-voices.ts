@@ -112,6 +112,26 @@ export function useVoices(options: UseVoicesOptions = {}) {
 
   const recommendedVoices = voices.filter(voice => voice.recommend);
 
+  // Voice lookup functions
+  const getVoiceById = (voiceId: string) => {
+    return voices.find(voice => voice.id === voiceId);
+  };
+
+  const getVoiceName = (voiceId: string) => {
+    const voice = getVoiceById(voiceId);
+    return voice?.name || voiceId;
+  };
+
+  const getVoicePicture = (voiceId: string) => {
+    const voice = getVoiceById(voiceId);
+    return voice?.voice_picture || null;
+  };
+
+  const getVoiceProvider = (voiceId: string) => {
+    const voice = getVoiceById(voiceId);
+    return voice?.provider || null;
+  };
+
   return {
     voices,
     voicesByProvider,
@@ -129,6 +149,11 @@ export function useVoices(options: UseVoicesOptions = {}) {
     getRecommendedVoices,
     // Filters
     filterByGender,
-    filterByProvider
+    filterByProvider,
+    // Lookup functions
+    getVoiceById,
+    getVoiceName,
+    getVoicePicture,
+    getVoiceProvider
   };
 } 

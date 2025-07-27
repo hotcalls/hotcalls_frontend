@@ -9,10 +9,14 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause } from "lucide-react";
+import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { agentAPI, AgentResponse } from "@/lib/apiService";
+import { useVoices } from "@/hooks/use-voices";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { toast } from "sonner";
 
 // Mock data for available event types from Calendar config
 const availableEventTypes = [
@@ -35,81 +39,210 @@ export default function AgentConfig() {
   const { id } = useParams();
   const isEdit = !!id;
   const [activeTab, setActiveTab] = useState("personality");
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Get workspace and voices
+  const { primaryWorkspace } = useWorkspace();
+  const { voices, loading: voicesLoading, getVoiceName, getVoicePicture } = useVoices();
 
   const [config, setConfig] = useState({
-    name: isEdit ? "Sarah" : "",
-    personality: isEdit ? "friendly" : "",
-    voice: isEdit ? "sarah" : "sarah",
+    name: "",
+    personality: "",
+    voice: "",
     script: "",
-    callLogic: isEdit ? "intelligent" : "standard", 
-    selectedEventTypes: isEdit ? ["1"] : [],
-    selectedLeadForms: isEdit ? ["1"] : [],
-    outgoingGreeting: isEdit ? "Hallo, mein Name ist Sarah und ich rufe Sie wegen Ihrer Anfrage bezüglich unserer Beratungsdienstleistungen an." : "",
-    incomingGreeting: isEdit ? "Hallo, mein Name ist Sarah und ich rufe Sie wegen Ihrer Anfrage bezüglich unserer Beratungsdienstleistungen an." : "",
+    callLogic: "standard", 
+    selectedEventTypes: [] as string[],
+    selectedLeadForms: [] as string[],
+    outgoingGreeting: "",
+    incomingGreeting: "",
     maxAttempts: "3",
     callInterval: "30",
     workingDays: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false },
     workingTimeStart: "09:00",
     workingTimeEnd: "17:00",
+    character: "",
+    language: "de"
   });
 
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Load agent data when editing
+  useEffect(() => {
+    const loadAgentData = async () => {
+      if (!isEdit || !id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('🔧 Loading agent data for editing...', id);
+        
+        const agentData = await agentAPI.getAgent(id);
+        console.log('✅ Agent data loaded:', agentData);
+        
+        // Map API response to form config
+        setConfig({
+          name: agentData.name || "",
+          personality: "", // Will map character to personality options
+          voice: agentData.voice || "",
+          script: "", // Will need to get from prompt field if available
+          callLogic: "standard",
+          selectedEventTypes: [],
+          selectedLeadForms: [],
+          outgoingGreeting: agentData.greeting_outbound || "",
+          incomingGreeting: agentData.greeting_inbound || "",
+          maxAttempts: "3",
+          callInterval: "30",
+          workingDays: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false },
+          workingTimeStart: agentData.call_from || "09:00",
+          workingTimeEnd: agentData.call_to || "17:00",
+          character: agentData.character || "",
+          language: agentData.language || "de"
+        });
+        
+      } catch (err) {
+        console.error('❌ Failed to load agent data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load agent data');
+        toast.error('Fehler beim Laden der Agent-Daten');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAgentData();
+  }, [isEdit, id]);
+
   const playVoiceSample = (voice: string) => {
     // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current = null;
+      audioRef.current.currentTime = 0;
     }
 
     if (playingVoice === voice) {
-      // If clicking the same voice, stop playing
       setPlayingVoice(null);
       return;
     }
 
-    // Create new audio element and play
-    const audio = new Audio(`/voice-samples/${voice}-sample.mp3`);
-    audioRef.current = audio;
-    
-    audio.play().catch(error => {
-      console.error('Error playing voice sample:', error);
-      // Fallback to .wav if .mp3 doesn't exist
-      const wavAudio = new Audio(`/voice-samples/${voice}-sample.wav`);
-      audioRef.current = wavAudio;
-      wavAudio.play().catch(err => {
-        console.error('Error playing WAV sample:', err);
-        alert('Voice sample nicht gefunden. Bitte fügen Sie die Audiodatei hinzu.');
-      });
-    });
-
-    setPlayingVoice(voice);
-
-    audio.onended = () => {
-      setPlayingVoice(null);
-      audioRef.current = null;
+    // For now, we'll use placeholder voice samples
+    // In production, these should come from the Voice API
+    const voiceFiles: Record<string, string> = {
+      'sarah': '/voice-samples/lisa-sample.mp3',
+      'marcus': '/voice-samples/marcus-sample.mp3', 
+      'lisa': '/voice-samples/lisa-sample.mp3'
     };
+
+    const audioFile = voiceFiles[voice];
+    if (audioFile) {
+      const audio = new Audio(audioFile);
+      audioRef.current = audio;
+      
+      audio.addEventListener('ended', () => {
+        setPlayingVoice(null);
+      });
+      
+      audio.addEventListener('error', () => {
+        setPlayingVoice(null);
+        console.warn(`Voice sample not found: ${audioFile}`);
+      });
+
+      setPlayingVoice(voice);
+      audio.play().catch(() => {
+        setPlayingVoice(null);
+      });
+    }
   };
 
-  // Cleanup audio on component unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+      
+      if (!primaryWorkspace) {
+        throw new Error('Kein Workspace verfügbar');
       }
-    };
-  }, []);
-
-  const handleSave = () => {
-    console.log("Saving agent config:", config);
-    navigate("/dashboard/agents");
+      
+             // Prepare data for API
+       const agentData = {
+         workspace: primaryWorkspace.id,
+         name: config.name,
+         status: 'active' as const,
+         greeting_inbound: config.incomingGreeting,
+         greeting_outbound: config.outgoingGreeting,
+         voice: config.voice,
+         language: config.language,
+         workdays: Object.entries(config.workingDays)
+           .filter(([_, active]) => active)
+           .map(([day]) => parseInt(day))
+           .join(','),
+         call_from: config.workingTimeStart,
+         call_to: config.workingTimeEnd,
+         character: config.character,
+         prompt: config.script || "Du bist ein freundlicher KI-Agent."
+       };
+      
+      console.log('💾 Saving agent...', { isEdit, agentData });
+      
+      if (isEdit && id) {
+        await agentAPI.updateAgent(id, agentData);
+        toast.success('Agent erfolgreich aktualisiert!');
+      } else {
+        await agentAPI.createAgent(agentData);
+        toast.success('Agent erfolgreich erstellt!');
+      }
+      
+      // Navigate back to agents list
+      navigate('/dashboard/agents');
+      
+    } catch (err) {
+      console.error('❌ Failed to save agent:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save agent');
+      toast.error('Fehler beim Speichern des Agents');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTest = () => {
-    console.log("Testing agent with config:", config);
+    toast.info('Test-Funktionalität wird bald verfügbar sein');
   };
+
+  // Show loading state
+  if (loading || voicesLoading) {
+    return (
+      <div className={layoutStyles.pageContainer}>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500 mx-auto mb-2" />
+            <p className="text-gray-500">Lade Agent-Daten...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={layoutStyles.pageContainer}>
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">Fehler: {error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+            onClick={() => navigate('/dashboard/agents')}
+          >
+            Zurück zu Agenten
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -244,131 +377,101 @@ export default function AgentConfig() {
               
               <div>
                 <Label>Stimme</Label>
-                <div className="grid grid-cols-3 gap-4 mt-2">
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-14 w-14">
-                          <AvatarImage src="/avatars/sarah.jpg.png" alt="Sarah" />
-                          <AvatarFallback className="bg-blue-100 text-blue-600">
-                            <User className="h-7 w-7" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">Sarah</p>
-                          <p className="text-sm text-gray-500">Weiblich, warm</p>
-                        </div>
-                      </div>
-                      <button 
-                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
-                        onClick={() => playVoiceSample('sarah')}
-                        title={playingVoice === 'sarah' ? 'Stoppen' : 'Probe hören'}
-                      >
-                        {playingVoice === 'sarah' ? (
-                          <Pause className="h-3 w-3" />
-                        ) : (
-                          <Play className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "sarah" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "sarah" }))}
-                    >
-                      {config.voice === "sarah" ? "Ausgewählt" : "Auswählen"}
-                    </button>
+                {voices.length === 0 ? (
+                  <div className="p-4 border rounded-lg text-center text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Lade Stimmen...</p>
                   </div>
-                  
-                  <div className="p-4 border rounded-lg space-y-2 relative">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="absolute top-2 right-2 bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                          Empfohlen
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2 max-h-96 overflow-y-auto">
+                    {voices.slice(0, 12).map((voice) => {
+                      const isSelected = config.voice === voice.id;
+                      const voicePicture = getVoicePicture(voice.id);
+                      
+                      return (
+                        <div key={voice.id} className="p-4 border rounded-lg space-y-2 relative">
+                          {voice.recommend && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="absolute top-2 right-2 bg-green-100 text-green-600 text-xs px-2 py-1 rounded">
+                                  Empfohlen
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Von KI-Experten empfohlen</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-14 w-14">
+                                {voicePicture && (
+                                  <AvatarImage 
+                                    src={voicePicture} 
+                                    alt={voice.name}
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      img.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <AvatarFallback className={`
+                                  ${voice.gender === 'female' ? 'bg-pink-100 text-pink-600' : ''}
+                                  ${voice.gender === 'male' ? 'bg-blue-100 text-blue-600' : ''}
+                                  ${voice.gender === 'neutral' ? 'bg-gray-100 text-gray-600' : ''}
+                                `}>
+                                  {voice.gender === 'female' ? (
+                                    <User className="h-7 w-7" />
+                                  ) : voice.gender === 'male' ? (
+                                    <UserCircle className="h-7 w-7" />
+                                  ) : (
+                                    <Sparkles className="h-7 w-7" />
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{voice.name}</p>
+                                <p className="text-sm text-gray-500">
+                                  {voice.gender === 'female' ? 'Weiblich' : voice.gender === 'male' ? 'Männlich' : 'Neutral'}
+                                  {voice.tone && `, ${voice.tone}`}
+                                </p>
+                                <p className="text-xs text-gray-400">{voice.provider}</p>
+                              </div>
+                            </div>
+                            <button 
+                              className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
+                              onClick={() => playVoiceSample(voice.id)}
+                              title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
+                            >
+                              {playingVoice === voice.id ? (
+                                <Pause className="h-3 w-3" />
+                              ) : (
+                                <Play className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <button
+                            className={`w-full py-2 px-3 rounded border text-sm font-medium ${
+                              isSelected
+                                ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
+                                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                            }`}
+                            onClick={() => setConfig(prev => ({ ...prev, voice: voice.id }))}
+                          >
+                            {isSelected ? "Ausgewählt" : "Auswählen"}
+                          </button>
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-sm">Über 1.000 Termine erfolgreich gelegt!</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-14 w-14">
-                          <AvatarImage src="/avatars/marcus.jpg.png" alt="Marcus" />
-                          <AvatarFallback className="bg-green-100 text-green-600">
-                            <UserCircle className="h-7 w-7" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">Marcus</p>
-                          <p className="text-sm text-gray-500">Männlich, ruhig</p>
-                        </div>
-                      </div>
-                      <button 
-                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
-                        onClick={() => playVoiceSample('marcus')}
-                        title={playingVoice === 'marcus' ? 'Stoppen' : 'Probe hören'}
-                      >
-                        {playingVoice === 'marcus' ? (
-                          <Pause className="h-3 w-3" />
-                        ) : (
-                          <Play className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "marcus" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "marcus" }))}
-                    >
-                      {config.voice === "marcus" ? "Ausgewählt" : "Auswählen"}
-                    </button>
+                      );
+                    })}
                   </div>
-                  
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-14 w-14">
-                          <AvatarImage src="/avatars/lisa.png" alt="Lisa" />
-                          <AvatarFallback className="bg-purple-100 text-purple-600">
-                            <Sparkles className="h-7 w-7" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">Lisa</p>
-                          <p className="text-sm text-gray-500">Weiblich, energisch</p>
-                        </div>
-                      </div>
-                      <button 
-                        className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50"
-                        onClick={() => playVoiceSample('lisa')}
-                        title={playingVoice === 'lisa' ? 'Stoppen' : 'Probe hören'}
-                      >
-                        {playingVoice === 'lisa' ? (
-                          <Pause className="h-3 w-3" />
-                        ) : (
-                          <Play className="h-3 w-3" />
-                        )}
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "lisa" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "lisa" }))}
-                    >
-                      {config.voice === "lisa" ? "Ausgewählt" : "Auswählen"}
-                    </button>
-                  </div>
-                </div>
+                )}
+                {voices.length > 12 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    {voices.length - 12} weitere Stimmen verfügbar...
+                  </p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
