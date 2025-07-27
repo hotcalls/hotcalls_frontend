@@ -177,6 +177,22 @@ async function apiCall<T>(
     credentials: 'include', // Include cookies for authentication
   };
 
+  // Add body if provided
+  if (options?.body) {
+    defaultOptions.body = options.body;
+    console.log('📤 Request body:', {
+      bodyType: typeof options.body,
+      bodyContent: options.body,
+      parsedBody: (() => {
+        try {
+          return typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+        } catch {
+          return 'Unable to parse body';
+        }
+      })()
+    });
+  }
+
   const response = await fetch(url, { ...defaultOptions, ...options });
   
   if (!response.ok) {
@@ -359,7 +375,12 @@ export const agentAPI = {
     console.log('🔄 PUT /api/agents/agents/${agentId}/ - Updating agent with data:', {
       agentId,
       dataKeys: Object.keys(agentData),
-      agentData
+      agentData,
+      workdaysDetail: {
+        type: typeof agentData.workdays,
+        isArray: Array.isArray(agentData.workdays),
+        value: agentData.workdays
+      }
     });
     
     const response = await apiCall<AgentResponse>(`/api/agents/agents/${agentId}/`, {

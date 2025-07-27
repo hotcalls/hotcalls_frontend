@@ -100,10 +100,11 @@ export default function AgentConfig() {
         // Map character to personality options
         const mapCharacterToPersonality = (character: string) => {
           const lowerChar = character.toLowerCase();
-          if (lowerChar.includes('freundlich') || lowerChar.includes('empathisch')) return 'friendly';
-          if (lowerChar.includes('professionell') || lowerChar.includes('direkt')) return 'professional';
-          if (lowerChar.includes('warm') || lowerChar.includes('herzlich')) return 'warm';
-          if (lowerChar.includes('energisch') || lowerChar.includes('dynamisch')) return 'energetic';
+          if (lowerChar.includes('freundlich') && lowerChar.includes('empathisch')) return 'friendly';
+          if (lowerChar.includes('professionell') && lowerChar.includes('direkt')) return 'professional';
+          if (lowerChar.includes('warm') && lowerChar.includes('herzlich')) return 'warm';
+          if (lowerChar.includes('energisch') && lowerChar.includes('dynamisch')) return 'energetic';
+          if (lowerChar.includes('direkt') && lowerChar.includes('zielstrebig')) return 'direct';
           return 'friendly'; // default
         };
 
@@ -499,6 +500,9 @@ export default function AgentConfig() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="friendly">Freundlich und Empathisch</SelectItem>
+                    <SelectItem value="professional">Professionell und Direkt</SelectItem>
+                    <SelectItem value="warm">Warm und Herzlich</SelectItem>
+                    <SelectItem value="energetic">Energisch und Dynamisch</SelectItem>
                     <SelectItem value="direct">Direkt und Zielstrebig</SelectItem>
                   </SelectContent>
                 </Select>
