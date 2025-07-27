@@ -45,26 +45,90 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     const loadVoices = async () => {
       try {
         setLoadingVoices(true);
-        console.log('🔊 WelcomeFlow: Loading voices from API...');
+        console.log('🔊 WelcomeFlow: Starting voice load...');
+        console.log('🔊 WelcomeFlow: API Base URL:', 'http://localhost:8000');
+        
         const response = await voiceAPI.getVoices();
-        console.log('🔊 WelcomeFlow: Loaded voices:', response);
-        setVoices(response.results);
+        console.log('🔊 WelcomeFlow: Raw API response:', response);
+        console.log('🔊 WelcomeFlow: Voices count:', response.results?.length || 0);
+        
+        if (response.results && response.results.length > 0) {
+          console.log('🔊 WelcomeFlow: First voice example:', response.results[0]);
+          setVoices(response.results);
+          console.log('✅ WelcomeFlow: Voices loaded successfully');
+        } else {
+          console.warn('⚠️ WelcomeFlow: No voices in response');
+          setVoices([]);
+        }
       } catch (error) {
         console.error("❌ WelcomeFlow: Failed to load voices:", error);
+        console.error("❌ WelcomeFlow: Error details:", error.message);
+        
         toast({
           title: "Fehler beim Laden der Stimmen",
-          description: "Stimmen konnten nicht geladen werden.",
+          description: `API-Fehler: ${error.message || 'Unbekannter Fehler'}`,
           variant: "destructive",
         });
-        // Fallback to empty array if API fails
         setVoices([]);
       } finally {
         setLoadingVoices(false);
+        console.log('🔊 WelcomeFlow: Voice loading finished');
       }
     };
 
     loadVoices();
   }, [toast]);
+
+  // Handle voice preview
+  const handleVoicePreview = (voice: Voice) => {
+    console.log('🎵 Playing voice sample for:', voice.name);
+    
+    if (!voice.voice_sample) {
+      console.warn('⚠️ No voice sample available for:', voice.name);
+      toast({
+        title: "Kein Audio verfügbar",
+        description: `Für ${voice.name} ist keine Hörprobe verfügbar.`,
+      });
+      return;
+    }
+
+    try {
+      // Stop any currently playing audio
+      const existingAudio = document.querySelector('audio[data-voice-preview]') as HTMLAudioElement;
+      if (existingAudio) {
+        existingAudio.pause();
+        existingAudio.remove();
+      }
+
+      // Create and play new audio
+      const audio = new Audio(voice.voice_sample);
+      audio.setAttribute('data-voice-preview', 'true');
+      
+      audio.play().then(() => {
+        console.log('✅ Voice sample playing for:', voice.name);
+      }).catch((error) => {
+        console.error('❌ Audio playback failed:', error);
+        toast({
+          title: "Audio-Wiedergabe fehlgeschlagen",
+          description: "Die Hörprobe konnte nicht abgespielt werden.",
+          variant: "destructive",
+        });
+      });
+
+      // Clean up when finished
+      audio.onended = () => {
+        console.log('🎵 Voice sample finished for:', voice.name);
+        audio.remove();
+      };
+    } catch (error) {
+      console.error('❌ Error creating audio:', error);
+      toast({
+        title: "Audio-Fehler",
+        description: "Fehler beim Erstellen der Audio-Wiedergabe.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const personalities = [
     "Freundlich und hilfsbereit",
@@ -224,8 +288,22 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     onClick={() => handleInputChange('voice', voice.id)}
                   >
                     <div className="space-y-4">
-                      <div className="w-12 h-12 bg-[#FE5B25]/10 rounded-full flex items-center justify-center mx-auto">
-                        <span className="text-[#FE5B25] font-bold">{voice.name[0]}</span>
+                      <div className="w-12 h-12 rounded-full overflow-hidden mx-auto bg-gray-100">
+                        {voice.voice_picture ? (
+                          <img 
+                            src={voice.voice_picture} 
+                            alt={voice.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.log('🖼️ Image load failed for:', voice.name, voice.voice_picture);
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full bg-[#FE5B25]/10 rounded-full flex items-center justify-center ${voice.voice_picture ? 'hidden' : ''}`}>
+                          <span className="text-[#FE5B25] font-bold">{voice.name[0]}</span>
+                        </div>
                       </div>
                       <div>
                         <h4 className="font-semibold text-lg">{voice.name}</h4>
@@ -236,11 +314,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           className="w-full border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/5 focus:ring-0 focus:ring-offset-0"
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Voice preview functionality
+                            handleVoicePreview(voice);
                           }}
+                          disabled={!voice.voice_sample}
                         >
                           <Play className="h-4 w-4 mr-2" />
-                          Anhören
+                          {voice.voice_sample ? 'Anhören' : 'Kein Sample'}
                         </Button>
                       </div>
                     </div>
