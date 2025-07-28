@@ -25,7 +25,6 @@ import OAuthCallback from "./pages/OAuthCallback";
 import AGB from "./pages/AGB";
 import Datenschutz from "./pages/Datenschutz";
 import Datenlöschung from "./pages/Datenlöschung";
-import CreateAgent from "./pages/CreateAgent";
 
 const queryClient = new QueryClient();
 
