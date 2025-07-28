@@ -1,6 +1,6 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { WelcomeOverlay } from "@/components/WelcomeOverlay";
+import { WelcomeFlow } from "@/components/WelcomeFlow";
 import { useState, useEffect, ReactNode } from "react";
 import { agentAPI, workspaceAPI } from "@/lib/apiService";
 import { useNavigate } from "react-router-dom";
@@ -18,18 +18,7 @@ export function Layout({ children }: LayoutProps) {
       try {
         console.log('🔍 Checking welcome flow status...');
         
-        // First check if user has already completed welcome flow
-        const hasCompletedWelcome = localStorage.getItem('welcomeCompleted');
-        
-        if (hasCompletedWelcome === 'true') {
-          console.log('✅ Welcome flow already completed (localStorage flag set)');
-          setShowWelcome(false);
-          setIsCheckingAgents(false);
-          return;
-        }
-        
-        console.log('🔍 No welcomeCompleted flag, checking for existing agents...');
-        
+        // ALWAYS check for agents first - this is the most important check!
         // Get user's workspaces
         const workspaces = await workspaceAPI.getMyWorkspaces();
         if (!workspaces || workspaces.length === 0) {
@@ -52,15 +41,17 @@ export function Layout({ children }: LayoutProps) {
           user_count: stats.user_count
         });
         
-        if (agentCount > 0) {
-          console.log('✅ User has existing agents, marking welcome as completed');
+        // MAIN LOGIC: If no agents, ALWAYS show welcome flow!
+        if (agentCount === 0) {
+          console.log('🆕 No agents found, showing welcome flow (ignoring localStorage)');
+          // Remove any incorrect welcomeCompleted flag
+          localStorage.removeItem('welcomeCompleted');
+          setShowWelcome(true);
+        } else {
+          console.log('✅ User has existing agents, no need for welcome flow');
           // User has agents, mark welcome as completed and skip
           localStorage.setItem('welcomeCompleted', 'true');
           setShowWelcome(false);
-        } else {
-          console.log('🆕 No agents found, showing welcome flow');
-          // No agents, show welcome flow
-          setShowWelcome(true);
         }
       } catch (error) {
         console.warn('⚠️ Could not check agents for welcome flow:', error);
@@ -103,10 +94,11 @@ export function Layout({ children }: LayoutProps) {
       
       {/* Welcome Flow */}
       {showWelcome && (
-        <WelcomeOverlay 
-          isOpen={true}
-          onComplete={handleWelcomeComplete} 
-        />
+        <div className="fixed inset-0 z-50">
+          <WelcomeFlow 
+            onComplete={handleWelcomeComplete} 
+          />
+        </div>
       )}
       
       {/* Debug Info - Only in development */}
