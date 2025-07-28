@@ -4,13 +4,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 import { SignupStep1Data } from "@/lib/authService";
 
 interface SignupStep1Props {
   onNext: (data: SignupStep1Data) => void;
   initialData?: Partial<SignupStep1Data>;
 }
+
+// Password validation helper
+const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (password.length < 8) {
+    errors.push("Mindestens 8 Zeichen");
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push("Mindestens ein Großbuchstabe");
+  }
+  
+  if (!/[a-z]/.test(password)) {
+    errors.push("Mindestens ein Kleinbuchstabe");
+  }
+  
+  if (!/[0-9]/.test(password)) {
+    errors.push("Mindestens eine Zahl");
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
 
 const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +46,8 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
     password: initialData?.password || "",
     passwordConfirm: initialData?.passwordConfirm || "",
   });
+
+  const passwordValidation = validatePassword(formData.password);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -37,8 +65,8 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
       return;
     }
 
-    if (formData.password.length < 8) {
-      alert("Das Passwort muss mindestens 8 Zeichen lang sein.");
+    if (!passwordValidation.isValid) {
+      alert("Das Passwort erfüllt nicht alle Anforderungen.");
       return;
     }
 
@@ -58,7 +86,7 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
   const isFormValid = formData.email && 
                      formData.password && 
                      formData.passwordConfirm && 
-                     formData.password.length >= 8 &&
+                     passwordValidation.isValid &&
                      formData.password === formData.passwordConfirm;
 
   return (
@@ -112,9 +140,21 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Mindestens 8 Zeichen für die Sicherheit Ihres Kontos
-              </p>
+              {formData.password && (
+                <div className="mt-2 space-y-1">
+                  {passwordValidation.errors.map((error, index) => (
+                    <p key={index} className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {error}
+                    </p>
+                  ))}
+                  {passwordValidation.isValid && (
+                    <p className="text-xs text-green-500">
+                      ✓ Passwort erfüllt alle Anforderungen
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

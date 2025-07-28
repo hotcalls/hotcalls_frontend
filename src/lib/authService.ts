@@ -346,6 +346,16 @@ export const authService = {
       password_confirm: '[REDACTED]'
     });
 
+    // Additional debug logging
+    console.log('🔍 Debug - Registration request details:');
+    console.log('- Email:', registerRequest.email);
+    console.log('- First Name:', registerRequest.first_name);
+    console.log('- Last Name:', registerRequest.last_name);
+    console.log('- Phone:', registerRequest.phone);
+    console.log('- Password length:', signupData.password?.length || 0);
+    console.log('- Password Confirm length:', signupData.passwordConfirm?.length || 0);
+    console.log('- Passwords match:', signupData.password === signupData.passwordConfirm);
+
     try {
       const response = await apiClient.post<RegisterResponse>(
         apiConfig.endpoints.register,
@@ -440,11 +450,22 @@ export const authService = {
 
   // Clear stored user data
   clearUser() {
+    // Clear user data from localStorage
     localStorage.removeItem('user');
     localStorage.removeItem('userLoggedIn');
-    // Note: We don't clear authToken since we're using cookie-based auth
-    // Cookies are managed by the backend/browser automatically
-    console.log('🧹 Authentication data cleared (cookies remain managed by browser)');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userId');
+    
+    // Clear welcome flow status
+    localStorage.removeItem('welcomeCompleted');
+    
+    // Clear any session cookies (though they should be httpOnly and not accessible)
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
   },
 
   // Get stored user

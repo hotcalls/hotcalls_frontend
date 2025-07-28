@@ -44,6 +44,9 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/email-verification-pending" element={<EmailVerificationPending />} />
           
+          {/* OAuth Callback Route - must be outside dashboard */}
+          <Route path="/oauth2callback" element={<OAuthCallback />} />
+          
           {/* Legal Pages */}
           <Route path="/agb" element={<AGB />} />
           <Route path="/datenschutz" element={<Datenschutz />} />
@@ -64,7 +67,6 @@ const App = () => (
                   <Route path="/lead-sources/webhook/config" element={<WebhookConfig />} />
                   <Route path="/leads" element={<Leads />} />
                   <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/oauth2callback" element={<OAuthCallback />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/plans" element={<Plans />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

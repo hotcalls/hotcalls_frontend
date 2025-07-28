@@ -128,6 +128,15 @@ export const apiClient = {
       usingCookies: true
     });
     
+    // Log actual data being sent (with password redacted)
+    if (endpoint.includes('register')) {
+      console.log('🔍 Registration data being sent:', {
+        ...data,
+        password: data.password ? `[${data.password.length} chars]` : 'missing',
+        password_confirm: data.password_confirm ? `[${data.password_confirm.length} chars]` : 'missing'
+      });
+    }
+    
     try {
       const headers = await getAuthHeaders();
       

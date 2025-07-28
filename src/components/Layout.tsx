@@ -1,9 +1,9 @@
-import { ReactNode, useEffect, useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { WelcomeFlow } from "@/components/WelcomeFlow";
-import { DebugWelcome } from "@/components/DebugWelcome";
-import { agentService } from "@/lib/authService";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { WelcomeOverlay } from "@/components/WelcomeOverlay";
+import { useState, useEffect, ReactNode } from "react";
+import { agentAPI, workspaceAPI } from "@/lib/apiService";
+import { useNavigate } from "react-router-dom";
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,34 +16,55 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     const checkWelcomeFlow = async () => {
       try {
-        // Check if user has already completed welcome flow
+        console.log('🔍 Checking welcome flow status...');
+        
+        // First check if user has already completed welcome flow
         const hasCompletedWelcome = localStorage.getItem('welcomeCompleted');
         
-        if (hasCompletedWelcome) {
-          console.log('🎯 Welcome already completed, skipping flow');
+        if (hasCompletedWelcome === 'true') {
+          console.log('✅ Welcome flow already completed (localStorage flag set)');
           setShowWelcome(false);
           setIsCheckingAgents(false);
           return;
         }
-
-        console.log('🔍 Checking if user has existing agents...');
         
-        // Check if user has existing agents
-        const agents = await agentService.getAgents();
+        console.log('🔍 No welcomeCompleted flag, checking for existing agents...');
         
-        if (agents.length > 0) {
-          console.log(`✅ User has ${agents.length} agents, marking welcome as completed`);
-          // User has agents, mark welcome as completed automatically
+        // Get user's workspaces
+        const workspaces = await workspaceAPI.getMyWorkspaces();
+        if (!workspaces || workspaces.length === 0) {
+          console.log('🆕 No workspaces found, showing welcome flow');
+          setShowWelcome(true);
+          setIsCheckingAgents(false);
+          return;
+        }
+        
+        // Get workspace stats to check agent count
+        const primaryWorkspace = workspaces[0];
+        console.log(`📊 Getting stats for workspace: ${primaryWorkspace.workspace_name}`);
+        
+        const stats = await workspaceAPI.getWorkspaceStats(primaryWorkspace.id);
+        const agentCount = stats.agent_count || 0;
+        
+        console.log(`📊 Workspace stats:`, {
+          workspace: primaryWorkspace.workspace_name,
+          agent_count: agentCount,
+          user_count: stats.user_count
+        });
+        
+        if (agentCount > 0) {
+          console.log('✅ User has existing agents, marking welcome as completed');
+          // User has agents, mark welcome as completed and skip
           localStorage.setItem('welcomeCompleted', 'true');
           setShowWelcome(false);
         } else {
-          console.log('🆕 New user with no agents, showing welcome flow');
-          // New user, show welcome flow
+          console.log('🆕 No agents found, showing welcome flow');
+          // No agents, show welcome flow
           setShowWelcome(true);
         }
       } catch (error) {
         console.warn('⚠️ Could not check agents for welcome flow:', error);
-        // If we can't check agents, don't show welcome flow
+        // On error, assume user has completed welcome to avoid blocking them
         setShowWelcome(false);
       } finally {
         setIsCheckingAgents(false);
@@ -82,13 +103,30 @@ export function Layout({ children }: LayoutProps) {
       
       {/* Welcome Flow */}
       {showWelcome && (
-        <WelcomeFlow 
+        <WelcomeOverlay 
+          isOpen={true}
           onComplete={handleWelcomeComplete} 
         />
       )}
       
-      {/* Debug Helper - Remove in production */}
-      <DebugWelcome />
+      {/* Debug Info - Only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg max-w-sm">
+          <div className="font-bold mb-1">🐛 Welcome Flow Debug</div>
+          <div>welcomeCompleted: {localStorage.getItem('welcomeCompleted') || 'not set'}</div>
+          <div>showWelcome: {showWelcome ? 'true' : 'false'}</div>
+          <div>isCheckingAgents: {isCheckingAgents ? 'true' : 'false'}</div>
+          <button 
+            className="mt-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+            onClick={() => {
+              localStorage.removeItem('welcomeCompleted');
+              window.location.reload();
+            }}
+          >
+            Reset Welcome Flow
+          </button>
+        </div>
+      )}
     </SidebarProvider>
   );
 }

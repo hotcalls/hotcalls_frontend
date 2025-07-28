@@ -333,13 +333,34 @@ export const workspaceAPI = {
   },
 
   /**
-   * Update workspace information
+   * Update workspace details
    */
   async updateWorkspace(workspaceId: string, workspaceData: { workspace_name: string }): Promise<CreateWorkspaceResponse> {
-    return apiCall<CreateWorkspaceResponse>(`/api/workspaces/workspaces/${workspaceId}/`, {
+    console.log('🔄 Updating workspace:', workspaceId);
+    
+    const response = await apiCall<CreateWorkspaceResponse>(`/api/workspaces/workspaces/${workspaceId}/`, {
       method: 'PUT',
       body: JSON.stringify(workspaceData),
     });
+    
+    console.log('✅ Workspace updated:', response);
+    return response;
+  },
+
+  /**
+   * Get workspace statistics including agent count
+   */
+  async getWorkspaceStats(workspaceId: string): Promise<{
+    user_count?: number;
+    agent_count?: number;
+    [key: string]: any;
+  }> {
+    console.log('📊 Getting workspace stats:', workspaceId);
+    
+    const response = await apiCall<any>(`/api/workspaces/workspaces/${workspaceId}/stats/`);
+    
+    console.log('✅ Workspace stats loaded:', response);
+    return response;
   },
 
   /**
@@ -585,13 +606,19 @@ export const callAPI = {
   async makeOutboundCall(data: MakeOutboundCallRequest): Promise<MakeOutboundCallResponse> {
     console.log('📞 POST /api/calls/call-logs/make_outbound_call/ - Making outbound call:', data);
     
-    const response = await apiCall<MakeOutboundCallResponse>('/api/calls/call-logs/make_outbound_call/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-    
-    console.log('✅ Outbound call initiated:', response);
-    return response;
+    try {
+      const response = await apiCall<MakeOutboundCallResponse>('/api/calls/call-logs/make_outbound_call/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      console.log('✅ Outbound call initiated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Outbound call API error:', error);
+      console.log('📞 Call data that was sent:', data);
+      throw error;
+    }
   },
 };
 
