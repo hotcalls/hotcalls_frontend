@@ -225,7 +225,24 @@ async function apiCall<T>(
     throw new Error(errorData?.error || errorData?.message || `API call failed: ${response.statusText}`);
   }
 
-  return response.json();
+  // Handle empty responses (like 204 No Content)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return null as any;
+  }
+
+  // Check if response has content
+  const text = await response.text();
+  if (!text) {
+    return null as any;
+  }
+
+  // Parse JSON
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('Failed to parse response as JSON:', text);
+    throw new Error('Invalid JSON response from server');
+  }
 }
 
 // Auth API calls
@@ -424,6 +441,19 @@ export const agentAPI = {
     console.log('✅ Agent patch successful:', response);
     return response;
   },
+
+  /**
+   * Delete an agent using DELETE /api/agents/agents/{agent_id}/
+   */
+  async deleteAgent(agentId: string): Promise<void> {
+    console.log('🗑️ DELETE /api/agents/agents/${agentId}/ - Deleting agent');
+    
+    await apiCall<void>(`/api/agents/agents/${agentId}/`, {
+      method: 'DELETE',
+    });
+    
+    console.log('✅ Agent deleted successfully');
+  },
 };
 
 // Voice API calls
@@ -533,3 +563,36 @@ export const registrationFlow = {
     }
   },
 }; 
+
+// Call API interface
+export interface MakeOutboundCallRequest {
+  phone: string;  // Target phone number
+  agent_id: string;  // Agent UUID
+  lead_id?: string | null;  // Optional lead ID
+}
+
+export interface MakeOutboundCallResponse {
+  call_id?: string;
+  status?: string;
+  message?: string;
+}
+
+// Call API calls
+export const callAPI = {
+  /**
+   * Make an outbound call using LiveKit
+   */
+  async makeOutboundCall(data: MakeOutboundCallRequest): Promise<MakeOutboundCallResponse> {
+    console.log('📞 POST /api/calls/call-logs/make_outbound_call/ - Making outbound call:', data);
+    
+    const response = await apiCall<MakeOutboundCallResponse>('/api/calls/call-logs/make_outbound_call/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    
+    console.log('✅ Outbound call initiated:', response);
+    return response;
+  },
+};
+
+// Export all APIs 

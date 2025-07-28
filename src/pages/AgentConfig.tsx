@@ -14,7 +14,7 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
@@ -443,8 +443,15 @@ export default function AgentConfig() {
       setIsTestCalling(true);
       console.log('📞 Starting test call to:', testPhoneNumber);
       
-      // TODO: Call the test API endpoint when available
-      // await agentAPI.testCall(id, { phone_number: testPhoneNumber });
+      // Make the test call
+      const callData = {
+        phone: testPhoneNumber,  // The phone number entered by the user
+        agent_id: id!,           // Agent ID from URL params
+        lead_id: null            // null for test calls
+      };
+      
+      console.log('📞 Calling API with data:', callData);
+      await callAPI.makeOutboundCall(callData);
       
       toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
       setTestPopoverOpen(false);

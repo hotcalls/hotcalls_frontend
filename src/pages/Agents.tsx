@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles, Loader2, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -17,6 +17,8 @@ export default function Agents() {
   const [agentList, setAgentList] = useState<AgentResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
   // Get current workspace for filtering agents
   const { primaryWorkspace, loading: workspaceLoading } = useWorkspace();
@@ -84,10 +86,81 @@ export default function Agents() {
     }
   };
 
-  const deleteAgent = (agentId: string, name: string) => {
-    // TODO: Implement actual delete API call
-    setAgentList(agentList.filter(agent => agent.agent_id !== agentId));
-    console.log(`Agent "${name}" wurde gelöscht`);
+  const deleteAgent = async (agentId: string, name: string) => {
+    try {
+      console.log(`🗑️ Deleting agent ${agentId} (${name})`);
+      setIsDeleting(agentId);
+      
+      // Call API to delete agent
+      await agentAPI.deleteAgent(agentId);
+      
+      // Remove from local state
+      setAgentList(prevAgents => prevAgents.filter(agent => agent.agent_id !== agentId));
+      
+      toast.success(`Agent "${name}" wurde gelöscht`);
+    } catch (err) {
+      console.error('❌ Failed to delete agent:', err);
+      toast.error('Fehler beim Löschen des Agents');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const duplicateAgent = async (agentId: string, name: string) => {
+    try {
+      console.log(`🔄 Duplicating agent ${agentId} (${name})`);
+      setIsDuplicating(agentId);
+      
+      // First, get the agent details
+      const originalAgent = await agentAPI.getAgent(agentId);
+      
+      // Create a new agent with the same data but different name
+      const duplicateData = {
+        workspace: originalAgent.workspace,
+        name: `${originalAgent.name} (Kopie)`,
+        status: 'paused' as const, // Start duplicated agent as paused
+        greeting_inbound: originalAgent.greeting_inbound,
+        greeting_outbound: originalAgent.greeting_outbound,
+        voice: originalAgent.voice,
+        language: originalAgent.language,
+        retry_interval: originalAgent.retry_interval,
+        max_retries: originalAgent.max_retries,
+        workdays: originalAgent.workdays,
+        call_from: originalAgent.call_from,
+        call_to: originalAgent.call_to,
+        character: originalAgent.character,
+        prompt: originalAgent.prompt,
+        config_id: originalAgent.config_id,
+        calendar_configuration: originalAgent.calendar_configuration
+      };
+      
+      // Create the duplicate
+      const newAgent = await agentAPI.createAgent(duplicateData);
+      
+      // Validate the response has a valid agent_id
+      if (!newAgent.agent_id || newAgent.agent_id === 'undefined') {
+        throw new Error('API returned invalid agent ID');
+      }
+      
+      console.log('✅ Agent duplicated successfully:', {
+        original: { id: agentId, name: name },
+        duplicate: { id: newAgent.agent_id, name: newAgent.name }
+      });
+      
+      // Add to the list
+      setAgentList(prevAgents => [...prevAgents, newAgent]);
+      
+      toast.success(`Agent "${name}" wurde dupliziert als "${newAgent.name}"`);
+      
+      // Reload the full list to ensure consistency
+      const updatedAgents = await agentAPI.getAgents(originalAgent.workspace);
+      setAgentList(updatedAgents);
+    } catch (err) {
+      console.error('❌ Failed to duplicate agent:', err);
+      toast.error('Fehler beim Duplizieren des Agents');
+    } finally {
+      setIsDuplicating(null);
+    }
   };
 
   // Show loading state while workspace or voices are loading
@@ -234,6 +307,19 @@ export default function Agents() {
                         <Settings className={iconSizes.small} />
                       </button>
                       
+                      <button 
+                        className={buttonStyles.cardAction.icon}
+                        onClick={() => duplicateAgent(agent.agent_id, agent.name)}
+                        title="Agent duplizieren"
+                        disabled={isDuplicating === agent.agent_id}
+                      >
+                        {isDuplicating === agent.agent_id ? (
+                          <Loader2 className={`${iconSizes.small} animate-spin`} />
+                        ) : (
+                          <Copy className={iconSizes.small} />
+                        )}
+                      </button>
+                      
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button className={buttonStyles.cardAction.iconDelete}>
@@ -250,12 +336,20 @@ export default function Agents() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel className={buttonStyles.dialog.cancel}>Abbrechen</AlertDialogCancel>
-                                                    <AlertDialogAction 
-                          onClick={() => deleteAgent(agent.agent_id, agent.name)}
-                          className={buttonStyles.dialog.destructive}
-                        >
-                          Agent löschen
-                        </AlertDialogAction>
+                            <AlertDialogAction 
+                              onClick={() => deleteAgent(agent.agent_id, agent.name)}
+                              className={buttonStyles.dialog.destructive}
+                              disabled={isDeleting === agent.agent_id}
+                            >
+                              {isDeleting === agent.agent_id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Wird gelöscht...
+                                </>
+                              ) : (
+                                'Agent löschen'
+                              )}
+                            </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
