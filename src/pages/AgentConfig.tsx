@@ -389,12 +389,17 @@ export default function AgentConfig() {
         toast.success('Agent erfolgreich aktualisiert!');
       } else {
         console.log('🆕 Using POST /api/agents/agents/ for creation');
-        await agentAPI.createAgent(agentData);
+        const newAgent = await agentAPI.createAgent(agentData);
         toast.success('Agent erfolgreich erstellt!');
+        
+        // After creating a new agent, navigate to edit mode with the new agent ID
+        if (newAgent && newAgent.agent_id) {
+          navigate(`/dashboard/agents/edit/${newAgent.agent_id}`, { replace: true });
+        }
       }
       
-      // Navigate back to agents list
-      navigate('/dashboard/agents');
+      // Stay on the current page - don't navigate away
+      // This allows the user to continue editing
       
     } catch (err) {
       console.error('❌ Failed to save agent:', err);
