@@ -675,7 +675,9 @@ export const paymentAPI = {
       }>;
     }>;
   }> {
-    return apiCall('/api/payments/stripe/products/');
+    // Add timestamp to bypass cache
+    const timestamp = new Date().getTime();
+    return apiCall(`/api/payments/stripe/products/?_t=${timestamp}`);
   },
 
   /**

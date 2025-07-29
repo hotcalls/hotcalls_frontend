@@ -124,6 +124,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         try {
           const response = await paymentAPI.getStripeProducts();
           console.log('📦 Loaded Stripe products response:', response);
+          console.log('🕐 Loaded at:', new Date().toISOString());
           
           // Extract products array from response
           const products = response.products || response;
