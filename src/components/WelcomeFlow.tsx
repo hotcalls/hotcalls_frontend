@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
-import { workspaceAPI, callAPI } from "@/lib/apiService";
+import { workspaceAPI, callAPI, paymentAPI } from "@/lib/apiService";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -35,6 +35,21 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
   const [createdAgentId, setCreatedAgentId] = useState<string | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [selectedPlanDetails, setSelectedPlanDetails] = useState<{
+    id: string;
+    name: string;
+    price: string;
+  } | null>(null);
+  
+  // Map plan names to Stripe price IDs
+  const [planPriceMap, setPlanPriceMap] = useState<Record<string, string>>({
+    start: '',
+    pro: '',
+    enterprise: ''
+  });
+  const [isLoadingPrices, setIsLoadingPrices] = useState(false);
 
   // Verhindere Body-Scrolling wenn Modal aktiv ist
   useEffect(() => {
@@ -100,6 +115,109 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
     loadVoices();
   }, []);
+
+  // Load Stripe products to get price IDs
+  useEffect(() => {
+    const loadStripePrices = async () => {
+      if (currentStep >= 5 && !planPriceMap.start) { // Load earlier - at step 5 instead of 6
+        setIsLoadingPrices(true);
+        try {
+          const response = await paymentAPI.getStripeProducts();
+          console.log('📦 Loaded Stripe products response:', response);
+          
+          // Extract products array from response
+          const products = response.products || response;
+          
+          // Ensure it's an array
+          if (!Array.isArray(products)) {
+            console.error('❌ Invalid products response:', response);
+            throw new Error('Invalid products response from API');
+          }
+          
+          // Map products to our plan names based on price or name
+          const newPriceMap: Record<string, string> = {
+            start: '',
+            pro: '',
+            enterprise: ''
+          };
+          
+          // Sort by price to match plans
+          const sortedProducts = products.sort((a, b) => {
+            const priceA = a.prices[0]?.unit_amount || 0;
+            const priceB = b.prices[0]?.unit_amount || 0;
+            return priceA - priceB;
+          });
+          
+          // Map based on position or name matching
+          sortedProducts.forEach((product, index) => {
+            const monthlyPrice = product.prices.find(p => 
+              p.recurring?.interval === 'month' && 
+              p.recurring?.interval_count === 1 &&
+              p.unit_amount !== null // Skip metered prices
+            ) || product.prices[0];
+            
+            if (monthlyPrice && monthlyPrice.unit_amount) {
+              const lowerName = product.name.toLowerCase();
+              console.log(`🔍 Checking product: ${product.name} (${lowerName}) - Price: ${monthlyPrice.unit_amount/100}€`);
+              
+              // Check for Start plans (both "Start" and "Start Plan")
+              if ((lowerName === 'start' || lowerName === 'start plan') && !newPriceMap.start) {
+                console.log(`✅ Matched Start plan: ${product.name} -> ${monthlyPrice.id}`);
+                newPriceMap.start = monthlyPrice.id;
+              } 
+              // Check for Pro plan
+              else if (lowerName === 'pro' && !newPriceMap.pro) {
+                console.log(`✅ Matched Pro plan: ${product.name} -> ${monthlyPrice.id}`);
+                newPriceMap.pro = monthlyPrice.id;
+              }
+              // Enterprise doesn't need a price ID - it's a contact form
+            }
+          });
+          
+          console.log('💰 Price mapping:', newPriceMap);
+          
+          // If no products were loaded or mapped, use actual Stripe price IDs
+          if (!newPriceMap.start || !newPriceMap.pro) {
+            console.warn('⚠️ Missing price mappings! Current map:', newPriceMap);
+            console.warn('⚠️ Products available:', products.map(p => ({
+              name: p.name,
+              prices: p.prices.map(pr => ({
+                id: pr.id,
+                amount: pr.unit_amount,
+                recurring: pr.recurring
+              }))
+            })));
+            
+            // Use the actual Stripe price IDs we know exist
+            if (!newPriceMap.start) {
+              newPriceMap.start = 'price_1RhukeRreb0r83OzezuvLXm2'; // Start - 199€
+              console.warn('⚠️ Using hardcoded Start price ID');
+            }
+            if (!newPriceMap.pro) {
+              newPriceMap.pro = 'price_1Rhul0Rreb0r83OzXyAcmohG';   // Pro - 549€
+              console.warn('⚠️ Using hardcoded Pro price ID');
+            }
+            // Enterprise doesn't need a price ID - it's a contact form
+          }
+          
+          console.log('📦 Final price mapping:', {
+            start: newPriceMap.start,
+            pro: newPriceMap.pro,
+            enterprise: newPriceMap.enterprise
+          });
+          
+          setPlanPriceMap(newPriceMap);
+        } catch (error) {
+          console.error('Failed to load Stripe products:', error);
+          // Continue with fallback price IDs or plan names
+        } finally {
+          setIsLoadingPrices(false);
+        }
+      }
+    };
+    
+    loadStripePrices();
+  }, [currentStep, planPriceMap.start]);
 
   const personalities = [
     "Freundlich und hilfsbereit",
@@ -300,6 +418,115 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       throw error;
     }
   };
+
+  const handlePlanSelection = async (plan: 'start' | 'pro' | 'enterprise', planName: string, planPrice: string) => {
+    try {
+      setIsProcessingPayment(true);
+      console.log('🎯 Plan selected:', plan);
+      console.log('📦 Current price map:', planPriceMap);
+      
+      // Get the Stripe price ID for this plan
+      const priceId = planPriceMap[plan];
+      
+      // If no price ID found, check if we're still loading
+      if (!priceId && isLoadingPrices) {
+        toast.warning('Pläne werden noch geladen...', {
+          description: 'Bitte versuche es in einem Moment erneut.'
+        });
+        setIsProcessingPayment(false);
+        return;
+      }
+      
+      // If still no price ID, use hardcoded ones
+      const finalPriceId = priceId || (
+        plan === 'start' ? 'price_1RhukeRreb0r83OzezuvLXm2' :
+        plan === 'pro' ? 'price_1Rhul0Rreb0r83OzXyAcmohG' :
+        null
+      );
+      
+      if (!finalPriceId) {
+        throw new Error(`Keine Price ID für Plan ${plan} gefunden`);
+      }
+      
+      console.log(`💳 Using price ID: ${finalPriceId} for plan: ${plan}`);
+      
+      // Save plan details
+      setFormData(prev => ({ ...prev, selectedPlan: plan }));
+      setSelectedPlanDetails({ id: plan, name: planName, price: planPrice });
+      
+      // Check if workspace has Stripe customer
+      const workspaces = await workspaceAPI.getMyWorkspaces();
+      if (!workspaces || workspaces.length === 0) {
+        throw new Error('Kein Workspace gefunden');
+      }
+      
+      const primaryWorkspace = workspaces[0];
+      const stripeInfo = await paymentAPI.getStripeInfo(primaryWorkspace.id);
+      
+      // Create Stripe customer if needed
+      if (!stripeInfo.has_stripe_customer) {
+        console.log('📝 Creating Stripe customer...');
+        await paymentAPI.createStripeCustomer(primaryWorkspace.id, primaryWorkspace.workspace_name);
+        toast.success('Zahlungskonto erstellt');
+      }
+      
+      // Create checkout session with the actual price ID
+      console.log('💳 Creating checkout session with price ID:', finalPriceId);
+      const { checkout_url } = await paymentAPI.createCheckoutSession(
+        primaryWorkspace.id, 
+        finalPriceId
+      );
+      
+      // Save plan selection to localStorage for after redirect
+      localStorage.setItem('selectedPlan', plan);
+      localStorage.setItem('welcomeFlowStep', '7');
+      
+      // Redirect to Stripe Checkout
+      toast.info('Weiterleitung zu Stripe...', {
+        description: 'Du wirst zur sicheren Zahlungsseite weitergeleitet.'
+      });
+      
+      setTimeout(() => {
+        window.location.href = checkout_url;
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('❌ Plan selection error:', error);
+      toast.error('Fehler bei der Plan-Auswahl', {
+        description: error.message || 'Bitte versuche es erneut.'
+      });
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Check payment status from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get('payment');
+    const price = urlParams.get('price');
+    
+    if (payment === 'success' && price) {
+      console.log('✅ Payment successful for price:', price);
+      // Set subscription active
+      setHasActiveSubscription(true);
+      // Jump to last step
+      setCurrentStep(8);
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+      toast.success('Zahlung erfolgreich!', {
+        description: `Dein Plan ist jetzt aktiv.`
+      });
+    } else if (payment === 'cancelled') {
+      console.log('❌ Payment cancelled');
+      // Stay on plan selection
+      setCurrentStep(7);
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+      toast.info('Zahlung abgebrochen', {
+        description: 'Du kannst jederzeit einen Plan auswählen.'
+      });
+    }
+  }, []);
 
   const nextStep = () => {
     if (currentStep === 4) {
@@ -728,13 +955,20 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     </ul>
                     <Button 
                       className="w-full bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, selectedPlan: 'start' }));
-                        localStorage.setItem('selectedPlan', 'start');
-                        setCurrentStep(8);
-                      }}
+                      onClick={() => handlePlanSelection('start', 'Start', '199€')}
+                      disabled={isProcessingPayment}
                     >
-                      Auswählen
+                      {isProcessingPayment ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Verarbeitung...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          Jetzt auswählen
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -780,13 +1014,20 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     </div>
                     <Button 
                       className="w-full bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
-                      onClick={() => {
-                        setFormData(prev => ({ ...prev, selectedPlan: 'pro' }));
-                        localStorage.setItem('selectedPlan', 'pro');
-                        setCurrentStep(8);
-                      }}
+                      onClick={() => handlePlanSelection('pro', 'Pro', '549€')}
+                      disabled={isProcessingPayment}
                     >
-                      Auswählen
+                      {isProcessingPayment ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Verarbeitung...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          Jetzt auswählen
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -797,19 +1038,19 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
                       <p className="text-sm text-gray-500 mt-2">
-                        Für große Unternehmen mit speziellen Anforderungen
+                        Individuelle Lösungen für große Unternehmen
                       </p>
                     </div>
                     <div>
-                      <div className="text-4xl font-bold text-gray-900">ab 1.490€</div>
-                      <p className="text-sm text-gray-500">/Monat</p>
+                      <div className="text-4xl font-bold text-gray-900">Individuell</div>
+                      <p className="text-sm text-gray-500">Preis auf Anfrage</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-700 mb-3">Alle Pro-Features plus:</p>
                       <ul className="space-y-3 text-sm">
                         <li className="flex items-center space-x-3">
                           <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Unbegrenzte Minuten</span>
+                          <span>Unbegrenzte Agenten & Minuten</span>
                         </li>
                         <li className="flex items-center space-x-3">
                           <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
@@ -817,23 +1058,22 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                         </li>
                         <li className="flex items-center space-x-3">
                           <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>24/7 Premium Support</span>
+                          <span>Dedizierter Account Manager</span>
                         </li>
                         <li className="flex items-center space-x-3">
                           <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Custom Features</span>
+                          <span>Custom Integrationen</span>
                         </li>
                       </ul>
                     </div>
-                    <Button 
-                      className="w-full bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
+                                        <Button 
+                      className="w-full bg-gray-900 hover:bg-gray-800 text-white focus:ring-0 focus:ring-offset-0"
                       onClick={() => {
-                        setFormData(prev => ({ ...prev, selectedPlan: 'enterprise' }));
-                        localStorage.setItem('selectedPlan', 'enterprise');
-                        setCurrentStep(8);
+                        window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
                       }}
                     >
-                      Auswählen
+                      <Phone className="mr-2 h-5 w-5" />
+                      Mit Gründer sprechen
                     </Button>
                   </div>
                 </div>
@@ -985,12 +1225,35 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
             {currentStep === 8 && (
               <div className="w-full space-y-8 animate-fade-in text-center">
                 <div className="space-y-4">
-                  <h2 className="text-4xl font-bold text-gray-900">
-                    Jetzt wirds heiß! 🔥
-                  </h2>
-                  <p className="text-xl text-gray-600">
-                    Dein Agent ist bereit. So geht's weiter:
-                  </p>
+                  {hasActiveSubscription ? (
+                    <>
+                      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Check className="h-10 w-10 text-green-600" />
+                      </div>
+                      <h2 className="text-4xl font-bold text-gray-900">
+                        Perfekt! Alles bereit! 🎉
+                      </h2>
+                      <p className="text-xl text-gray-600">
+                        Dein {formData.selectedPlan === 'pro' ? 'Pro' : 'Start'} Plan ist aktiv und dein Agent ist einsatzbereit!
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-4xl font-bold text-gray-900">
+                        Fast fertig! 🔥
+                      </h2>
+                      <p className="text-xl text-gray-600">
+                        Dein Agent ist bereit. Wähle einen Plan um loszulegen.
+                      </p>
+                      <Button
+                        onClick={() => setCurrentStep(7)}
+                        className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
+                      >
+                        <ArrowLeft className="mr-2 h-5 w-5" />
+                        Zurück zur Plan-Auswahl
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-6 max-w-md mx-auto">
