@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronsUpDown, Building2 } from "lucide-react";
+import { Check, ChevronsUpDown, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -14,17 +14,64 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-const workspaces = [
-  { value: "acme-corp", label: "Acme Corp" },
-  { value: "tech-solutions", label: "Tech Solutions GmbH" },
-  { value: "marketing-pro", label: "Marketing Pro AG" },
-  { value: "digital-agency", label: "Digital Agency" },
-];
+import { useWorkspace } from "@/hooks/use-workspace";
+import React from "react";
 
 export function WorkspaceSelector() {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("acme-corp");
+  const { workspaces, primaryWorkspace, loading, error } = useWorkspace();
+  
+  // Use primary workspace as default, or first workspace if available
+  const [value, setValue] = useState(primaryWorkspace?.id || "");
+
+  // Update value when primaryWorkspace is loaded
+  React.useEffect(() => {
+    if (primaryWorkspace && !value) {
+      setValue(primaryWorkspace.id);
+    }
+  }, [primaryWorkspace, value]);
+
+  // Map API workspaces to selector format
+  const workspaceOptions = workspaces.map(workspace => ({
+    value: workspace.id,
+    label: workspace.workspace_name
+  }));
+
+  const selectedWorkspace = workspaceOptions.find(workspace => workspace.value === value);
+
+  if (loading) {
+    return (
+      <div className="px-2 pb-3">
+        <Button
+          variant="outline"
+          className="w-full justify-between h-10 border-gray-200"
+          disabled
+        >
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 text-gray-500 animate-spin" />
+            <span className="truncate">Lade Workspaces...</span>
+          </div>
+        </Button>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-2 pb-3">
+        <Button
+          variant="outline"
+          className="w-full justify-between h-10 border-red-200 text-red-600"
+          disabled
+        >
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            <span className="truncate">Fehler beim Laden</span>
+          </div>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="px-2 pb-3">
@@ -39,9 +86,7 @@ export function WorkspaceSelector() {
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 text-gray-500" />
               <span className="truncate">
-                {value
-                  ? workspaces.find((workspace) => workspace.value === value)?.label
-                  : "Workspace wählen..."}
+                {selectedWorkspace?.label || "Workspace wählen..."}
               </span>
             </div>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -53,7 +98,7 @@ export function WorkspaceSelector() {
             <CommandList>
               <CommandEmpty>Kein Workspace gefunden.</CommandEmpty>
               <CommandGroup>
-                {workspaces.map((workspace) => (
+                {workspaceOptions.map((workspace) => (
                   <CommandItem
                     key={workspace.value}
                     value={workspace.value}

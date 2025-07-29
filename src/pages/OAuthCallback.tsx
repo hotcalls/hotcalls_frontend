@@ -46,11 +46,11 @@ export default function OAuthCallback() {
           
           // Redirect to calendar page after short delay
           setTimeout(() => {
-            navigate('/calendar', { 
+            navigate('/dashboard/calendar', { 
               state: { 
-                newConnection: true, 
-                calendars: result.calendars 
-              } 
+                message: 'Google Kalender wurde erfolgreich verbunden!',
+                type: 'success'
+              }
             });
           }, 1500);
         } else {
@@ -62,9 +62,9 @@ export default function OAuthCallback() {
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         
-        // Redirect to calendar page after delay to show error
+        // For error case, still navigate to calendar after delay
         setTimeout(() => {
-          navigate('/calendar');
+          navigate('/dashboard/calendar');
         }, 3000);
       }
     };
@@ -107,7 +107,7 @@ export default function OAuthCallback() {
                   </div>
                   <button 
                     className={buttonStyles.primary.default}
-                    onClick={() => navigate('/calendar')}
+                    onClick={() => navigate('/dashboard/calendar')}
                   >
                     <span>Zurück zu Kalendern</span>
                   </button>
