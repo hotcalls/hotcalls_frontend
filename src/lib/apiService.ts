@@ -622,4 +622,128 @@ export const callAPI = {
   },
 };
 
+// Stripe/Payment API
+export const paymentAPI = {
+  /**
+   * Check if workspace has Stripe customer
+   */
+  async getStripeInfo(workspaceId: string): Promise<{
+    has_stripe_customer: boolean;
+    stripe_customer_id?: string;
+    customer_email?: string;
+  }> {
+    return apiCall(`/api/payments/workspaces/${workspaceId}/stripe-info/`);
+  },
+
+  /**
+   * Create Stripe customer for workspace
+   */
+  async createStripeCustomer(workspaceId: string, workspaceName?: string): Promise<{
+    customer_id: string;
+    customer_email: string;
+  }> {
+    return apiCall('/api/payments/stripe/create-customer/', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace_id: workspaceId,
+        name: workspaceName
+      })
+    });
+  },
+
+  /**
+   * Get all Stripe products and prices
+   */
+  async getStripeProducts(): Promise<{
+    products: Array<{
+      id: string;
+      name: string;
+      description?: string;
+      active: boolean;
+      prices: Array<{
+        id: string;
+        unit_amount: number;
+        currency: string;
+        recurring?: {
+          interval: string;
+          interval_count: number;
+          meter?: string | null;
+          trial_period_days?: number | null;
+          usage_type: string;
+        };
+        nickname?: string | null;
+      }>;
+    }>;
+  }> {
+    // Add timestamp to bypass cache
+    const timestamp = new Date().getTime();
+    return apiCall(`/api/payments/stripe/products/?_t=${timestamp}`);
+  },
+
+  /**
+   * Create Stripe Checkout Session for subscription
+   */
+  async createCheckoutSession(workspaceId: string, priceIdOrPlan: string): Promise<{
+    checkout_url: string;
+    session_id: string;
+  }> {
+    const successUrl = `${window.location.origin}/?payment=success&price=${priceIdOrPlan}`;
+    const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+    
+    // Backend always expects price_id field
+    return apiCall('/api/payments/stripe/checkout-session/', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace_id: workspaceId,
+        price_id: priceIdOrPlan, // Always send as price_id, even if it's a plan name
+        success_url: successUrl,
+        cancel_url: cancelUrl
+      })
+    });
+  },
+
+  /**
+   * Get current subscription status
+   */
+  async getSubscription(): Promise<{
+    has_subscription: boolean;
+    subscription?: {
+      id: string;
+      status: string;
+      current_period_end: string;
+      plan: string;
+      cancel_at_period_end: boolean;
+    };
+  }> {
+    return apiCall('/api/payments/stripe/subscription/');
+  },
+
+  /**
+   * Cancel subscription (at period end)
+   */
+  async cancelSubscription(): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return apiCall('/api/payments/stripe/cancel-subscription/', {
+      method: 'POST'
+    });
+  },
+
+  /**
+   * Create Customer Portal session for self-service
+   */
+  async createPortalSession(workspaceId: string, returnUrl?: string): Promise<{
+    url: string;
+  }> {
+    return apiCall('/api/payments/stripe/portal-session/', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        workspace_id: workspaceId,
+        return_url: returnUrl || window.location.href 
+      })
+    });
+  }
+};
+
 // Export all APIs 

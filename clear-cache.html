@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache & Stripe Data Clear Utility</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        .success {
+            background-color: #28a745;
+        }
+        .success:hover {
+            background-color: #218838;
+        }
+        .info {
+            background-color: #17a2b8;
+        }
+        .info:hover {
+            background-color: #138496;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success-msg {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error-msg {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Cache & Stripe Data Clear Utility</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Stripe Mode Mismatch Detected</strong><br>
+            Your account has a live mode Stripe customer ID but the system is in test mode. 
+            Use the buttons below to clear the cached data and start fresh in test mode.
+        </div>
+        
+        <button onclick="clearAll()">🗑️ Clear All Data</button>
+        <button onclick="clearLocalStorage()" class="info">📦 Clear LocalStorage Only</button>
+        <button onclick="clearCookies()" class="info">🍪 Clear Cookies Only</button>
+        <button onclick="goToApp()" class="success">🏠 Go Back to App</button>
+        
+        <div id="status"></div>
+        
+        <script>
+            function showStatus(message, isSuccess = true) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = isSuccess ? 'success-msg' : 'error-msg';
+                status.style.display = 'block';
+            }
+            
+            function clearLocalStorage() {
+                try {
+                    // Get all keys
+                    const keys = Object.keys(localStorage);
+                    console.log('Found localStorage keys:', keys);
+                    
+                    // Clear all localStorage
+                    localStorage.clear();
+                    
+                    showStatus(`✅ Cleared ${keys.length} items from localStorage`);
+                } catch (error) {
+                    showStatus('❌ Error clearing localStorage: ' + error.message, false);
+                }
+            }
+            
+            function clearCookies() {
+                try {
+                    // Get all cookies
+                    const cookies = document.cookie.split(";");
+                    let count = 0;
+                    
+                    // Clear each cookie
+                    cookies.forEach(function(cookie) {
+                        const eqPos = cookie.indexOf("=");
+                        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                        if (name) {
+                            // Clear for current path
+                            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+                            // Clear for current domain
+                            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname};`;
+                            // Clear for parent domain (if subdomain)
+                            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname.split('.').slice(-2).join('.')};`;
+                            count++;
+                        }
+                    });
+                    
+                    showStatus(`✅ Cleared ${count} cookies`);
+                } catch (error) {
+                    showStatus('❌ Error clearing cookies: ' + error.message, false);
+                }
+            }
+            
+            function clearAll() {
+                clearLocalStorage();
+                setTimeout(() => {
+                    clearCookies();
+                    setTimeout(() => {
+                        showStatus('✅ All data cleared! Redirecting to app...', true);
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1500);
+                    }, 500);
+                }, 500);
+            }
+            
+            function goToApp() {
+                window.location.href = '/';
+            }
+            
+            // Show current data on load
+            window.onload = function() {
+                console.log('Current localStorage keys:', Object.keys(localStorage));
+                console.log('Current cookies:', document.cookie);
+            }
+        </script>
+    </div>
+</body>
+</html>

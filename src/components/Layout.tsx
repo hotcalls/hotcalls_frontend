@@ -1,8 +1,11 @@
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { WelcomeFlow } from "@/components/WelcomeFlow";
+import { WelcomeFlow } from './WelcomeFlow';
+import { AppSidebar } from './AppSidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { Button } from './ui/button';
+import { Plus } from 'lucide-react';
+import { CreateAgentDialog } from './CreateAgentDialog';
+import { workspaceAPI, agentAPI, paymentAPI } from '@/lib/apiService';
 import { useState, useEffect, ReactNode } from "react";
-import { agentAPI, workspaceAPI } from "@/lib/apiService";
 import { useNavigate } from "react-router-dom";
 
 interface LayoutProps {
@@ -10,76 +13,95 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const navigate = useNavigate();
   const [showWelcome, setShowWelcome] = useState(false);
-  const [isCheckingAgents, setIsCheckingAgents] = useState(true);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
 
   useEffect(() => {
     const checkWelcomeFlow = async () => {
       try {
-        console.log('🔍 Checking welcome flow status...');
+        console.log('🔍 Checking workspace plan status for welcome flow...');
         
-        // ALWAYS check for agents first - this is the most important check!
-        // Get user's workspaces
+        // First get user's workspaces
         const workspaces = await workspaceAPI.getMyWorkspaces();
         if (!workspaces || workspaces.length === 0) {
-          console.log('🆕 No workspaces found, showing welcome flow');
+          console.log('🆕 No workspace found, showing welcome flow');
           setShowWelcome(true);
-          setIsCheckingAgents(false);
+          setIsCheckingSubscription(false);
           return;
         }
         
-        // Get agents directly to check if user has any
         const primaryWorkspace = workspaces[0];
-        console.log(`🤖 Checking agents for workspace: ${primaryWorkspace.workspace_name}`);
+        console.log('🏢 Checking plan for workspace:', primaryWorkspace.workspace_name);
         
+        // Check if WORKSPACE has active plan
         try {
-          // Use the direct agent API to get agents for this workspace
-          const agents = await agentAPI.getAgents(primaryWorkspace.id);
-          const agentCount = agents.length;
+          // Get workspace stripe info to check if it has active subscription
+          const stripeInfo = await paymentAPI.getStripeInfo(primaryWorkspace.id);
+          console.log('💳 Workspace Stripe info:', stripeInfo);
           
-          console.log(`🤖 Agent check result:`, {
-            workspace: primaryWorkspace.workspace_name,
-            agent_count: agentCount,
-            agents: agents.map(a => ({ id: a.agent_id, name: a.name }))
-          });
-          
-          // MAIN LOGIC: If no agents, ALWAYS show welcome flow!
-          if (agentCount === 0) {
-            console.log('🆕 No agents found, showing welcome flow (ignoring localStorage)');
-            // Remove any incorrect welcomeCompleted flag
-            localStorage.removeItem('welcomeCompleted');
-            setShowWelcome(true);
+          // If workspace has stripe customer, check subscription status
+          if (stripeInfo.has_stripe_customer) {
+            const subscriptionData = await paymentAPI.getSubscription();
+            console.log('💳 Workspace subscription check result:', subscriptionData);
+            
+            // Check if workspace has active subscription or trial
+            const hasActivePlan = subscriptionData.has_subscription && 
+              (subscriptionData.subscription?.status === 'active' || 
+               subscriptionData.subscription?.status === 'trialing');
+            
+            console.log('💳 Workspace plan details:', {
+              workspace_id: primaryWorkspace.id,
+              workspace_name: primaryWorkspace.workspace_name,
+              has_stripe_customer: stripeInfo.has_stripe_customer,
+              has_subscription: subscriptionData.has_subscription,
+              status: subscriptionData.subscription?.status,
+              plan: subscriptionData.subscription?.plan,
+              hasActivePlan
+            });
+            
+            // MAIN LOGIC: Show welcome flow if workspace has NO active plan
+            if (!hasActivePlan) {
+              console.log('🆕 Workspace has no active plan, showing welcome flow');
+              localStorage.removeItem('welcomeCompleted');
+              setShowWelcome(true);
+            } else {
+              console.log('✅ Workspace has active plan, proceeding to dashboard');
+              localStorage.setItem('welcomeCompleted', 'true');
+              setShowWelcome(false);
+            }
           } else {
-            console.log('✅ User has existing agents, no need for welcome flow');
-            // User has agents, mark welcome as completed and skip
-            localStorage.setItem('welcomeCompleted', 'true');
-            setShowWelcome(false);
+            // No stripe customer = no plan
+            console.log('🆕 Workspace has no Stripe customer, showing welcome flow');
+            setShowWelcome(true);
           }
-        } catch (agentError) {
-          console.error('❌ Failed to get agents:', agentError);
-          // If we can't check agents, show welcome flow to be safe
-          console.log('⚠️ Could not verify agents, showing welcome flow as fallback');
+        } catch (subscriptionError: any) {
+          console.error('❌ Failed to check workspace plan:', subscriptionError);
+          
+          // If error checking plan, show welcome flow
+          console.log('⚠️ Could not verify workspace plan, showing welcome flow as fallback');
           setShowWelcome(true);
         }
       } catch (error) {
-        console.warn('⚠️ Could not check agents for welcome flow:', error);
-        // On error, show welcome flow to ensure new users aren't blocked
+        console.warn('⚠️ Could not check workspace plan for welcome flow:', error);
+        // If can't check, show welcome flow to be safe
         setShowWelcome(true);
       } finally {
-        setIsCheckingAgents(false);
+        setIsCheckingSubscription(false);
       }
     };
 
+    // Check immediately on mount
     checkWelcomeFlow();
-  }, []);
+  }, [navigate]);
 
   const handleWelcomeComplete = () => {
     localStorage.setItem('welcomeCompleted', 'true');
     setShowWelcome(false);
   };
 
-  // Show loading while checking agents
-  if (isCheckingAgents) {
+  // Show loading while checking subscription
+  if (isCheckingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -115,7 +137,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="font-bold mb-1">🐛 Welcome Flow Debug</div>
           <div>welcomeCompleted: {localStorage.getItem('welcomeCompleted') || 'not set'}</div>
           <div>showWelcome: {showWelcome ? 'true' : 'false'}</div>
-          <div>isCheckingAgents: {isCheckingAgents ? 'true' : 'false'}</div>
+          <div>isCheckingSubscription: {isCheckingSubscription ? 'true' : 'false'}</div>
           <button 
             className="mt-2 px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
             onClick={() => {
