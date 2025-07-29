@@ -51,12 +51,46 @@ export default function AgentConfig() {
 
   // Get workspace and voices
   const { primaryWorkspace } = useWorkspace();
-  const { voices, loading: voicesLoading, getVoiceName, getVoicePicture } = useVoices();
+  const { voices, loading: voicesLoading, getVoiceName, getVoicePicture, refresh: refreshVoices } = useVoices();
+
+  // Force load voices when component mounts
+  useEffect(() => {
+    console.log('🎤 AgentConfig mounted, voices status:', { 
+      voicesCount: voices.length, 
+      loading: voicesLoading,
+      voiceDetails: voices.slice(0, 3).map(v => ({
+        id: v.id,
+        name: v.name,
+        voice_sample: v.voice_sample
+      }))
+    });
+    
+    // If no voices loaded, force refresh
+    if (!voicesLoading && voices.length === 0) {
+      console.log('🔄 No voices loaded, forcing refresh...');
+      refreshVoices();
+    }
+  }, []);
+
+  // Log when voices are loaded
+  useEffect(() => {
+    if (voices.length > 0) {
+      console.log('🎵 Voices loaded in AgentConfig:', {
+        totalVoices: voices.length,
+        sampleUrls: voices.map(v => ({
+          name: v.name,
+          hasSample: !!v.voice_sample,
+          sampleUrl: v.voice_sample
+        }))
+      });
+    }
+  }, [voices]);
 
   const [config, setConfig] = useState({
     name: "",
     personality: "",
     voice: "",
+    voiceExternalId: "", // Store external voice ID for test calls
     script: "",
     callLogic: "standard", 
     selectedEventTypes: [] as string[],
@@ -79,6 +113,24 @@ export default function AgentConfig() {
   const [testPopoverOpen, setTestPopoverOpen] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [isTestCalling, setIsTestCalling] = useState(false);
+
+  // Helper function to map personality to character
+  const mapPersonalityToCharacter = (personality: string): string => {
+    switch (personality) {
+      case 'friendly':
+        return 'Freundlich und empathisch';
+      case 'professional':
+        return 'Professionell und direkt';
+      case 'warm':
+        return 'Warm und herzlich';
+      case 'energetic':
+        return 'Energisch und dynamisch';
+      case 'direct':
+        return 'Direkt und zielstrebig';
+      default:
+        return 'Freundlich und empathisch';
+    }
+  };
 
   // Load agent data when editing
   useEffect(() => {
@@ -196,6 +248,7 @@ export default function AgentConfig() {
           name: agentData.name || "",
           personality: mappedPersonality,
           voice: agentData.voice || "",
+          voiceExternalId: agentData.voice_external_id || "", // Load external voice ID
           script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
           selectedEventTypes: [],
@@ -223,45 +276,49 @@ export default function AgentConfig() {
     loadAgentData();
   }, [isEdit, id]);
 
-  const playVoiceSample = (voice: string) => {
+  const playVoiceSample = (voiceId: string) => {
     // Stop any currently playing audio
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
 
-    if (playingVoice === voice) {
+    if (playingVoice === voiceId) {
       setPlayingVoice(null);
       return;
     }
 
-    // For now, we'll use placeholder voice samples
-    // In production, these should come from the Voice API
-    const voiceFiles: Record<string, string> = {
-      'sarah': '/voice-samples/lisa-sample.mp3',
-      'marcus': '/voice-samples/marcus-sample.mp3', 
-      'lisa': '/voice-samples/lisa-sample.mp3'
-    };
-
-    const audioFile = voiceFiles[voice];
-    if (audioFile) {
-      const audio = new Audio(audioFile);
-      audioRef.current = audio;
-      
-      audio.addEventListener('ended', () => {
-        setPlayingVoice(null);
-      });
-      
-      audio.addEventListener('error', () => {
-        setPlayingVoice(null);
-        console.warn(`Voice sample not found: ${audioFile}`);
-      });
-
-      setPlayingVoice(voice);
-      audio.play().catch(() => {
-        setPlayingVoice(null);
-      });
+    // Find the voice object from the voices array
+    const voice = voices.find(v => v.id === voiceId);
+    if (!voice || !voice.voice_sample) {
+      console.warn('No voice sample available for:', voiceId);
+      toast.error('Keine Hörprobe verfügbar');
+      return;
     }
+
+    // Use the voice_sample URL from the API
+    const audioFile = voice.voice_sample;
+    console.log('🔊 Playing voice sample:', audioFile);
+    
+    const audio = new Audio(audioFile);
+    audioRef.current = audio;
+    
+    audio.addEventListener('ended', () => {
+      setPlayingVoice(null);
+    });
+    
+    audio.addEventListener('error', (e) => {
+      setPlayingVoice(null);
+      console.error('❌ Voice sample playback error:', e);
+      toast.error('Fehler beim Abspielen der Hörprobe');
+    });
+
+    setPlayingVoice(voiceId);
+    audio.play().catch((err) => {
+      console.error('❌ Failed to play audio:', err);
+      setPlayingVoice(null);
+      toast.error('Audio konnte nicht abgespielt werden');
+    });
   };
 
   const handleSave = async () => {
@@ -299,24 +356,6 @@ export default function AgentConfig() {
       }
       
       console.log('✅ Validation passed');
-      
-      // Map personality to character for the API
-      const mapPersonalityToCharacter = (personality: string): string => {
-        switch (personality) {
-          case 'friendly':
-            return 'Freundlich und empathisch';
-          case 'professional':
-            return 'Professionell und direkt';
-          case 'warm':
-            return 'Warm und herzlich';
-          case 'energetic':
-            return 'Energisch und dynamisch';
-          case 'direct':
-            return 'Direkt und zielstrebig';
-          default:
-            return 'Freundlich und empathisch';
-        }
-      };
       
       // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       console.log('🔧 Preparing agentData...');
@@ -448,14 +487,34 @@ export default function AgentConfig() {
       setIsTestCalling(true);
       console.log('📞 Starting test call to:', testPhoneNumber);
       
-      // Make the test call
+      // Make the test call with current agent configuration
       const callData = {
         phone: testPhoneNumber,  // The phone number entered by the user
         agent_id: id!,           // Agent ID from URL params
-        lead_id: null            // null for test calls
+        lead_id: null,           // null for test calls
+        
+        // Include current agent configuration to ensure test uses saved settings
+        agent_config: {
+          greeting_inbound: config.incomingGreeting,
+          greeting_outbound: config.outgoingGreeting,
+          voice: config.voiceExternalId, // Use external voice ID for test calls
+          language: config.language,
+          character: mapPersonalityToCharacter(config.personality),
+          prompt: config.script,
+          retry_interval: parseInt(config.callInterval) || 30,
+          max_retries: parseInt(config.maxAttempts) || 3,
+          // Convert workdays from object to array format
+          workdays: Object.entries(config.workingDays)
+            .filter(([_, active]) => active)
+            .map(([day]) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(day)]),
+          call_from: config.workingTimeStart + ":00",
+          call_to: config.workingTimeEnd + ":00"
+        }
       };
       
       console.log('📞 Calling API with data:', callData);
+      console.log('📞 Agent config for test:', callData.agent_config);
+      console.log('🎤 Using external voice ID:', callData.agent_config.voice);
       await callAPI.makeOutboundCall(callData);
       
       toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
@@ -771,7 +830,11 @@ export default function AgentConfig() {
                                 ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
                                 : "border-gray-300 text-gray-700 hover:bg-gray-50"
                             }`}
-                            onClick={() => setConfig(prev => ({ ...prev, voice: voice.id }))}
+                            onClick={() => setConfig(prev => ({ 
+                              ...prev, 
+                              voice: voice.id,
+                              voiceExternalId: voice.voice_external_id 
+                            }))}
                           >
                             {isSelected ? "Ausgewählt" : "Auswählen"}
                           </button>
