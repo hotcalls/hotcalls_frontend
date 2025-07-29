@@ -35,8 +35,8 @@ const EmailVerificationPending = () => {
       console.log('Verifying email with token...');
       const user = await authService.verifyEmail(email, token);
       
-      // Store verified user data
-      authService.storeUser(user);
+      // Don't store user data or mark as logged in - user needs to login first!
+      // authService.storeUser(user); // REMOVED - user is not logged in yet
       
       // Clear temporary registration data
       authService.clearRegistrationData();
@@ -47,9 +47,15 @@ const EmailVerificationPending = () => {
         description: `Willkommen, ${user.first_name}! Ihr Konto ist jetzt aktiv.`
       });
 
-      // Navigate to dashboard after a short delay
+      // Navigate to login page (not dashboard) after a short delay
+      // User needs to actually login to get session cookies!
       setTimeout(() => {
-        navigate("/");
+        navigate("/login", { 
+          state: { 
+            email: user.email,
+            message: "Ihr Konto wurde erfolgreich verifiziert. Bitte melden Sie sich an."
+          } 
+        });
       }, 2000);
       
     } catch (error: any) {

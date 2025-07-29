@@ -28,35 +28,43 @@ export function Layout({ children }: LayoutProps) {
           return;
         }
         
-        // Get workspace stats to check agent count
+        // Get agents directly to check if user has any
         const primaryWorkspace = workspaces[0];
-        console.log(`📊 Getting stats for workspace: ${primaryWorkspace.workspace_name}`);
+        console.log(`🤖 Checking agents for workspace: ${primaryWorkspace.workspace_name}`);
         
-        const stats = await workspaceAPI.getWorkspaceStats(primaryWorkspace.id);
-        const agentCount = stats.agent_count || 0;
-        
-        console.log(`📊 Workspace stats:`, {
-          workspace: primaryWorkspace.workspace_name,
-          agent_count: agentCount,
-          user_count: stats.user_count
-        });
-        
-        // MAIN LOGIC: If no agents, ALWAYS show welcome flow!
-        if (agentCount === 0) {
-          console.log('🆕 No agents found, showing welcome flow (ignoring localStorage)');
-          // Remove any incorrect welcomeCompleted flag
-          localStorage.removeItem('welcomeCompleted');
+        try {
+          // Use the direct agent API to get agents for this workspace
+          const agents = await agentAPI.getAgents(primaryWorkspace.id);
+          const agentCount = agents.length;
+          
+          console.log(`🤖 Agent check result:`, {
+            workspace: primaryWorkspace.workspace_name,
+            agent_count: agentCount,
+            agents: agents.map(a => ({ id: a.agent_id, name: a.name }))
+          });
+          
+          // MAIN LOGIC: If no agents, ALWAYS show welcome flow!
+          if (agentCount === 0) {
+            console.log('🆕 No agents found, showing welcome flow (ignoring localStorage)');
+            // Remove any incorrect welcomeCompleted flag
+            localStorage.removeItem('welcomeCompleted');
+            setShowWelcome(true);
+          } else {
+            console.log('✅ User has existing agents, no need for welcome flow');
+            // User has agents, mark welcome as completed and skip
+            localStorage.setItem('welcomeCompleted', 'true');
+            setShowWelcome(false);
+          }
+        } catch (agentError) {
+          console.error('❌ Failed to get agents:', agentError);
+          // If we can't check agents, show welcome flow to be safe
+          console.log('⚠️ Could not verify agents, showing welcome flow as fallback');
           setShowWelcome(true);
-        } else {
-          console.log('✅ User has existing agents, no need for welcome flow');
-          // User has agents, mark welcome as completed and skip
-          localStorage.setItem('welcomeCompleted', 'true');
-          setShowWelcome(false);
         }
       } catch (error) {
         console.warn('⚠️ Could not check agents for welcome flow:', error);
-        // On error, assume user has completed welcome to avoid blocking them
-        setShowWelcome(false);
+        // On error, show welcome flow to ensure new users aren't blocked
+        setShowWelcome(true);
       } finally {
         setIsCheckingAgents(false);
       }
