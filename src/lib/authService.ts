@@ -291,21 +291,21 @@ export const authService = {
       console.log('✅ Login API response received:', {
         hasUser: !!response.user,
         userEmail: response.user?.email,
-        message: response.message,
-        authMethod: 'cookies'
+        hasToken: !!response.token,
+        message: response.message
       });
 
-      // For cookie-based auth, we don't need to store tokens
-      // The browser automatically handles session cookies
-      console.log('🍪 Authentication via cookies - session established by backend');
-      
-      // Check if cookies were set by examining document.cookie
-      const cookiesPresent = document.cookie.length > 0;
-      console.log('🔍 Cookie verification:', {
-        cookiesSet: cookiesPresent,
-        cookieCount: document.cookie.split(';').length,
-        cookiePreview: document.cookie ? document.cookie.substring(0, 50) + '...' : 'none'
-      });
+      // Store the auth token
+      if (response.token) {
+        localStorage.setItem('authToken', response.token);
+        console.log('🔑 Auth token stored in localStorage');
+        
+        // Set the token in apiConfig for future requests
+        apiConfig.setAuthToken(response.token);
+      } else {
+        console.error('❌ No token received from login endpoint!');
+        throw new Error('Authentication failed - no token received');
+      }
 
       // Store user data and logged in status
       this.storeUser(response.user);
@@ -315,9 +315,9 @@ export const authService = {
       
       console.log('✅ Authentication state saved:', {
         userLoggedIn: localStorage.getItem('userLoggedIn'),
-        authMethod: 'cookies',
+        authMethod: 'token',
         user: this.getStoredUser()?.email,
-        sessionActive: cookiesPresent
+        hasToken: !!localStorage.getItem('authToken')
       });
       
       return response;
@@ -477,5 +477,41 @@ export const authService = {
   // Check if user is logged in
   isLoggedIn(): boolean {
     return localStorage.getItem('userLoggedIn') === 'true';
+  },
+
+  // Debug helper: Get current auth state
+  getAuthDebugInfo() {
+    const authToken = localStorage.getItem('authToken');
+    const userLoggedIn = localStorage.getItem('userLoggedIn');
+    const user = localStorage.getItem('user');
+    
+    return {
+      hasAuthToken: !!authToken,
+      authTokenLength: authToken?.length || 0,
+      authTokenPreview: authToken ? `${authToken.substring(0, 8)}...` : null,
+      userLoggedInFlag: userLoggedIn,
+      hasUserData: !!user,
+      userData: user ? JSON.parse(user) : null,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // Force clear all auth state (for debugging)
+  forceLogout() {
+    console.log('🔴 FORCE LOGOUT: Clearing all authentication state');
+    this.clearUser();
+    
+    // Ensure complete cleanup
+    localStorage.clear(); // Nuclear option for debugging
+    
+    // Clear auth token from apiConfig if available
+    try {
+      const { apiConfig } = require('@/lib/apiConfig');
+      apiConfig.clearAuthToken();
+    } catch (e) {
+      console.log('Note: Could not clear apiConfig token');
+    }
+    
+    console.log('🔴 All auth state cleared');
   }
 }; 

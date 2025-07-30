@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
 import EmailVerificationPending from "./pages/EmailVerificationPending";
 import OAuthCallback from "./pages/OAuthCallback";
 import AGB from "./pages/AGB";
@@ -41,6 +42,7 @@ const App = () => (
           {/* Auth Routes (without Layout) */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/email-verification-pending" element={<EmailVerificationPending />} />
           
           {/* OAuth Callback Route - must be outside dashboard */}

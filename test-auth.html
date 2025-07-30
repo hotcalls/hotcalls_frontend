@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { border: 1px solid #ccc; padding: 15px; margin: 10px 0; }
+        .pass { color: green; }
+        .fail { color: red; }
+        button { margin: 5px; padding: 10px; }
+        pre { background: #f5f5f5; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Authentication Test Page</h1>
+    
+    <div class="test-section">
+        <h3>Current Auth State</h3>
+        <button onclick="checkAuthState()">Check Auth State</button>
+        <pre id="authState">Click "Check Auth State" to see current state</pre>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Actions</h3>
+        <button onclick="clearAllAuth()">Clear All Auth</button>
+        <button onclick="setFakeValidAuth()">Set Fake Valid Auth</button>
+        <button onclick="setFakeExpiredAuth()">Set Fake Expired Auth</button>
+        <button onclick="testDashboardAccess()">Test Dashboard Access</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <pre id="testResults">No tests run yet</pre>
+    </div>
+
+    <script>
+        function checkAuthState() {
+            const authToken = localStorage.getItem('authToken');
+            const userLoggedIn = localStorage.getItem('userLoggedIn');
+            const user = localStorage.getItem('user');
+            
+            const state = {
+                hasAuthToken: !!authToken,
+                authTokenLength: authToken?.length || 0,
+                authTokenPreview: authToken ? `${authToken.substring(0, 8)}...` : null,
+                userLoggedInFlag: userLoggedIn,
+                hasUserData: !!user,
+                allLocalStorageKeys: Object.keys(localStorage),
+                timestamp: new Date().toISOString()
+            };
+            
+            document.getElementById('authState').textContent = JSON.stringify(state, null, 2);
+        }
+        
+        function clearAllAuth() {
+            localStorage.clear();
+            document.getElementById('testResults').textContent = '✅ All localStorage cleared';
+            checkAuthState();
+        }
+        
+        function setFakeValidAuth() {
+            localStorage.setItem('authToken', 'fake-valid-token-12345678901234567890');
+            localStorage.setItem('userLoggedIn', 'true');
+            localStorage.setItem('user', JSON.stringify({
+                email: 'test@example.com',
+                first_name: 'Test',
+                last_name: 'User'
+            }));
+            document.getElementById('testResults').textContent = '✅ Fake valid auth set';
+            checkAuthState();
+        }
+        
+        function setFakeExpiredAuth() {
+            localStorage.setItem('authToken', 'expired-token-123456');
+            localStorage.setItem('userLoggedIn', 'true');
+            localStorage.setItem('user', JSON.stringify({
+                email: 'expired@example.com',
+                first_name: 'Expired',
+                last_name: 'User'
+            }));
+            document.getElementById('testResults').textContent = '⚠️ Fake expired auth set (will fail API validation)';
+            checkAuthState();
+        }
+        
+        function testDashboardAccess() {
+            const currentState = {
+                hasAuthToken: !!localStorage.getItem('authToken'),
+                userLoggedIn: localStorage.getItem('userLoggedIn') === 'true'
+            };
+            
+            let result = '';
+            
+            if (!currentState.hasAuthToken || !currentState.userLoggedIn) {
+                result = '❌ SHOULD REDIRECT: No auth token or userLoggedIn flag';
+            } else {
+                result = '⚠️ SHOULD VALIDATE: Has localStorage auth, will need API validation';
+            }
+            
+            result += '\n\nTo test full flow:';
+            result += '\n1. Clear all auth, try to access /dashboard → Should redirect to /login';
+            result += '\n2. Set fake auth, try to access /dashboard → Should redirect to /login (API validation fails)';
+            result += '\n3. Login properly, try to access /dashboard → Should allow access';
+            
+            document.getElementById('testResults').textContent = result;
+        }
+        
+        // Auto-check state on load
+        checkAuthState();
+    </script>
+</body>
+</html>
