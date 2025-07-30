@@ -477,5 +477,41 @@ export const authService = {
   // Check if user is logged in
   isLoggedIn(): boolean {
     return localStorage.getItem('userLoggedIn') === 'true';
+  },
+
+  // Debug helper: Get current auth state
+  getAuthDebugInfo() {
+    const authToken = localStorage.getItem('authToken');
+    const userLoggedIn = localStorage.getItem('userLoggedIn');
+    const user = localStorage.getItem('user');
+    
+    return {
+      hasAuthToken: !!authToken,
+      authTokenLength: authToken?.length || 0,
+      authTokenPreview: authToken ? `${authToken.substring(0, 8)}...` : null,
+      userLoggedInFlag: userLoggedIn,
+      hasUserData: !!user,
+      userData: user ? JSON.parse(user) : null,
+      timestamp: new Date().toISOString()
+    };
+  },
+
+  // Force clear all auth state (for debugging)
+  forceLogout() {
+    console.log('🔴 FORCE LOGOUT: Clearing all authentication state');
+    this.clearUser();
+    
+    // Ensure complete cleanup
+    localStorage.clear(); // Nuclear option for debugging
+    
+    // Clear auth token from apiConfig if available
+    try {
+      const { apiConfig } = require('@/lib/apiConfig');
+      apiConfig.clearAuthToken();
+    } catch (e) {
+      console.log('Note: Could not clear apiConfig token');
+    }
+    
+    console.log('🔴 All auth state cleared');
   }
 }; 

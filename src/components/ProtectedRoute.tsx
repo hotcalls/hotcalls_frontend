@@ -18,53 +18,52 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   const validateAuthentication = async () => {
     try {
-      // First check: Do we have basic auth indicators?
-      const hasLocalStorageFlag = authService.isLoggedIn();
-      const hasAuthToken = !!localStorage.getItem('authToken');
+      // STRICT AUTHENTICATION CHECK
+      const authToken = localStorage.getItem('authToken');
+      const userLoggedIn = localStorage.getItem('userLoggedIn');
       
-      console.log('🔍 Initial auth check:', {
-        hasLocalStorageFlag,
-        hasAuthToken,
-        authMethod: 'token'
+      console.log('🔍 Auth state check:', {
+        hasAuthToken: !!authToken,
+        hasUserLoggedInFlag: userLoggedIn === 'true',
+        authTokenLength: authToken?.length || 0
       });
 
-      // If no basic auth indicators, redirect immediately
-      if (!hasLocalStorageFlag || !hasAuthToken) {
-        console.log('❌ No auth token or localStorage flag, redirecting to login');
-        authService.clearUser();
+      // FAIL FAST: If no token or flag, immediate redirect
+      if (!authToken || userLoggedIn !== 'true') {
+        console.log('❌ Missing auth token or logged in flag - redirecting to login');
+        authService.clearUser(); // Clear any stale data
         setIsAuthenticated(false);
         setIsValidating(false);
         return;
       }
 
-      // Second check: Validate token with backend
-      console.log('🔐 Validating token with backend...');
+      // Validate token with backend API call
+      console.log('🔐 Validating token with backend API...');
       
       try {
-        // Make a test API call to verify token validity
-        await authAPI.getProfile();
-        
-        console.log('✅ Token validation successful - user is authenticated');
+        const profileResponse = await authAPI.getProfile();
+        console.log('✅ Token validation successful:', { userEmail: profileResponse?.email });
         setIsAuthenticated(true);
+        
       } catch (error: any) {
         console.error('❌ Token validation failed:', error);
         
-        // If we get 401 Unauthorized, token is expired/invalid
-        if (error?.status === 401 || error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
-          console.log('🔒 Token expired or invalid, clearing auth state and redirecting to login');
-        } else {
-          console.log('🔒 API call failed, assuming auth issue and redirecting to login');
-        }
+        // Handle all API failures as authentication failures
+        console.log('🔒 API validation failed - clearing auth and redirecting to login');
         
-        // Clear all auth state
+        // THOROUGHLY CLEAR ALL AUTH STATE
         authService.clearUser();
         localStorage.removeItem('authToken');
         localStorage.removeItem('userLoggedIn');
+        localStorage.removeItem('user');
         
         setIsAuthenticated(false);
       }
+      
     } catch (error) {
       console.error('❌ Authentication validation error:', error);
+      
+      // On any error, clear auth state and redirect
       authService.clearUser();
       setIsAuthenticated(false);
     } finally {
@@ -72,7 +71,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   };
 
-  // Show loading while validating
+  // Show loading spinner while validating
   if (isValidating) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -84,12 +83,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Redirect to login if not authenticated
+  // STRICT: Redirect to login if not authenticated
   if (!isAuthenticated) {
-    console.log('❌ Authentication failed, redirecting to login');
+    console.log('❌ User not authenticated - redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  console.log('✅ User authenticated, allowing access to protected route');
+  console.log('✅ User authenticated - allowing access to protected content');
   return <>{children}</>;
 } 
