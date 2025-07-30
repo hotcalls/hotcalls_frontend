@@ -56,9 +56,7 @@ export interface RegisterResponse {
   workspace_id?: string;
 }
 
-export interface CreateWorkspaceRequest {
-  workspace_name: string;
-}
+
 
 export interface CreateWorkspaceResponse {
   id: string;
@@ -156,6 +154,15 @@ async function apiCall<T>(
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
   };
+  
+  // Add auth token if available
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    headers['Authorization'] = `Token ${authToken}`;
+    console.log('🔑 Added auth token to request headers');
+  } else {
+    console.warn('⚠️ No auth token available - request might fail with 401');
+  }
   
   // Add CSRF token for non-GET requests
   if (needsCSRF) {
@@ -301,15 +308,6 @@ export const authAPI = {
 
 // Workspace API calls
 export const workspaceAPI = {
-  /**
-   * Create a new workspace
-   */
-  async createWorkspace(workspaceData: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse> {
-    return apiCall<CreateWorkspaceResponse>('/api/workspaces/workspaces/', {
-      method: 'POST',
-      body: JSON.stringify(workspaceData),
-    });
-  },
 
   /**
    * Get user's workspaces
@@ -513,74 +511,20 @@ export const voiceAPI = {
   },
 };
 
-// Combined registration flow that creates user and workspace
+// Simplified registration flow - backend handles workspace creation automatically
 export const registrationFlow = {
   /**
-   * Complete registration process: create user account and workspace
+   * Register user only - backend handles workspace creation automatically
    */
-  async registerWithWorkspace(
-    userData: RegisterRequest,
-    workspaceName: string
-  ): Promise<{
-    registration: RegisterResponse;
-    workspace?: CreateWorkspaceResponse;
-    error?: string;
-  }> {
+  async registerUser(userData: RegisterRequest): Promise<RegisterResponse> {
     try {
-      // Step 1: Register the user
       console.log('Registering user:', { ...userData, password: '[HIDDEN]' });
       const registration = await authAPI.register(userData);
       
-      if (!registration.success) {
-        return {
-          registration,
-          error: registration.message,
-        };
-      }
-
-      // Step 2: Create workspace using company name
-      // Note: The API requires staff/superuser permissions for workspace creation
-      // For now, we'll attempt workspace creation, but it's okay if it fails
-      try {
-        console.log('Creating workspace:', workspaceName);
-        const workspace = await workspaceAPI.createWorkspace({
-          workspace_name: workspaceName,
-        });
-
-        return {
-          registration,
-          workspace,
-        };
-      } catch (workspaceError) {
-        console.warn('Workspace creation failed (this is expected for regular users):', workspaceError);
-        
-        // For demo purposes, create a mock workspace ID
-        // In production, the backend should handle workspace creation automatically
-        // or provide a default workspace for new users
-        const mockWorkspace = {
-          id: `workspace-${Date.now()}`, // Temporary mock ID
-          workspace_name: workspaceName,
-          user_count: 1,
-          created_at: new Date().toISOString(),
-        };
-
-        console.log('Using mock workspace for demo purposes:', mockWorkspace);
-        
-        return {
-          registration,
-          workspace: mockWorkspace,
-          error: 'Note: Using demo workspace. In production, workspace would be created by backend.',
-        };
-      }
+      return registration;
     } catch (error) {
       console.error('Registration failed:', error);
-      return {
-        registration: {
-          success: false,
-          message: error instanceof Error ? error.message : 'Registration failed',
-        },
-        error: error instanceof Error ? error.message : 'Registration failed',
-      };
+      throw error;
     }
   },
 }; 

@@ -75,11 +75,22 @@ export const apiClient = {
 
   async post<T>(endpoint: string, data: any): Promise<T> {
     console.log(`📡 POST ${endpoint}`, data);
+    
+    const headers = getAuthHeaders();
+    const body = JSON.stringify(data);
+    
+    console.log('🔍 Request details:', {
+      url: `${API_BASE_URL}${endpoint}`,
+      headers,
+      bodyString: body,
+      bodyLength: body.length
+    });
+    
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers,
       credentials: 'include',
-      body: JSON.stringify(data),
+      body,
     });
     
     if (!response.ok) {

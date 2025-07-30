@@ -281,6 +281,8 @@ export const authService = {
     };
 
     console.log('🔑 Logging in user (cookie-based auth):', { email, password: '[REDACTED]' });
+    console.log('📦 Login request payload:', JSON.stringify(loginRequest));
+    console.log('🌐 API endpoint:', apiConfig.endpoints.login);
 
     try {
       const response = await apiClient.post<LoginResponse>(

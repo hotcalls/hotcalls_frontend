@@ -42,17 +42,43 @@ const Login = () => {
   }, [location.state, toast, navigate, location.pathname]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    // Debug: Log input changes, especially for password
+    if (name === 'password') {
+      console.log('🔑 Password field changed:', { 
+        length: value.length, 
+        hasValue: !!value,
+        firstChar: value ? value[0] + '...' : 'empty'
+      });
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Debug: Log form data to help diagnose the issue
+    console.log('🔍 Form submission data:', {
+      email: formData.email,
+      passwordLength: formData.password?.length || 0,
+      passwordPresent: !!formData.password,
+      formDataFull: formData
+    });
+    
     if (!formData.email || !formData.password) {
-      toast.error("Bitte füllen Sie alle Felder aus");
+      console.error('❌ Missing required fields:', { 
+        email: !!formData.email, 
+        password: !!formData.password,
+        passwordValue: formData.password
+      });
+      toast.error("Bitte füllen Sie alle Felder aus", {
+        description: `E-Mail: ${formData.email ? '✅' : '❌'}, Passwort: ${formData.password ? '✅' : '❌'}`
+      });
       return;
     }
 
@@ -117,15 +143,61 @@ const Login = () => {
       
       let errorMessage = "Login fehlgeschlagen. Bitte versuchen Sie es erneut.";
       
-      if (error.message?.includes('verify') || error.message?.includes('verification')) {
-        errorMessage = "Ihr Konto ist noch nicht verifiziert. Bitte prüfen Sie Ihre E-Mails.";
-      } else if (error.message?.includes('credentials') || error.message?.includes('invalid')) {
-        errorMessage = "Ungültige E-Mail oder Passwort.";
-      } else if (error.message?.includes('suspended') || error.message?.includes('disabled')) {
-        errorMessage = "Ihr Konto wurde gesperrt. Kontaktieren Sie den Support.";
+      // Check for specific validation errors from Django REST Framework
+      if (error.email) {
+        // Email verification error
+        const emailError = Array.isArray(error.email) ? error.email[0] : error.email;
+        if (emailError.includes('verify') || emailError.includes('verification')) {
+          errorMessage = "🔔 Ihr Konto ist noch nicht verifiziert. Bitte prüfen Sie Ihre E-Mails und klicken Sie auf den Bestätigungslink.";
+          toast.error(errorMessage, {
+            description: "Falls Sie keine E-Mail erhalten haben, prüfen Sie auch Ihren Spam-Ordner.",
+            duration: 8000,
+            action: {
+              label: "E-Mail erneut senden",
+              onClick: async () => {
+                try {
+                  const response = await fetch(`${window.location.origin}/api/auth/resend-verification/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: formData.email })
+                  });
+                  
+                  if (response.ok) {
+                    toast.success("📧 Bestätigungs-E-Mail wurde erneut gesendet!");
+                  } else {
+                    const errorData = await response.json();
+                    toast.error("Fehler beim Senden der E-Mail: " + (errorData.email?.[0] || "Unbekannter Fehler"));
+                  }
+                } catch (err) {
+                  toast.error("Netzwerkfehler beim Senden der E-Mail");
+                }
+              }
+            }
+          });
+          return; // Don't show generic error
+        }
       }
       
-      toast.error("Login fehlgeschlagen: " + errorMessage);
+      // Check for non-field errors
+      if (error.non_field_errors) {
+        const nonFieldError = Array.isArray(error.non_field_errors) ? error.non_field_errors[0] : error.non_field_errors;
+        if (nonFieldError.includes('Invalid email or password')) {
+          errorMessage = "❌ Ungültige E-Mail-Adresse oder Passwort.";
+        } else if (nonFieldError.includes('suspended') || nonFieldError.includes('disabled')) {
+          errorMessage = "🚫 Ihr Konto wurde gesperrt. Kontaktieren Sie den Support.";
+        }
+      }
+      
+      // Fallback to checking error message for older error formats
+      else if (error.message?.includes('verify') || error.message?.includes('verification')) {
+        errorMessage = "🔔 Ihr Konto ist noch nicht verifiziert. Bitte prüfen Sie Ihre E-Mails.";
+      } else if (error.message?.includes('credentials') || error.message?.includes('invalid')) {
+        errorMessage = "❌ Ungültige E-Mail oder Passwort.";
+      } else if (error.message?.includes('suspended') || error.message?.includes('disabled')) {
+        errorMessage = "🚫 Ihr Konto wurde gesperrt. Kontaktieren Sie den Support.";
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -200,6 +272,14 @@ const Login = () => {
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleInputChange}
+                  onBlur={(e) => {
+                    // Debug: Log password on blur to catch autofill issues
+                    console.log('🔍 Password field blur:', { 
+                      value: e.target.value, 
+                      length: e.target.value.length 
+                    });
+                  }}
+                  autoComplete="current-password"
                   required
                 />
                 <Button
@@ -212,6 +292,12 @@ const Login = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
+              {/* Debug indicator to show password state */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="text-xs text-gray-500">
+                  Debug: Password length: {formData.password?.length || 0}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
