@@ -542,6 +542,17 @@ export interface MakeOutboundCallResponse {
   message?: string;
 }
 
+// Test Call API interface
+export interface MakeTestCallRequest {
+  agent_id: string;  // Agent UUID
+}
+
+export interface MakeTestCallResponse {
+  call_id?: string;
+  status?: string;
+  message?: string;
+}
+
 // Call API calls
 export const callAPI = {
   /**
@@ -561,6 +572,27 @@ export const callAPI = {
     } catch (error) {
       console.error('❌ Outbound call API error:', error);
       console.log('📞 Call data that was sent:', data);
+      throw error;
+    }
+  },
+
+  /**
+   * Make a test call using only Agent ID
+   */
+  async makeTestCall(data: MakeTestCallRequest): Promise<MakeTestCallResponse> {
+    console.log('🧪 POST /api/calls/call-logs/make_test_call/ - Making test call:', data);
+    
+    try {
+      const response = await apiCall<MakeTestCallResponse>('/api/calls/call-logs/make_test_call/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      
+      console.log('✅ Test call initiated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Test call API error:', error);
+      console.log('🧪 Test call data that was sent:', data);
       throw error;
     }
   },

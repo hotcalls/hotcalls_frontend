@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
-import { workspaceAPI, callAPI, paymentAPI } from "@/lib/apiService";
+import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest } from "@/lib/apiService";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -24,7 +24,6 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     voice: "",
     personality: "",
     script: "",
-    testPhone: "",
     selectedPlan: ""
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -394,7 +393,6 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         voice: formData.voice,
         personality: formData.personality,
         script: formData.script,
-        testPhone: formData.testPhone,
         selectedPlan: formData.selectedPlan
       });
       
@@ -556,38 +554,24 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   };
 
   const handleTestCall = async () => {
-    if (!formData.testPhone.trim()) {
-      toast.error('Bitte geben Sie eine Telefonnummer ein');
-      return;
-    }
-    
     if (!createdAgentId) {
       toast.error('Agent wurde noch nicht erstellt');
       return;
     }
     
-    // Basic phone number validation
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-    if (!phoneRegex.test(formData.testPhone)) {
-      toast.error('Bitte geben Sie eine gültige Telefonnummer ein');
-      return;
-    }
-    
     try {
       setIsLoading(true);
-      console.log('📞 Starting test call to:', formData.testPhone);
+      console.log('🧪 Starting test call for agent:', createdAgentId);
       
-      // Make the test call
-      const callData = {
-        phone: formData.testPhone,      // The phone number entered by the user
-        agent_id: createdAgentId,       // Agent ID from created agent
-        lead_id: null                   // null for test calls
+      // Make the test call with only agent ID
+      const testData: MakeTestCallRequest = {
+        agent_id: createdAgentId
       };
       
-      console.log('📞 Calling API with data:', callData);
-      await callAPI.makeOutboundCall(callData);
+      console.log('🧪 Calling test API with data:', testData);
+      await callAPI.makeTestCall(testData);
       
-      toast.success(`Test-Anruf wird gestartet an ${formData.testPhone}`);
+      toast.success('Test-Anruf wurde gestartet!');
       
       // Wait a moment before proceeding to next step
       setTimeout(() => {
@@ -596,8 +580,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      console.log('✅ Call was initiated (ignoring backend error):', err);
-      toast.success(`Test-Anruf an ${formData.testPhone} wurde gestartet!`);
+      console.log('✅ Test call was initiated (ignoring backend error):', err);
+      toast.success('Test-Anruf wurde gestartet!');
       
       // Still proceed to next step
       setTimeout(() => {
@@ -854,34 +838,27 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 5 && (
             <div className="w-full max-w-md space-y-8 text-center animate-slide-in">
               <h2 className="text-3xl font-bold text-gray-900">
-                Lass dich von {formData.name || 'deinem Agenten'} anrufen
+                Teste {formData.name || 'deinen Agenten'}
               </h2>
               <div className="space-y-6">
-                <Input
-                  placeholder="+49 123 456 789"
-                  value={formData.testPhone}
-                  onChange={(e) => handleInputChange('testPhone', e.target.value)}
-                  className="text-center text-lg h-12 border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
-                />
+                <p className="text-gray-600 text-lg">
+                  Dein Agent wird jetzt einen Test-Anruf durchführen, um seine Konfiguration zu überprüfen.
+                </p>
                 <Button
-                  onClick={() => {
-                    if (formData.testPhone) {
-                      handleTestCall();
-                    }
-                  }}
-                  disabled={!formData.testPhone || isLoading}
+                  onClick={handleTestCall}
+                  disabled={isLoading}
                   className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Anruf wird gestartet...
+                      Test-Anruf wird gestartet...
                     </>
                   ) : (
                     <>
                       <Phone className="mr-2 h-5 w-5" />
-                      Jetzt anrufen lassen
+                      Test-Anruf starten
                     </>
                   )}
                 </Button>
