@@ -4,6 +4,8 @@ import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
 import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { authService } from "@/lib/authService";
+import { apiConfig } from "@/lib/apiConfig";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
@@ -76,12 +78,32 @@ export function AppSidebar() {
     return location.pathname.startsWith(url);
   };
 
-  const handleSignOut = () => {
-    // TODO: Implement actual sign out logic
+  const handleSignOut = async () => {
     console.log("Signing out...");
-    // Clear login status and welcome completed
-    localStorage.removeItem('userLoggedIn');
-    localStorage.removeItem('welcomeCompleted');
+    
+    try {
+      // Call logout API endpoint
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/logout/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        console.log("✅ Logout successful");
+      }
+    } catch (error) {
+      console.error("Logout API call failed:", error);
+      // Continue with local cleanup even if API call fails
+    }
+    
+    // Clear all auth data
+    authService.clearUser();
+    apiConfig.clearAuth();
+    
     // Redirect to home page (which will redirect to login)
     window.location.href = "/";
   };

@@ -291,21 +291,21 @@ export const authService = {
       console.log('✅ Login API response received:', {
         hasUser: !!response.user,
         userEmail: response.user?.email,
-        message: response.message,
-        authMethod: 'cookies'
+        hasToken: !!response.token,
+        message: response.message
       });
 
-      // For cookie-based auth, we don't need to store tokens
-      // The browser automatically handles session cookies
-      console.log('🍪 Authentication via cookies - session established by backend');
-      
-      // Check if cookies were set by examining document.cookie
-      const cookiesPresent = document.cookie.length > 0;
-      console.log('🔍 Cookie verification:', {
-        cookiesSet: cookiesPresent,
-        cookieCount: document.cookie.split(';').length,
-        cookiePreview: document.cookie ? document.cookie.substring(0, 50) + '...' : 'none'
-      });
+      // Store the auth token
+      if (response.token) {
+        localStorage.setItem('authToken', response.token);
+        console.log('🔑 Auth token stored in localStorage');
+        
+        // Set the token in apiConfig for future requests
+        apiConfig.setAuthToken(response.token);
+      } else {
+        console.error('❌ No token received from login endpoint!');
+        throw new Error('Authentication failed - no token received');
+      }
 
       // Store user data and logged in status
       this.storeUser(response.user);
@@ -315,9 +315,9 @@ export const authService = {
       
       console.log('✅ Authentication state saved:', {
         userLoggedIn: localStorage.getItem('userLoggedIn'),
-        authMethod: 'cookies',
+        authMethod: 'token',
         user: this.getStoredUser()?.email,
-        sessionActive: cookiesPresent
+        hasToken: !!localStorage.getItem('authToken')
       });
       
       return response;
