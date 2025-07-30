@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
-import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest } from "@/lib/apiService";
+import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest, agentAPI, CreateAgentRequest as APIAgentRequest } from "@/lib/apiService";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -350,7 +350,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       }
 
       // Create agent data for API
-      const agentData: AgentCreateRequest = {
+      const agentData: APIAgentRequest = {
         workspace: userWorkspace.id, // Use user's actual workspace ID
         name: formData.name,
         status: 'active',
@@ -363,8 +363,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: formData.script
-        // calendar_configuration omitted - optional field
+        prompt: formData.script,
+        config_id: null,
+        calendar_configuration: null
       };
 
       console.log('🚀 Creating agent with data:', agentData);
@@ -396,12 +397,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         selectedPlan: formData.selectedPlan
       });
       
-      const createdAgent = await agentService.createAgent(agentData);
+      const createdAgent = await agentAPI.createAgent(agentData);
       console.log('✅ Agent created successfully:', createdAgent);
       
       // Store the agent ID for the test call
-      if (createdAgent.id) {
-        setCreatedAgentId(createdAgent.id);
+      if (createdAgent.agent_id) {
+        setCreatedAgentId(createdAgent.agent_id);
       }
       
       toast.success('Agent erstellt!', {
