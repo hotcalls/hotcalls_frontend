@@ -238,11 +238,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   }, [currentStep, planPriceMap.start]);
 
   const personalities = [
-    "Freundlich und hilfsbereit",
-    "Professionell und direkt",
-    "Enthusiastisch und energisch",
-    "Ruhig und vertrauensvoll",
-    "Beratend und sachkundig"
+    "Professionell & Direkt",
+    "Enthusiastisch & Energetisch", 
+    "Ruhig & Sachlich"
   ];
 
   const navigateToPlans = () => {
@@ -384,7 +382,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: customGreetings.inbound, // Use inbound greeting as prompt
+        prompt: formData.script, // Use user's task definition as prompt
         config_id: null,
         calendar_configuration: null
       };
@@ -829,10 +827,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 4 && !isCreatingAgent && (
             <div className="w-full max-w-2xl space-y-8 text-center animate-slide-in">
               <h2 className="text-3xl font-bold text-gray-900">
-                Was soll {formData.name || 'dein Agent'} deinen Leads erzählen?
+                Was ist die Aufgabe von {formData.name || 'deinem Agent'}?
               </h2>
               <Textarea
-                placeholder={`Hallo! Hier ist ${formData.name || '[Agent Name]'} von [Ihr Unternehmen]. Vielen Dank für Ihr Interesse an unseren Dienstleistungen...`}
+                placeholder={`z.B. ${formData.name || 'Mein Agent'} soll Interessenten beraten, Termine vereinbaren und Fragen zu unseren Produkten beantworten...`}
                 value={formData.script}
                 onChange={(e) => handleInputChange('script', e.target.value)}
                 rows={8}

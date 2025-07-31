@@ -78,10 +78,9 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
                     <SelectValue placeholder="Stimme wählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="friendly">Freundlich</SelectItem>
-                    <SelectItem value="professional">Professionell</SelectItem>
-                    <SelectItem value="energetic">Energisch</SelectItem>
-                    <SelectItem value="calm">Ruhig</SelectItem>
+                    <SelectItem value="professional">Professionell & Direkt</SelectItem>
+                    <SelectItem value="energetic">Enthusiastisch & Energetisch</SelectItem>
+                    <SelectItem value="calm">Ruhig & Sachlich</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
