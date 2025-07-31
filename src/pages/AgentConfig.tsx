@@ -117,18 +117,14 @@ export default function AgentConfig() {
   // Helper function to map personality to character
   const mapPersonalityToCharacter = (personality: string): string => {
     switch (personality) {
-      case 'friendly':
-        return 'Freundlich und empathisch';
       case 'professional':
-        return 'Professionell und direkt';
-      case 'warm':
-        return 'Warm und herzlich';
+        return 'Professionell & Direkt';
       case 'energetic':
-        return 'Energisch und dynamisch';
-      case 'direct':
-        return 'Direkt und zielstrebig';
+        return 'Enthusiastisch & Energetisch';
+      case 'calm':
+        return 'Ruhig & Sachlich';
       default:
-        return 'Freundlich und empathisch';
+        return 'Professionell & Direkt';
     }
   };
 
@@ -169,12 +165,10 @@ export default function AgentConfig() {
         // Map character to personality options
         const mapCharacterToPersonality = (character: string) => {
           const lowerChar = character.toLowerCase();
-          if (lowerChar.includes('freundlich') && lowerChar.includes('empathisch')) return 'friendly';
           if (lowerChar.includes('professionell') && lowerChar.includes('direkt')) return 'professional';
-          if (lowerChar.includes('warm') && lowerChar.includes('herzlich')) return 'warm';
-          if (lowerChar.includes('energisch') && lowerChar.includes('dynamisch')) return 'energetic';
-          if (lowerChar.includes('direkt') && lowerChar.includes('zielstrebig')) return 'direct';
-          return 'friendly'; // default
+          if (lowerChar.includes('enthusiastisch') && lowerChar.includes('energetisch')) return 'energetic';
+          if (lowerChar.includes('ruhig') && lowerChar.includes('sachlich')) return 'calm';
+          return 'professional'; // default
         };
 
         // Parse workdays from API response (can be string or array of day names)
@@ -735,11 +729,9 @@ export default function AgentConfig() {
                     <SelectValue placeholder="Persönlichkeit auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="friendly">Freundlich und Empathisch</SelectItem>
-                    <SelectItem value="professional">Professionell und Direkt</SelectItem>
-                    <SelectItem value="warm">Warm und Herzlich</SelectItem>
-                    <SelectItem value="energetic">Energisch und Dynamisch</SelectItem>
-                    <SelectItem value="direct">Direkt und Zielstrebig</SelectItem>
+                    <SelectItem value="professional">Professionell & Direkt</SelectItem>
+                    <SelectItem value="energetic">Enthusiastisch & Energetisch</SelectItem>
+                    <SelectItem value="calm">Ruhig & Sachlich</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

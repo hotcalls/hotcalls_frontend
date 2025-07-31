@@ -12,6 +12,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
 import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest, agentAPI, CreateAgentRequest as APIAgentRequest } from "@/lib/apiService";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -19,7 +20,7 @@ interface WelcomeFlowProps {
 }
 
 export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     voice: "",
@@ -53,6 +54,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
   // Get user profile for personalized greetings
   const { profile } = useUserProfile();
+  
+  // Get workspace for agent check
+  const { primaryWorkspace, loading: workspaceLoading } = useWorkspace();
 
   // Generate custom greetings based on user's first name
   const generateCustomGreetings = (agentName: string) => {
@@ -75,6 +79,58 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       document.body.style.overflow = 'unset';
     };
   }, []);
+
+  // Check subscription status and agent existence to determine starting step
+  useEffect(() => {
+    const checkWorkspaceAndAgents = async () => {
+      if (workspaceLoading || !primaryWorkspace) return;
+      
+      try {
+        console.log('🔍 Checking workspace details for subscription status:', primaryWorkspace.id);
+        
+        // First check workspace details for subscription status
+        const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
+        console.log('🏢 Workspace details response:', workspaceDetails);
+        
+        // Check if workspace has active subscription (check common field names)
+        const hasActiveSubscription = workspaceDetails.has_active_subscription || 
+                                    workspaceDetails.subscription_active || 
+                                    workspaceDetails.active_subscription ||
+                                    (workspaceDetails.subscription_status === 'active') ||
+                                    (workspaceDetails.plan_status === 'active');
+        
+        console.log('💳 Subscription check result:', {
+          workspace_id: primaryWorkspace.id,
+          workspace_name: primaryWorkspace.workspace_name,
+          hasActiveSubscription,
+          raw_details: workspaceDetails
+        });
+        
+        if (hasActiveSubscription) {
+          console.log('✅ User has active subscription, exiting welcome flow');
+          onComplete(); // Exit welcome flow completely
+          return;
+        }
+        
+        // No active subscription - check for existing agents
+        console.log('🔍 No active subscription found, checking for existing agents');
+        const agents = await agentAPI.getAgents(primaryWorkspace.id);
+        
+        if (agents && agents.length > 0) {
+          console.log('✅ Found existing agent(s), jumping to plan selection (step 7)');
+          setCurrentStep(7);
+        } else {
+          console.log('🆕 No existing agents found, starting from beginning (step 0)');
+          setCurrentStep(0);
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not check workspace details or agents, starting from beginning:', error);
+        setCurrentStep(0);
+      }
+    };
+
+    checkWorkspaceAndAgents();
+  }, [workspaceLoading, primaryWorkspace, onComplete]);
 
   // Load voices from API
   useEffect(() => {
@@ -238,11 +294,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   }, [currentStep, planPriceMap.start]);
 
   const personalities = [
-    "Freundlich und hilfsbereit",
-    "Professionell und direkt",
-    "Enthusiastisch und energisch",
-    "Ruhig und vertrauensvoll",
-    "Beratend und sachkundig"
+    "Professionell & Direkt",
+    "Enthusiastisch & Energetisch", 
+    "Ruhig & Sachlich"
   ];
 
   const navigateToPlans = () => {
@@ -384,7 +438,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: customGreetings.inbound, // Use inbound greeting as prompt
+        prompt: formData.script, // Use user's task definition as prompt
         config_id: null,
         calendar_configuration: null
       };
@@ -620,6 +674,18 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
 
 
+  // Show loading while checking for existing agents
+  if (currentStep === null) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FE5B25] mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking your workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Main Flow
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
@@ -829,10 +895,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 4 && !isCreatingAgent && (
             <div className="w-full max-w-2xl space-y-8 text-center animate-slide-in">
               <h2 className="text-3xl font-bold text-gray-900">
-                Was soll {formData.name || 'dein Agent'} deinen Leads erzählen?
+                Was ist die Aufgabe von {formData.name || 'deinem Agent'}?
               </h2>
               <Textarea
-                placeholder={`Hallo! Hier ist ${formData.name || '[Agent Name]'} von [Ihr Unternehmen]. Vielen Dank für Ihr Interesse an unseren Dienstleistungen...`}
+                placeholder={`z.B. ${formData.name || 'Mein Agent'} soll Interessenten beraten, Termine vereinbaren und Fragen zu unseren Produkten beantworten...`}
                 value={formData.script}
                 onChange={(e) => handleInputChange('script', e.target.value)}
                 rows={8}
