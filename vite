@@ -1,0 +1,10 @@
+
+
+  VITE v5.4.10  ready in 257 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://10.61.9.123:5173/
+  ➜  press h + enter to show help
+Browserslist: browsers data (caniuse-lite) is 9 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme

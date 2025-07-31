@@ -11,9 +11,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { toast } from "sonner";
 
 // Mock data für Minuten-Pakete basierend auf Plan
 const getMinutePackages = (plan: string) => {
@@ -49,42 +52,141 @@ const currentPlan = {
   isTestPhase: false // Ändere zu true für "Pläne vergleichen" statt "Plan ändern"
 };
 
-// Mock team members
-const teamMembers = [
-  {
-    id: "1",
-    name: "Marcus Weber",
-    email: "marcus.weber@company.com",
-    role: "Admin",
-    status: "Aktiv",
-    lastActive: "vor 5 Min",
-    avatar: "MW",
-  },
-  {
-    id: "2",
-    name: "Lisa Müller", 
-    email: "lisa.mueller@company.com",
-    role: "User",
-    status: "Aktiv",
-    lastActive: "vor 12 Min",
-    avatar: "LM",
-  },
-  {
-    id: "3",
-    name: "Thomas Klein",
-    email: "thomas.klein@company.com", 
-    role: "User",
-    status: "Offline",
-    lastActive: "vor 2 Std",
-    avatar: "TK",
-  },
-];
+// Note: Team members are now loaded via API hooks
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
+  const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
+
+  // Profile form data
+  const [profileFormData, setProfileFormData] = useState({
+    first_name: '',
+    last_name: '',
+    phone: ''
+  });
+
+  // Workspace form data
+  const [workspaceFormData, setWorkspaceFormData] = useState({
+    workspace_name: ''
+  });
+
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setProfileFormData({
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        phone: profile.phone || ''
+      });
+    }
+  }, [profile]);
+
+  // Update workspace form data when workspace details load
+  useEffect(() => {
+    if (workspaceDetails) {
+      setWorkspaceFormData({
+        workspace_name: workspaceDetails.workspace_name || ''
+      });
+    }
+  }, [workspaceDetails]);
+
+  // Handle profile form changes
+  const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fieldName = e.target.name;
+    const fieldValue = e.target.value;
+    
+    console.log('📝 Form field changed:', {
+      fieldName,
+      fieldValue,
+      fieldLength: fieldValue.length,
+      isFirstName: fieldName === 'first_name',
+      currentFormData: profileFormData
+    });
+    
+    setProfileFormData(prev => ({
+      ...prev,
+      [fieldName]: fieldValue
+    }));
+  };
+
+  // Handle workspace form changes
+  const handleWorkspaceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fieldName = e.target.name;
+    const fieldValue = e.target.value;
+    
+    console.log('🏢 Workspace field changed:', {
+      fieldName,
+      fieldValue,
+      currentWorkspaceData: workspaceFormData
+    });
+    
+    setWorkspaceFormData(prev => ({
+      ...prev,
+      [fieldName]: fieldValue
+    }));
+  };
+
+  // Save workspace changes
+  const handleSaveWorkspace = async () => {
+    if (!workspaceDetails?.id) {
+      toast.error('Workspace ID nicht gefunden');
+      return;
+    }
+
+    try {
+      console.log('🏢 Settings - preparing to save workspace:', {
+        workspaceId: workspaceDetails.id,
+        originalWorkspace: workspaceDetails,
+        formData: workspaceFormData,
+        workspaceState: {
+          loading: workspaceLoading,
+          updating: isUpdatingWorkspace,
+          hasWorkspace: !!workspaceDetails
+        }
+      });
+      
+      await updateWorkspace(workspaceDetails.id, workspaceFormData);
+      
+      toast.success('Workspace erfolgreich aktualisiert!');
+    } catch (error: any) {
+      console.error('Failed to update workspace:', error);
+      toast.error('Fehler beim Speichern des Workspace', {
+        description: error.message || 'Bitte versuchen Sie es erneut.'
+      });
+    }
+  };
+
+  // Save profile changes
+  const handleSaveProfile = async () => {
+    try {
+      console.log('📝 Settings - preparing to save profile:', {
+        originalProfile: profile,
+        formData: profileFormData,
+        hasFirstName: !!profileFormData.first_name,
+        firstNameValue: profileFormData.first_name,
+        firstNameLength: profileFormData.first_name?.length,
+        profileState: {
+          loading: profileLoading,
+          updating: isSavingProfile,
+          hasProfile: !!profile,
+          profileId: profile?.id
+        }
+      });
+      
+      await updateProfile(profileFormData);
+      
+      toast.success('Profil erfolgreich aktualisiert!');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      toast.error('Fehler beim Speichern des Profils', {
+        description: error.message || 'Bitte versuchen Sie es erneut.'
+      });
+    }
+  };
 
   // Billing functions
   const handlePurchase = async (packageId: string) => {
@@ -139,20 +241,55 @@ export default function Settings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="account">
-            <User className={iconSizes.small} />
-            <span className="ml-2">Account</span>
-          </TabsTrigger>
-          <TabsTrigger value="workspace">
-            <Building className={iconSizes.small} />
-            <span className="ml-2">Workspace</span>
-          </TabsTrigger>
-          <TabsTrigger value="billing">
-            <CreditCard className={iconSizes.small} />
-            <span className="ml-2">Pläne & Guthaben</span>
-          </TabsTrigger>
-        </TabsList>
+        {/* Custom Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8" role="tablist">
+            <button
+              onClick={() => setActiveTab("account")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "account"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <User className={iconSizes.small} />
+                <span className="ml-2">Account</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("workspace")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "workspace"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <Building className={iconSizes.small} />
+                <span className="ml-2">Workspace</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("billing")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "billing"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <CreditCard className={iconSizes.small} />
+                <span className="ml-2">Pläne & Guthaben</span>
+              </div>
+            </button>
+          </nav>
+        </div>
 
         {/* Account Tab */}
         <TabsContent value="account" className="space-y-6">
@@ -163,36 +300,71 @@ export default function Settings() {
             <CardContent className={layoutStyles.cardContent}>
               <div className="flex items-center space-x-4 mb-6">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src="/placeholder-avatar.jpg" />
-                  <AvatarFallback>MW</AvatarFallback>
+                  <AvatarFallback>
+                    {profileLoading ? "?" : getInitials()}
+                  </AvatarFallback>
                 </Avatar>
-                <div>
-                  <Button variant="outline" size="sm">Foto ändern</Button>
-                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="firstName">Vorname</Label>
-                  <Input id="firstName" defaultValue="Marcus" />
+                  <Input 
+                    id="firstName" 
+                    name="first_name"
+                    value={profileFormData.first_name}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
+                    placeholder={profileLoading ? "Wird geladen..." : "Vorname"}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="lastName">Nachname</Label>
-                  <Input id="lastName" defaultValue="Weber" />
+                  <Input 
+                    id="lastName" 
+                    name="last_name"
+                    value={profileFormData.last_name}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
+                    placeholder={profileLoading ? "Wird geladen..." : "Nachname"}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="email">E-Mail</Label>
-                  <Input id="email" type="email" defaultValue="marcus.weber@company.com" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    value={profile?.email || ""} 
+                    disabled={true}
+                    placeholder="E-Mail kann nicht geändert werden"
+                    className="bg-gray-100"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    E-Mail-Adresse kann aus Sicherheitsgründen nicht geändert werden
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="phone">Telefon</Label>
-                  <Input id="phone" defaultValue="+49 151 12345678" />
+                  <Input 
+                    id="phone" 
+                    name="phone"
+                    value={profileFormData.phone}
+                    onChange={handleProfileInputChange}
+                    disabled={profileLoading || isSavingProfile}
+                    placeholder={profileLoading ? "Wird geladen..." : "Telefonnummer"}
+                  />
                 </div>
               </div>
               
               <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default}>
-                  <span>Änderungen speichern</span>
+                <button 
+                  className={buttonStyles.create.default}
+                  onClick={handleSaveProfile}
+                  disabled={profileLoading || isSavingProfile}
+                >
+                  <span>
+                    {isSavingProfile ? "Wird gespeichert..." : "Änderungen speichern"}
+                  </span>
                 </button>
               </div>
             </CardContent>
@@ -261,12 +433,25 @@ export default function Settings() {
             <CardContent className={layoutStyles.cardContent}>
               <div>
                 <Label htmlFor="workspaceName">Workspace Name</Label>
-                <Input id="workspaceName" defaultValue="Mein Unternehmen" />
+                <Input 
+                  id="workspaceName" 
+                  name="workspace_name"
+                  value={workspaceFormData.workspace_name}
+                  onChange={handleWorkspaceInputChange}
+                  disabled={workspaceLoading || isUpdatingWorkspace}
+                  placeholder={workspaceLoading ? "Wird geladen..." : "Workspace Name"}
+                />
               </div>
               
               <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default}>
-                  <span>Workspace speichern</span>
+                <button 
+                  className={buttonStyles.create.default} 
+                  onClick={handleSaveWorkspace}
+                  disabled={workspaceLoading || isUpdatingWorkspace}
+                >
+                  <span>
+                    {isUpdatingWorkspace ? "Wird gespeichert..." : "Workspace speichern"}
+                  </span>
                 </button>
               </div>
             </CardContent>
@@ -279,7 +464,7 @@ export default function Settings() {
                 <div>
                   <CardTitle className={textStyles.sectionTitle}>Team Mitglieder</CardTitle>
                   <p className="text-sm text-gray-500 mt-1">
-                    {currentPlan.currentUsers} / {currentPlan.maxUsers} User verwendet
+                    {workspaceLoading ? "Wird geladen..." : `${teamMembers.length} / ${currentPlan.maxUsers} User verwendet`}
                   </p>
                 </div>
                 <button className={buttonStyles.create.default}>
@@ -290,30 +475,40 @@ export default function Settings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {teamMembers.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <Avatar>
-                        <AvatarFallback>{member.avatar}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        <p className="text-sm text-gray-500">{member.email}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4">
-                      <Badge variant="secondary">{member.role}</Badge>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">{member.status}</p>
-                        <p className="text-xs text-gray-500">{member.lastActive}</p>
-                      </div>
-                      <button className={buttonStyles.cardAction.iconDelete}>
-                        <Trash2 className={iconSizes.small} />
-                      </button>
-                    </div>
+                {workspaceLoading ? (
+                  <div className="p-4 text-center text-gray-500">
+                    Wird geladen...
                   </div>
-                ))}
+                ) : teamMembers.length > 0 ? (
+                  teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <Avatar>
+                          <AvatarFallback>{member.avatar}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{member.name}</p>
+                          <p className="text-sm text-gray-500">{member.email}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-4">
+                        <Badge variant="secondary">{member.role}</Badge>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">{member.status}</p>
+                          <p className="text-xs text-gray-500">{member.lastActive}</p>
+                        </div>
+                        <button className={buttonStyles.cardAction.iconDelete}>
+                          <Trash2 className={iconSizes.small} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-gray-500">
+                    Keine Team-Mitglieder gefunden
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -330,7 +525,7 @@ export default function Settings() {
                   <CardTitle className={textStyles.sectionTitle}>Aktueller Plan</CardTitle>
                   <button 
                     className={buttonStyles.primary.default}
-                    onClick={() => window.location.href = '/plans'}
+                    onClick={() => window.location.href = '/dashboard/plans'}
                   >
                     <SettingsIcon className={iconSizes.small} />
                     <span>{currentPlan.isTestPhase ? "Pläne vergleichen" : "Plan ändern"}</span>

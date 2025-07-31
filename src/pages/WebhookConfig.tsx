@@ -2,18 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Webhook } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { layoutStyles } from "@/lib/buttonStyles";
 
 export default function WebhookConfig() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-6">
+    <div className={layoutStyles.pageContainer}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button 
             variant="outline" 
-            onClick={() => navigate("/lead-sources")}
+            onClick={() => navigate("/dashboard/lead-sources")}
             className="flex items-center space-x-2"
           >
             <ArrowLeft className="h-4 w-4" />

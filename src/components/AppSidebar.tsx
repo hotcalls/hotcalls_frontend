@@ -1,16 +1,18 @@
-import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, Phone, FileText, Webhook } from "lucide-react";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
 import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { authService } from "@/lib/authService";
+import { apiConfig } from "@/lib/apiConfig";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Agenten", url: "/agents", icon: Users },
-  { title: "Leads", url: "/leads", icon: FileText },
-  { title: "Kalender", url: "/calendar", icon: Calendar },
-  { title: "Lead Quellen", url: "/lead-sources", icon: Webhook },
-  { title: "Einstellungen", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Agenten", url: "/dashboard/agents", icon: Users },
+  { title: "Leads", url: "/dashboard/leads", icon: FileText },
+  { title: "Kalender", url: "/dashboard/calendar", icon: Calendar },
+  { title: "Lead Quellen", url: "/dashboard/lead-sources", icon: Webhook },
 ];
 
 const currentPlan = {
@@ -46,7 +48,7 @@ const PlanSection = () => {
         {needsUpgrade ? (
           <button 
             className={buttonStyles.highlight.button}
-            onClick={() => window.location.href = '/settings?tab=billing'}
+            onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <CreditCard className={iconSizes.small} />
             <span>Guthaben auffüllen</span>
@@ -54,7 +56,7 @@ const PlanSection = () => {
         ) : (
           <button 
             className={buttonStyles.secondary.fullWidth}
-            onClick={() => window.location.href = '/settings?tab=billing'}
+            onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
             <span>Plan ansehen</span>
@@ -67,22 +69,68 @@ const PlanSection = () => {
 
 export function AppSidebar() {
   const location = useLocation();
+  const { profile, loading, getDisplayName, getInitials } = useUserProfile();
 
   const isActive = (url: string) => {
-    if (url === "/") {
-      return location.pathname === "/";
+    if (url === "/dashboard") {
+      return location.pathname === "/dashboard" || location.pathname === "/dashboard/";
     }
     return location.pathname.startsWith(url);
+  };
+
+  const handleSignOut = async () => {
+    console.log("Signing out...");
+    
+    try {
+      // Call logout API endpoint
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/logout/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        console.log("✅ Logout successful");
+      }
+    } catch (error) {
+      console.error("Logout API call failed:", error);
+      // Continue with local cleanup even if API call fails
+    }
+    
+    // Clear all auth data
+    authService.clearUser();
+    apiConfig.clearAuth();
+    
+    // Redirect to home page (which will redirect to login)
+    window.location.href = "/";
   };
 
   return (
     <Sidebar className="border-r">
       <SidebarHeader>
-        {/* hotcalls.ai Logo */}
+        {/* hotcalls Logo */}
         <div className="px-2 py-3">
-          <div className="flex items-center gap-2">
-            <Phone className={`${iconSizes.large} text-[#FE5B25]`} />
-            <span className="text-xl font-bold text-gray-900">hotcalls.ai</span>
+          <div className="flex items-center">
+            <img 
+              src="/hotcalls-logo.png" 
+              alt="hotcalls" 
+              className="h-10 w-auto max-w-full"
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                const fallback = img.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+                         <div className="items-center gap-3 hidden">
+               <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
+                 <span className="text-white text-sm font-bold">H</span>
+               </div>
+               <span className="text-xl font-bold text-gray-900">hotcalls</span>
+             </div>
           </div>
         </div>
         
@@ -125,16 +173,46 @@ export function AppSidebar() {
         {/* Plan Section - über dem Account */}
         <PlanSection />
         
+        {/* Einstellungen - zwischen Plan und Account */}
+        <div className="px-2 pb-3">
+          <a
+            href="/dashboard/settings"
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full
+              ${isActive("/dashboard/settings")
+                ? "bg-[#FFE1D7] text-[#FE5B25]" 
+                : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }
+            `}
+          >
+            <Settings className={`${iconSizes.small} ${isActive("/dashboard/settings") ? "text-[#FE5B25]" : "text-gray-500"}`} />
+            <span>Einstellungen</span>
+          </a>
+        </div>
+        
         {/* Account Section */}
         <div className="p-2">
           <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
             <div className="flex-shrink-0 w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">MW</span>
+              <span className="text-white text-sm font-medium">
+                {loading ? "?" : getInitials()}
+              </span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">Marcus Weber</div>
-              <div className="text-xs text-gray-500 truncate">marcus@company.com</div>
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {loading ? "Wird geladen..." : getDisplayName() || "Unbekannt"}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {loading ? "..." : profile?.email || "Keine E-Mail"}
+              </div>
             </div>
+            <button
+              onClick={handleSignOut}
+              className="flex-shrink-0 p-1.5 rounded-md hover:bg-gray-200 transition-colors"
+              title="Abmelden"
+            >
+              <LogOut className="h-4 w-4 text-gray-500" />
+            </button>
           </div>
         </div>
       </SidebarFooter>

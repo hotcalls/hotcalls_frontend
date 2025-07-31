@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Users, Phone, Calendar as CalendarIcon, TrendingUp, Clock, MessageSquare, Check, X, PhoneMissed } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ArrowLeft, Users, Phone, Calendar as CalendarIcon, TrendingUp, TrendingDown, Clock, MessageSquare, Check, X, PhoneMissed } from "lucide-react";
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from 'date-fns';
 import { de } from 'date-fns/locale';
+import { layoutStyles } from "@/lib/buttonStyles";
 
 // Agent-Daten (würde normalerweise aus einer API kommen)
 const agentData = {
@@ -278,17 +279,17 @@ export default function AgentAnalytics() {
     appointments: { name: 'Termine vereinbart', color: '#ffc658' },
     conversion: { name: 'Conversion Rate', color: '#ff7300' },
     avgDuration: { name: '⌀ Gesprächsdauer', color: '#8b5cf6' }
-  };
+  } as const;
 
   return (
-    <div className="space-y-8">
+    <div className={layoutStyles.pageContainer}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-4">
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate('/agents')}
+            onClick={() => navigate('/dashboard/agents')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Zurück zu Agents
@@ -300,137 +301,265 @@ export default function AgentAnalytics() {
       {/* Stats Cards - Klickbar */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
-          <Card 
+          <div
             key={stat.title}
-            className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
+            className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
               selectedMetric === stat.id 
-                ? 'ring-2 ring-primary bg-primary/5' 
-                : 'hover:shadow-md'
+                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
+                : 'border-gray-200'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${
-                selectedMetric === stat.id ? 'text-primary' : stat.color
-              }`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-success">{stat.change}</span> vs. letzter Zeitraum
-              </p>
-            </CardContent>
-          </Card>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-lg ${
+                  selectedMetric === stat.id 
+                    ? 'bg-[#FE5B25]/10 text-[#FE5B25]' 
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <stat.icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <div className="flex items-end gap-3 mt-1">
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium mb-1 ${
+                      stat.change.startsWith('+') 
+                        ? 'bg-green-50 text-green-700 border border-green-200' 
+                        : stat.change.startsWith('-')
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-gray-50 text-gray-700 border border-gray-200'
+                    }`}>
+                      {stat.change.startsWith('+') ? (
+                        <TrendingUp className="h-3 w-3" />
+                      ) : stat.change.startsWith('-') ? (
+                        <TrendingDown className="h-3 w-3" />
+                      ) : (
+                        <div className="h-3 w-3" />
+                      )}
+                      {stat.change}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
       {/* Analytics Chart */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Performance Übersicht</h2>
+      <div className="bg-white rounded-lg border p-6 space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h2 className="text-xl font-semibold">Performance Übersicht</h2>
+            <p className="text-sm text-muted-foreground mt-1">{metricConfig[selectedMetric].name}</p>
+          </div>
           
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">Zeitraum</span>
-            <DateRangePicker 
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-            />
+            <div className="[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
+              <DateRangePicker 
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+              />
+            </div>
           </div>
         </div>
         
-        <div className="h-[300px]">
+        <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={analyticsData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <ComposedChart data={analyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
+              {/* Gradient Definition für Area */}
+              <defs>
+                <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
+                  <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              
+              {/* Horizontale Gridlines */}
+              <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+              
               <XAxis 
                 dataKey="date" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 14, fill: '#6b7280' }}
+                tickMargin={8}
+                padding={{ left: 20, right: 20 }}
                 tickFormatter={(value) => format(new Date(value), 'dd.MM', { locale: de })}
-                stroke="#64748b"
               />
-              <YAxis stroke="#64748b" />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 14, fill: '#6b7280' }}
+                width={35}
+                tickMargin={5}
+              />
               <Tooltip 
                 labelFormatter={(value) => format(new Date(value), 'dd. MMM yyyy', { locale: de })}
-                formatter={(value, name) => [`${value}`, metricConfig[selectedMetric].name]}
+                formatter={(value, name) => [`${value}${selectedMetric === 'conversion' ? '%' : ''}`, metricConfig[selectedMetric].name]}
                 contentStyle={{
                   backgroundColor: '#fff',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px'
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  fontSize: '14px'
                 }}
+                cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
               />
+              
+              {/* Area mit Gradient-Fill */}
+              <Area
+                type="monotone"
+                dataKey={selectedMetric}
+                stroke="none"
+                fill="url(#areaGradient)"
+                name={metricConfig[selectedMetric].name}
+              />
+              
+              {/* Linie über der Area */}
               <Line 
                 type="monotone" 
                 dataKey={selectedMetric} 
-                stroke="hsl(var(--primary))" 
-                strokeWidth={3}
+                stroke="#FE5B25" 
+                strokeWidth={2.5}
                 name={metricConfig[selectedMetric].name}
-                dot={{ fill: "hsl(var(--primary))", strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, fill: "hsl(var(--primary))" }}
+                dot={false}
+                activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Letzte Anrufe */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Letzte Anrufe</h2>
-          <div className="text-sm text-muted-foreground">
-            {agentCalls.length} Anrufe
+      {/* Letzte Anrufe - moderne Tabelle */}
+      <div className="bg-white rounded-lg border">
+        {/* Header mit Suche und Aktionen */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-2xl font-semibold">Letzte Anrufe</h2>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Suchen"
+                className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">⌘</kbd>
+                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">F</kbd>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              Sortieren
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+              </svg>
+              Filter
+            </Button>
           </div>
         </div>
-        
+
+        {/* Tabelle */}
         {agentCalls.length > 0 ? (
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
-            {agentCalls.slice(0, 10).map((call) => (
-              <Card
-                key={call.id}
-                className="hover:shadow-md transition-shadow min-h-[80px] cursor-pointer"
-                onClick={() => setSelectedCall(call.lead)}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-muted rounded-lg">
-                        <MessageSquare className="h-4 w-4" />
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontakt Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead-Quelle</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dauer</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {agentCalls.slice(0, 10).map((call) => (
+                  <tr key={call.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
+                          <Phone className="h-4 w-4" />
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{call.lead}</div>
                       </div>
-                      <div>
-                        <p className="font-medium">{call.lead}</p>
-                        <p className="text-sm text-muted-foreground">{call.leadSource} • {call.phone}</p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {leadDetails[call.lead] ? leadDetails[call.lead].email : `${call.lead.toLowerCase().replace(' ', '.')}@example.com`}
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-muted-foreground">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{call.phone}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const statusBadge = getStatusBadge(call.status);
+                        const StatusIcon = statusBadge.icon;
+                        return (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}>
+                            <StatusIcon className="h-3 w-3" />
+                            {call.status}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{call.leadSource}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
                         {format(new Date(call.date), 'dd.MM.yyyy HH:mm', { locale: de })}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {call.duration}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{call.duration}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedCall(call.lead)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedCall(call.lead)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                      <Badge variant={
-                        call.status === "Termin vereinbart" ? "outline" :
-                        call.status === "Kein Interesse" ? "outline" : "outline"
-                      } className={
-                        call.status === "Termin vereinbart" ? "bg-green-50 border-green-600 text-green-700 hover:bg-green-100" :
-                        call.status === "Kein Interesse" ? "bg-red-50 border-red-600 text-red-700 hover:bg-red-100" :
-                        "bg-yellow-50 border-yellow-600 text-yellow-700 hover:bg-yellow-100"
-                      }>
-                        {call.status === "Termin vereinbart" ? <Check className="h-3 w-3 mr-1" /> :
-                         call.status === "Kein Interesse" ? <X className="h-3 w-3 mr-1" /> :
-                         <PhoneMissed className="h-3 w-3 mr-1" />}
-                        {call.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            Keine Anrufe in diesem Zeitraum gefunden
+          <div className="text-center py-12 text-muted-foreground">
+            <Phone className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <div className="text-lg font-medium">Keine Anrufe</div>
+            <div className="text-sm">
+              Keine Anrufe in diesem Zeitraum gefunden.
+            </div>
           </div>
         )}
       </div>

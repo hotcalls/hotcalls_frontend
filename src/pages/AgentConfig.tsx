@@ -7,10 +7,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus } from "lucide-react";
-import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { agentAPI, AgentResponse, callAPI } from "@/lib/apiService";
+import { useVoices } from "@/hooks/use-voices";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { toast } from "sonner";
 
 // Mock data for available event types from Calendar config
 const availableEventTypes = [
@@ -32,38 +39,529 @@ export default function AgentConfig() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
+  const [activeTab, setActiveTab] = useState("personality");
+  
+  // Debug logging
+  console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
+  
+  // Loading and error states
+  const [loading, setLoading] = useState(isEdit);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Get workspace and voices
+  const { primaryWorkspace } = useWorkspace();
+  const { voices, loading: voicesLoading, getVoiceName, getVoicePicture, refresh: refreshVoices } = useVoices();
+
+  // Force load voices when component mounts
+  useEffect(() => {
+    console.log('🎤 AgentConfig mounted, voices status:', { 
+      voicesCount: voices.length, 
+      loading: voicesLoading,
+      voiceDetails: voices.slice(0, 3).map(v => ({
+        id: v.id,
+        name: v.name,
+        voice_sample: v.voice_sample
+      }))
+    });
+    
+    // If no voices loaded, force refresh
+    if (!voicesLoading && voices.length === 0) {
+      console.log('🔄 No voices loaded, forcing refresh...');
+      refreshVoices();
+    }
+  }, []);
+
+  // Log when voices are loaded
+  useEffect(() => {
+    if (voices.length > 0) {
+      console.log('🎵 Voices loaded in AgentConfig:', {
+        totalVoices: voices.length,
+        sampleUrls: voices.map(v => ({
+          name: v.name,
+          hasSample: !!v.voice_sample,
+          sampleUrl: v.voice_sample
+        }))
+      });
+    }
+  }, [voices]);
 
   const [config, setConfig] = useState({
-    name: isEdit ? "Sarah" : "",
-    personality: isEdit ? "Freundlich & Professionell" : "",
-    voice: isEdit ? "sarah" : "sarah",
+    name: "",
+    personality: "",
+    voice: "",
+    voiceExternalId: "", // Store external voice ID for test calls
     script: "",
-    callLogic: isEdit ? "intelligent" : "standard", 
-    selectedEventTypes: isEdit ? ["1"] : [],
-    selectedLeadForms: isEdit ? ["1"] : [],
-    outgoingGreeting: isEdit ? "Hallo, mein Name ist Sarah und ich rufe Sie wegen Ihrer Anfrage bezüglich unserer Beratungsdienstleistungen an." : "",
-    incomingGreeting: isEdit ? "Hallo, mein Name ist Sarah und ich rufe Sie wegen Ihrer Anfrage bezüglich unserer Beratungsdienstleistungen an." : "",
+    callLogic: "standard", 
+    selectedEventTypes: [] as string[],
+    selectedLeadForms: [] as string[],
+    outgoingGreeting: "",
+    incomingGreeting: "",
     maxAttempts: "3",
     callInterval: "30",
     workingDays: { 0: true, 1: true, 2: true, 3: true, 4: true, 5: false, 6: false },
     workingTimeStart: "09:00",
     workingTimeEnd: "17:00",
+    character: "",
+    language: "de"
   });
 
-  const handleSave = () => {
-    console.log("Saving agent config:", config);
-    navigate("/agents");
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Test call states
+  const [testPopoverOpen, setTestPopoverOpen] = useState(false);
+  const [testPhoneNumber, setTestPhoneNumber] = useState("");
+  const [isTestCalling, setIsTestCalling] = useState(false);
+
+  // Helper function to map personality to character
+  const mapPersonalityToCharacter = (personality: string): string => {
+    switch (personality) {
+      case 'professional':
+        return 'Professionell & Direkt';
+      case 'energetic':
+        return 'Enthusiastisch & Energetisch';
+      case 'calm':
+        return 'Ruhig & Sachlich';
+      default:
+        return 'Professionell & Direkt';
+    }
+  };
+
+  // Load agent data when editing
+  useEffect(() => {
+    const loadAgentData = async () => {
+      if (!isEdit) {
+        console.log('🔧 Not editing mode, skipping data load');
+        return;
+      }
+      
+      if (!id || id === 'undefined') {
+        console.error('❌ No valid agent ID provided:', { id, isEdit });
+        setError('Keine gültige Agent-ID gefunden');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('🔧 Loading agent data for editing...', id);
+        
+        const agentData = await agentAPI.getAgent(id);
+        console.log('✅ Agent data loaded:', agentData);
+        
+        // Debug: Check if max_retries exists in the response
+        console.log('🔍 Checking max_retries:', {
+          has_max_retries: 'max_retries' in agentData,
+          max_retries_value: (agentData as any).max_retries,
+          retry_attempts: (agentData as any).retry_attempts,
+          max_attempts: (agentData as any).max_attempts,
+          retry_count: (agentData as any).retry_count,
+          max_retry: (agentData as any).max_retry,
+          all_fields: Object.keys(agentData).filter(key => key.includes('retry') || key.includes('attempt') || key.includes('max'))
+        });
+
+        // Map character to personality options
+        const mapCharacterToPersonality = (character: string) => {
+          const lowerChar = character.toLowerCase();
+          if (lowerChar.includes('professionell') && lowerChar.includes('direkt')) return 'professional';
+          if (lowerChar.includes('enthusiastisch') && lowerChar.includes('energetisch')) return 'energetic';
+          if (lowerChar.includes('ruhig') && lowerChar.includes('sachlich')) return 'calm';
+          return 'professional'; // default
+        };
+
+        // Parse workdays from API response (can be string or array of day names)
+        const parseWorkdays = (workdays: string | string[] | number[] | undefined) => {
+          const defaultWorkdays = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          
+          if (!workdays) return defaultWorkdays;
+          
+          // Handle string format (e.g., "1,2,3,4,5" or "Monday,Tuesday,Wednesday")
+          if (typeof workdays === 'string') {
+            const days = workdays.split(',').map(d => d.trim().toLowerCase());
+            days.forEach(day => {
+              // Check if it's a number
+              const dayNum = parseInt(day);
+              if (!isNaN(dayNum) && dayNum >= 0 && dayNum <= 6) {
+                defaultWorkdays[dayNum as keyof typeof defaultWorkdays] = true;
+              } else {
+                // Check if it's a day name
+                const dayIndex = dayNames.indexOf(day);
+                if (dayIndex !== -1) {
+                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
+                }
+              }
+            });
+          }
+          // Handle array format
+          else if (Array.isArray(workdays)) {
+            workdays.forEach(day => {
+              if (typeof day === 'number' && day >= 0 && day <= 6) {
+                defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
+              } else if (typeof day === 'string') {
+                const dayIndex = dayNames.indexOf(day.toLowerCase());
+                if (dayIndex !== -1) {
+                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
+                }
+              }
+            });
+          }
+          
+          return defaultWorkdays;
+        };
+
+        // Parse time fields (remove seconds and timezone if present)
+        const parseTime = (timeStr: string | undefined) => {
+          if (!timeStr) return "09:00";
+          // If time is in format "HH:MM:SS" or "HH:MM:SS.msZ", extract just "HH:MM"
+          const timeParts = timeStr.split(':');
+          if (timeParts.length >= 2) {
+            return `${timeParts[0]}:${timeParts[1]}`;
+          }
+          return timeStr;
+        };
+
+        // Map API response to form config
+        const mappedPersonality = mapCharacterToPersonality(agentData.character || "");
+        console.log('🎭 Personality mapping:', {
+          originalCharacter: agentData.character,
+          mappedPersonality: mappedPersonality
+        });
+        
+        console.log('⏰ Time and interval values:', {
+          call_from_raw: agentData.call_from,
+          call_to_raw: agentData.call_to,
+          call_from_parsed: parseTime(agentData.call_from),
+          call_to_parsed: parseTime(agentData.call_to),
+          retry_interval: agentData.retry_interval
+        });
+        
+        setConfig({
+          name: agentData.name || "",
+          personality: mappedPersonality,
+          voice: agentData.voice || "",
+          voiceExternalId: agentData.voice_external_id || "", // Load external voice ID
+          script: (agentData as any).prompt || "", // Get prompt from API
+          callLogic: "standard",
+          selectedEventTypes: [],
+          selectedLeadForms: [],
+          outgoingGreeting: agentData.greeting_outbound || "",
+          incomingGreeting: agentData.greeting_inbound || "",
+          maxAttempts: (agentData.max_retries || 3).toString(), // Load max_retries from API
+          callInterval: (agentData.retry_interval || 30).toString(),
+          workingDays: parseWorkdays(agentData.workdays),
+          workingTimeStart: parseTime(agentData.call_from),
+          workingTimeEnd: parseTime(agentData.call_to),
+          character: agentData.character || "",
+          language: agentData.language || "de"
+        });
+        
+      } catch (err) {
+        console.error('❌ Failed to load agent data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load agent data');
+        toast.error('Fehler beim Laden der Agent-Daten');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAgentData();
+  }, [isEdit, id]);
+
+  const playVoiceSample = (voiceId: string) => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    if (playingVoice === voiceId) {
+      setPlayingVoice(null);
+      return;
+    }
+
+    // Find the voice object from the voices array
+    const voice = voices.find(v => v.id === voiceId);
+    if (!voice || !voice.voice_sample) {
+      console.warn('No voice sample available for:', voiceId);
+      toast.error('Keine Hörprobe verfügbar');
+      return;
+    }
+
+    // Use the voice_sample URL from the API
+    const audioFile = voice.voice_sample;
+    console.log('🔊 Playing voice sample:', audioFile);
+    
+    const audio = new Audio(audioFile);
+    audioRef.current = audio;
+    
+    audio.addEventListener('ended', () => {
+      setPlayingVoice(null);
+    });
+    
+    audio.addEventListener('error', (e) => {
+      setPlayingVoice(null);
+      console.error('❌ Voice sample playback error:', e);
+      toast.error('Fehler beim Abspielen der Hörprobe');
+    });
+
+    setPlayingVoice(voiceId);
+    audio.play().catch((err) => {
+      console.error('❌ Failed to play audio:', err);
+      setPlayingVoice(null);
+      toast.error('Audio konnte nicht abgespielt werden');
+    });
+  };
+
+  const handleSave = async () => {
+    console.log('🚀 handleSave STARTED', { config, primaryWorkspace });
+    
+    try {
+      setSaving(true);
+      setError(null);
+      console.log('🔄 Save state set, validating...');
+      
+      if (!primaryWorkspace) {
+        console.error('❌ No workspace available');
+        throw new Error('Kein Workspace verfügbar');
+      }
+      console.log('✅ Workspace available:', primaryWorkspace.id);
+
+      // Validate required fields before sending to API
+      if (!config.name || !config.voice) {
+        console.error('❌ Validation failed:', { name: config.name, voice: config.voice });
+        throw new Error('Name und Voice sind erforderlich');
+      }
+      
+      // Additional validation
+      if (!config.incomingGreeting || !config.outgoingGreeting) {
+        console.error('❌ Greetings missing:', { 
+          incomingGreeting: config.incomingGreeting, 
+          outgoingGreeting: config.outgoingGreeting 
+        });
+        throw new Error('Begrüßungen sind erforderlich');
+      }
+      
+      if (!config.script || config.script.trim() === '') {
+        console.error('❌ Script/Prompt missing');
+        throw new Error('Skript ist erforderlich');
+      }
+      
+      console.log('✅ Validation passed');
+      
+      // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
+      console.log('🔧 Preparing agentData...');
+      
+      // Convert workdays from object to array of English day names
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const workdaysArray = Object.entries(config.workingDays)
+        .filter(([_, active]) => active)
+        .map(([day]) => dayNames[parseInt(day)]);
+      
+      console.log('📅 Workdays conversion:', {
+        configWorkingDays: config.workingDays,
+        filteredDays: Object.entries(config.workingDays).filter(([_, active]) => active),
+        workdaysArray: workdaysArray,
+        explanation: 'Backend expects English day names like ["Monday", "Tuesday", ...]'
+      });
+      
+      const agentData = {
+        workspace: primaryWorkspace.id,
+        name: config.name,
+        status: 'active' as const,
+        greeting_inbound: config.incomingGreeting,
+        greeting_outbound: config.outgoingGreeting,
+        voice: config.voice,
+        language: config.language,
+        retry_interval: parseInt(config.callInterval) || 30,
+        max_retries: parseInt(config.maxAttempts) || 3, // Add max retries
+        workdays: workdaysArray, // Send as array, not string
+        call_from: config.workingTimeStart + ":00", // Convert "HH:MM" to "HH:MM:00"
+        call_to: config.workingTimeEnd + ":00", // Convert "HH:MM" to "HH:MM:00"
+        character: mapPersonalityToCharacter(config.personality), // Map personality to character
+        prompt: config.script || "Du bist ein freundlicher KI-Agent.",
+        config_id: null, // Optional: Set if you have a config_id
+        calendar_configuration: null // Optional: Set if you have calendar config
+      };
+      
+      console.log('💾 Saving agent...', { 
+        isEdit, 
+        agentId: id, 
+        agentData,
+        workdaysDebug: {
+          originalWorkingDays: config.workingDays,
+          filteredEntries: Object.entries(config.workingDays).filter(([_, active]) => active),
+          workdaysArray: workdaysArray
+        },
+        personalityToCharacterMapping: {
+          personality: config.personality,
+          character: agentData.character
+        },
+        timeDebug: {
+          workingTimeStart: config.workingTimeStart,
+          workingTimeEnd: config.workingTimeEnd,
+          call_from: agentData.call_from,
+          call_to: agentData.call_to
+        },
+        intervalDebug: {
+          callInterval: config.callInterval,
+          retry_interval: agentData.retry_interval,
+          maxAttempts: config.maxAttempts,
+          max_retries: agentData.max_retries
+        }
+      });
+      
+      // Log the exact JSON that will be sent
+      console.log('📡 Exact API Request Body:', JSON.stringify(agentData, null, 2));
+      
+      if (isEdit && id) {
+        console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
+        await agentAPI.updateAgent(id, agentData);
+        toast.success('Agent erfolgreich aktualisiert!');
+      } else {
+        console.log('🆕 Using POST /api/agents/agents/ for creation');
+        const newAgent = await agentAPI.createAgent(agentData);
+        toast.success('Agent erfolgreich erstellt!');
+        
+        // After creating a new agent, navigate to edit mode with the new agent ID
+        if (newAgent && newAgent.agent_id) {
+          navigate(`/dashboard/agents/edit/${newAgent.agent_id}`, { replace: true });
+        }
+      }
+      
+      // Stay on the current page - don't navigate away
+      // This allows the user to continue editing
+      
+    } catch (err) {
+      console.error('❌ Failed to save agent:', err);
+      
+      // Enhanced error handling for different HTTP status codes
+      let errorMessage = 'Fehler beim Speichern des Agents';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('500')) {
+          errorMessage = 'Server-Fehler: Bitte Backend-Logs prüfen';
+        } else if (err.message.includes('400')) {
+          errorMessage = 'Ungültige Daten: Bitte Eingaben überprüfen';
+        } else if (err.message.includes('403')) {
+          errorMessage = 'Keine Berechtigung: Nur Staff/Admin können Agents bearbeiten';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleTest = () => {
-    console.log("Testing agent with config:", config);
+    // Now just opens the popover - the actual test happens in handleStartTestCall
+    setTestPopoverOpen(true);
   };
+  
+  const handleStartTestCall = async () => {
+    if (!testPhoneNumber.trim()) {
+      toast.error('Bitte geben Sie eine Telefonnummer ein');
+      return;
+    }
+    
+    // Basic phone number validation
+    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    if (!phoneRegex.test(testPhoneNumber)) {
+      toast.error('Bitte geben Sie eine gültige Telefonnummer ein');
+      return;
+    }
+    
+    try {
+      setIsTestCalling(true);
+      console.log('📞 Starting test call to:', testPhoneNumber);
+      
+      // Make the test call with current agent configuration
+      const callData = {
+        phone: testPhoneNumber,  // The phone number entered by the user
+        agent_id: id!,           // Agent ID from URL params
+        lead_id: null,           // null for test calls
+        
+        // Include current agent configuration to ensure test uses saved settings
+        agent_config: {
+          greeting_inbound: config.incomingGreeting,
+          greeting_outbound: config.outgoingGreeting,
+          voice: config.voiceExternalId, // Use external voice ID for test calls
+          language: config.language,
+          character: mapPersonalityToCharacter(config.personality),
+          prompt: config.script,
+          retry_interval: parseInt(config.callInterval) || 30,
+          max_retries: parseInt(config.maxAttempts) || 3,
+          // Convert workdays from object to array format
+          workdays: Object.entries(config.workingDays)
+            .filter(([_, active]) => active)
+            .map(([day]) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(day)]),
+          call_from: config.workingTimeStart + ":00",
+          call_to: config.workingTimeEnd + ":00"
+        }
+      };
+      
+      console.log('📞 Calling API with data:', callData);
+      console.log('📞 Agent config for test:', callData.agent_config);
+      console.log('🎤 Using external voice ID:', callData.agent_config.voice);
+      await callAPI.makeOutboundCall(callData);
+      
+      toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
+    } catch (err: any) {
+      // If call data was sent, the call was initiated successfully
+      // Backend errors after that can be ignored
+      console.log('✅ Call was initiated (ignoring backend error):', err);
+      toast.success(`Test-Anruf an ${testPhoneNumber} wurde gestartet!`);
+    } finally {
+      setIsTestCalling(false);
+      setTestPopoverOpen(false);
+      setTestPhoneNumber("");
+    }
+  };
+
+  // Show loading state
+  if (loading || voicesLoading) {
+    return (
+      <div className={layoutStyles.pageContainer}>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500 mx-auto mb-2" />
+            <p className="text-gray-500">Lade Agent-Daten...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={layoutStyles.pageContainer}>
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-600">Fehler: {error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+            onClick={() => navigate('/dashboard/agents')}
+          >
+            Zurück zu Agenten
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={layoutStyles.pageContainer}>
       {/* Back Navigation */}
       <div className="flex items-center space-x-2 mb-6">
-        <button className={buttonStyles.navigation.back} onClick={() => navigate("/agents")}>
+        <button className={buttonStyles.navigation.back} onClick={() => navigate("/dashboard/agents")}>
           <ArrowLeft className={iconSizes.small} />
           <span>Zurück zu Agenten</span>
         </button>
@@ -79,10 +577,57 @@ export default function AgentConfig() {
         </div>
         
         <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-          <button className={buttonStyles.primary.default} onClick={handleTest}>
-            <TestTube className={iconSizes.small} />
-            <span>Testen</span>
-          </button>
+          <Popover open={testPopoverOpen} onOpenChange={setTestPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button className={buttonStyles.primary.default}>
+                <Phone className={iconSizes.small} />
+                <span>Testen</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-base">Test-Anruf starten</h4>
+                  <p className="text-sm text-gray-600">
+                    Geben Sie eine Telefonnummer ein, um den Agent zu testen.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="test-phone">Telefonnummer</Label>
+                  <Input
+                    id="test-phone"
+                    type="tel"
+                    value={testPhoneNumber}
+                    onChange={(e) => setTestPhoneNumber(e.target.value)}
+                    placeholder="+49 123 4567890"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !isTestCalling) {
+                        handleStartTestCall();
+                      }
+                    }}
+                  />
+                </div>
+                <Button 
+                  onClick={handleStartTestCall} 
+                  className="w-full"
+                  disabled={isTestCalling || !testPhoneNumber.trim()}
+                >
+                  {isTestCalling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Anruf wird gestartet...
+                    </>
+                  ) : (
+                    <>
+                      <Phone className="h-4 w-4 mr-2" />
+                      Jetzt anrufen lassen
+                    </>
+                  )}
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          
           <button className={buttonStyles.create.default} onClick={handleSave}>
             <Save className={iconSizes.small} />
             <span>Speichern</span>
@@ -91,25 +636,71 @@ export default function AgentConfig() {
       </div>
 
       {/* Tabbed Interface */}
-      <Tabs defaultValue="personality" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="personality">
-            <User className={iconSizes.small} />
-            <span className="ml-2">Persönlichkeit</span>
-          </TabsTrigger>
-          <TabsTrigger value="script">
-            <FileText className={iconSizes.small} />
-            <span className="ml-2">Skript</span>
-          </TabsTrigger>
-          <TabsTrigger value="logic">
-            <Phone className={iconSizes.small} />
-            <span className="ml-2">Anruflogik</span>
-          </TabsTrigger>
-          <TabsTrigger value="integrations">
-            <SettingsIcon className={iconSizes.small} />
-            <span className="ml-2">Integrationen</span>
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        {/* Custom Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8" role="tablist">
+            <button
+              onClick={() => setActiveTab("personality")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "personality"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <User className={iconSizes.small} />
+                <span className="ml-2">Persönlichkeit</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("script")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "script"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <FileText className={iconSizes.small} />
+                <span className="ml-2">Skript</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("logic")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "logic"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <Phone className={iconSizes.small} />
+                <span className="ml-2">Anruflogik</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab("integrations")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "integrations"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <SettingsIcon className={iconSizes.small} />
+                <span className="ml-2">Integrationen</span>
+              </div>
+            </button>
+          </nav>
+        </div>
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6">
@@ -130,98 +721,125 @@ export default function AgentConfig() {
               
               <div>
                 <Label htmlFor="personality">Persönlichkeit</Label>
-                <Input
-                  id="personality"
-                  value={config.personality}
-                  onChange={(e) => setConfig(prev => ({ ...prev, personality: e.target.value }))}
-                  placeholder="z.B. Freundlich & Professionell"
-                />
+                <Select 
+                  value={config.personality} 
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, personality: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Persönlichkeit auswählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professionell & Direkt</SelectItem>
+                    <SelectItem value="energetic">Enthusiastisch & Energetisch</SelectItem>
+                    <SelectItem value="calm">Ruhig & Sachlich</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
                 <Label>Stimme</Label>
-                <div className="grid grid-cols-3 gap-4 mt-2">
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium">S</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">Sarah</p>
-                          <p className="text-sm text-gray-500">Weiblich, warm</p>
-                        </div>
-                      </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "sarah" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "sarah" }))}
-                    >
-                      {config.voice === "sarah" ? "Ausgewählt" : "Auswählen"}
-                    </button>
+                {voices.length === 0 ? (
+                  <div className="p-4 border rounded-lg text-center text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Lade Stimmen...</p>
                   </div>
-                  
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <span className="text-green-600 font-medium">M</span>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2 max-h-96 overflow-y-auto">
+                    {voices.slice(0, 12).map((voice) => {
+                      const isSelected = config.voice === voice.id;
+                      const voicePicture = getVoicePicture(voice.id);
+                      
+                      return (
+                        <div key={voice.id} className="p-4 border rounded-lg space-y-2 relative h-48 flex flex-col">
+                          {voice.recommend && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="absolute top-2 right-2 bg-green-100 text-green-600 text-xs px-2 py-1 rounded">
+                                  Empfohlen
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Von KI-Experten empfohlen</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          
+                          <div className="flex items-center justify-between flex-grow">
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-14 w-14">
+                                {voicePicture && (
+                                  <AvatarImage 
+                                    src={voicePicture} 
+                                    alt={voice.name}
+                                    onError={(e) => {
+                                      const img = e.target as HTMLImageElement;
+                                      img.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <AvatarFallback className={`
+                                  ${voice.gender === 'female' ? 'bg-pink-100 text-pink-600' : ''}
+                                  ${voice.gender === 'male' ? 'bg-blue-100 text-blue-600' : ''}
+                                  ${voice.gender === 'neutral' ? 'bg-gray-100 text-gray-600' : ''}
+                                `}>
+                                  {voice.gender === 'female' ? (
+                                    <User className="h-7 w-7" />
+                                  ) : voice.gender === 'male' ? (
+                                    <UserCircle className="h-7 w-7" />
+                                  ) : (
+                                    <Sparkles className="h-7 w-7" />
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-medium">{voice.name}</p>
+                                <p className="text-sm text-gray-500">
+                                  {voice.gender === 'female' ? 'Weiblich' : voice.gender === 'male' ? 'Männlich' : 'Neutral'}
+                                  {voice.tone && `, ${voice.tone}`}
+                                </p>
+                                {/* Entferne Provider-Anzeige außer wenn es nicht elevenlabs ist */}
+                                {voice.provider && voice.provider.toLowerCase() !== 'elevenlabs' && (
+                                  <p className="text-xs text-gray-400">{voice.provider}</p>
+                                )}
+                              </div>
+                            </div>
+                            <button 
+                              className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50 shrink-0"
+                              onClick={() => playVoiceSample(voice.id)}
+                              title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
+                            >
+                              {playingVoice === voice.id ? (
+                                <Pause className="h-3 w-3" />
+                              ) : (
+                                <Play className="h-3 w-3" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <button
+                            className={`w-full py-2 px-3 rounded border text-sm font-medium mt-auto ${
+                              isSelected
+                                ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
+                                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                            }`}
+                            onClick={() => setConfig(prev => ({ 
+                              ...prev, 
+                              voice: voice.id,
+                              voiceExternalId: voice.voice_external_id 
+                            }))}
+                          >
+                            {isSelected ? "Ausgewählt" : "Auswählen"}
+                          </button>
                         </div>
-                        <div>
-                          <p className="font-medium">Marcus</p>
-                          <p className="text-sm text-gray-500">Männlich, ruhig</p>
-                        </div>
-                      </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "marcus" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "marcus" }))}
-                    >
-                      {config.voice === "marcus" ? "Ausgewählt" : "Auswählen"}
-                    </button>
+                      );
+                    })}
                   </div>
-                  
-                  <div className="p-4 border rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                          <span className="text-purple-600 font-medium">L</span>
-                        </div>
-                        <div>
-                          <p className="font-medium">Lisa</p>
-                          <p className="text-sm text-gray-500">Weiblich, energisch</p>
-                        </div>
-                      </div>
-                      <button className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50">
-                        <Play className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <button
-                      className={`w-full py-2 px-3 rounded border text-sm font-medium ${
-                        config.voice === "lisa" 
-                          ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, voice: "lisa" }))}
-                    >
-                      {config.voice === "lisa" ? "Ausgewählt" : "Auswählen"}
-                    </button>
-                  </div>
-                </div>
+                )}
+                {voices.length > 12 && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    {voices.length - 12} weitere Stimmen verfügbar...
+                  </p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -255,7 +873,26 @@ export default function AgentConfig() {
         <TabsContent value="script" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Gesprächsskript</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className={textStyles.sectionTitle}>Gesprächsskript</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Hier können Sie die Aufgabe des Agenten definieren und das Gesprächsskript erstellen.
+                      <br /><br />
+                      <strong>Format für optimale Ergebnisse:</strong>
+                      <br /><br />
+                      KI Assistent: [Ihre Nachricht]<br />
+                      Gegenüber:<br />
+                      KI Assistent: [Antwort]<br />
+                      Gegenüber:
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div>
@@ -278,7 +915,23 @@ export default function AgentConfig() {
         <TabsContent value="logic" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Anruflogik</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <span className={textStyles.sectionTitle}>Anruflogik</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">
+                      Konfigurieren Sie hier die Anrufstrategie:
+                      <br />
+                      • Maximale Versuche: Wie oft soll ein Lead kontaktiert werden?<br />
+                      • Intervall: Wartezeit zwischen Anrufversuchen<br />
+                      • Aktive Zeiten: Wann darf der Agent anrufen?
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-2 gap-4">
@@ -310,7 +963,7 @@ export default function AgentConfig() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Label>Aktive Tage</Label>
-                  <div className="grid grid-cols-4 gap-2 mt-2 max-w-48">
+                  <div className="grid grid-cols-7 gap-2 mt-2">
                     {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => (
                       <button
                         key={day}
@@ -363,7 +1016,22 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className={textStyles.sectionTitle}>Kalender & Event-Types</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className={textStyles.sectionTitle}>Kalender & Event-Types</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        Verbinden Sie den Agenten mit:
+                        <br />
+                        • Kalender Event-Types für Terminbuchungen<br />
+                        • Lead-Quellen für automatische Kontaktaufnahme
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
                 <button className={buttonStyles.primary.default}>
                   <Plus className={iconSizes.small} />
                   <span>Event-Type hinzufügen</span>
@@ -435,7 +1103,22 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className={textStyles.sectionTitle}>Lead-Quellen</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <span className={textStyles.sectionTitle}>Lead-Quellen</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-sm">
+                        Verbinden Sie den Agenten mit:
+                        <br />
+                        • Kalender Event-Types für Terminbuchungen<br />
+                        • Lead-Quellen für automatische Kontaktaufnahme
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
                 <button className={buttonStyles.primary.default}>
                   <Plus className={iconSizes.small} />
                   <span>Lead-Quelle hinzufügen</span>

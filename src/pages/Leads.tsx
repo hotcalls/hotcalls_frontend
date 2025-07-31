@@ -123,150 +123,113 @@ export default function Leads() {
         </button>
       </div>
 
-      {/* Filter Section */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Leads durchsuchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+      {/* Leads Table - Moderne Tabelle wie Dashboard */}
+      <div className="bg-white rounded-lg border">
+        {/* Header mit Suche und Aktionen */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-2xl font-semibold">
+            {filteredLeads.length} Lead{filteredLeads.length !== 1 ? 's' : ''} gefunden
+          </h2>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Suchen"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">⌘</kbd>
+                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">F</kbd>
               </div>
             </div>
-            
-            {/* Filters */}
-            <div className="flex gap-3">
-              <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({...prev, status: value}))}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alle">Alle Status</SelectItem>
-                  <SelectItem value="Neu">Neu</SelectItem>
-                  <SelectItem value="Kontaktiert">Kontaktiert</SelectItem>
-                  <SelectItem value="Qualifiziert">Qualifiziert</SelectItem>
-                  <SelectItem value="Termin">Termin</SelectItem>
-                  <SelectItem value="Abgeschlossen">Abgeschlossen</SelectItem>
-                  <SelectItem value="Verloren">Verloren</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={filters.source} onValueChange={(value) => setFilters(prev => ({...prev, source: value}))}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Quelle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alle">Alle Quellen</SelectItem>
-                  <SelectItem value="Meta Lead Ads">Meta Lead Ads</SelectItem>
-                  <SelectItem value="Website">Website</SelectItem>
-                  <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-                  <SelectItem value="Google Ads">Google Ads</SelectItem>
-                </SelectContent>
-              </Select>
-
-
-
-              <Select value={filters.agent} onValueChange={(value) => setFilters(prev => ({...prev, agent: value}))}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Agent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alle">Alle Agenten</SelectItem>
-                  <SelectItem value="Sarah">Sarah</SelectItem>
-                  <SelectItem value="Marcus">Marcus</SelectItem>
-                  <SelectItem value="Lisa">Lisa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Button variant="outline" size="sm" className="gap-2">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              Sortieren
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filter
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Leads Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className={textStyles.sectionTitle}>
-            {filteredLeads.length} Lead{filteredLeads.length !== 1 ? 's' : ''} gefunden
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left p-3 font-medium text-gray-500">Lead</th>
-                  <th className="text-left p-3 font-medium text-gray-500">Unternehmen</th>
-                  <th className="text-left p-3 font-medium text-gray-500">Quelle</th>
-                  <th className="text-left p-3 font-medium text-gray-500">Status</th>
-                                     <th className="text-left p-3 font-medium text-gray-500">Agent</th>
-                  <th className="text-right p-3 font-medium text-gray-500">Aktionen</th>
+                {/* Tabelle */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quelle</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredLeads.map((lead) => (
+                <tr key={lead.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
+                        <User className="h-4 w-4" />
+                      </div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {lead.firstName} {lead.lastName}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.email}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.phone}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.source}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status as keyof typeof statusColors]}`}>
+                      {lead.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{lead.assignedAgent}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {/* Handle call */}}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedLead(lead)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {lead.firstName} {lead.lastName}
-                        </div>
-                        <div className="text-sm text-gray-500">{lead.email}</div>
-                        <div className="text-sm text-gray-500">{lead.phone}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-medium text-gray-900">{lead.company}</div>
-                      <div className="text-sm text-gray-500">{lead.position}</div>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant="outline">{lead.source}</Badge>
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[lead.status as keyof typeof statusColors]}`}>
-                        {lead.status}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant="secondary">{lead.assignedAgent}</Badge>
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className={`flex items-center justify-end ${spacingStyles.buttonSpacing}`}>
-                        <button
-                          className={buttonStyles.cardAction.icon}
-                          onClick={() => {/* Handle call */}}
-                          title="Anrufen"
-                        >
-                          <Phone className={iconSizes.small} />
-                        </button>
-                        <button
-                          className={buttonStyles.cardAction.icon}
-                          onClick={() => setSelectedLead(lead)}
-                          title="Details anzeigen"
-                        >
-                          <Info className={iconSizes.small} />
-                        </button>
-                        <button
-                          className={buttonStyles.cardAction.iconDelete}
-                          onClick={() => {/* Handle delete */}}
-                          title="Lead löschen"
-                        >
-                          <Trash2 className={iconSizes.small} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Lead Detail Sheet */}
       <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
