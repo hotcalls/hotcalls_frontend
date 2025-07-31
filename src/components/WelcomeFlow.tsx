@@ -10,7 +10,8 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
-import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest } from "@/lib/apiService";
+import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest, agentAPI, CreateAgentRequest as APIAgentRequest } from "@/lib/apiService";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
 
 interface WelcomeFlowProps {
@@ -49,6 +50,23 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     enterprise: ''
   });
   const [isLoadingPrices, setIsLoadingPrices] = useState(false);
+
+  // Get user profile for personalized greetings
+  const { profile } = useUserProfile();
+
+  // Generate custom greetings based on user's first name
+  const generateCustomGreetings = (agentName: string) => {
+    const userFirstName = profile?.first_name || 'da';
+    
+    const outboundGreeting = `Hi ${userFirstName}, hier ist ${agentName}! Freut mich, dass du da bist und mich testest. Lass uns gerne ein bisschen quatschen und uns gegenseitig kennenlernen.`;
+    
+    const inboundGreeting = `Hallo ${userFirstName}, hier ist ${agentName}! Schön, dass du anrufst. Ich freue mich darauf, mit dir zu sprechen und mich kennenzulernen.`;
+    
+    return {
+      inbound: inboundGreeting,
+      outbound: outboundGreeting
+    };
+  };
 
   // Verhindere Body-Scrolling wenn Modal aktiv ist
   useEffect(() => {
@@ -349,13 +367,16 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         throw new Error('Keine Stimme ausgewählt');
       }
 
+      // Generate custom greetings
+      const customGreetings = generateCustomGreetings(formData.name);
+
       // Create agent data for API
-      const agentData: AgentCreateRequest = {
+      const agentData: APIAgentRequest = {
         workspace: userWorkspace.id, // Use user's actual workspace ID
         name: formData.name,
         status: 'active',
-        greeting_inbound: formData.script,
-        greeting_outbound: formData.script, // Add outbound greeting
+        greeting_inbound: customGreetings.inbound,
+        greeting_outbound: customGreetings.outbound, // Add outbound greeting
         voice: selectedVoice.id, // ✅ Use internal voice ID (database UUID)
         language: 'de', // Default to German
         retry_interval: 30, // Add retry interval in minutes
@@ -363,8 +384,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: formData.script
-        // calendar_configuration omitted - optional field
+        prompt: customGreetings.inbound, // Use inbound greeting as prompt
+        config_id: null,
+        calendar_configuration: null
       };
 
       console.log('🚀 Creating agent with data:', agentData);
@@ -396,12 +418,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         selectedPlan: formData.selectedPlan
       });
       
-      const createdAgent = await agentService.createAgent(agentData);
+      const createdAgent = await agentAPI.createAgent(agentData);
       console.log('✅ Agent created successfully:', createdAgent);
       
       // Store the agent ID for the test call
-      if (createdAgent.id) {
-        setCreatedAgentId(createdAgent.id);
+      if (createdAgent.agent_id) {
+        setCreatedAgentId(createdAgent.agent_id);
       }
       
       toast.success('Agent erstellt!', {

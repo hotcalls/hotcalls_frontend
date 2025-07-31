@@ -580,10 +580,10 @@ export const callAPI = {
    * Make a test call using only Agent ID
    */
   async makeTestCall(data: MakeTestCallRequest): Promise<MakeTestCallResponse> {
-    console.log('🧪 POST /api/calls/call-logs/make_test_call/ - Making test call:', data);
+    console.log('🧪 POST /api/calls/make_test_call/ - Making test call:', data);
     
     try {
-      const response = await apiCall<MakeTestCallResponse>('/api/calls/call-logs/make_test_call/', {
+      const response = await apiCall<MakeTestCallResponse>('/api/calls/make_test_call/', {
         method: 'POST',
         body: JSON.stringify(data),
       });
