@@ -666,8 +666,8 @@ export const paymentAPI = {
     const successUrl = `${window.location.origin}/?payment=success&price=${priceIdOrPlan}`;
     const cancelUrl = `${window.location.origin}/?payment=cancelled`;
     
-    // Backend always expects price_id field
-    return apiCall('/api/payments/stripe/checkout-session/', {
+    // Use the correct endpoint as specified by user
+    return apiCall('/api/payments/stripe/create-checkout-session/', {
       method: 'POST',
       body: JSON.stringify({
         workspace_id: workspaceId,
@@ -720,6 +720,25 @@ export const paymentAPI = {
       })
     });
   }
+};
+
+// Plans API calls
+export const plansAPI = {
+  /**
+   * Get all available subscription plans
+   */
+  async getPlans(): Promise<any> {
+    console.log('📋 GET /api/plans/plans/ - Fetching available plans');
+    
+    try {
+      const response = await apiCall<any>('/api/plans/plans/');
+      console.log('✅ Plans API response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Plans API error:', error);
+      throw error;
+    }
+  },
 };
 
 // Export all APIs 
