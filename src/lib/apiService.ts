@@ -210,6 +210,12 @@ async function apiCall<T>(
   const response = await fetch(url, { ...defaultOptions, ...options });
   
   if (!response.ok) {
+    // For 404 Not Found on GET requests, return empty array instead of throwing error
+    if (response.status === 404 && method === 'GET') {
+      console.log(`ℹ️ 404 Not Found on GET ${url} - returning empty array`);
+      return [] as T;
+    }
+    
     const errorData = await response.json().catch(() => ({
       error: `HTTP ${response.status}: ${response.statusText}`
     }));
@@ -863,6 +869,41 @@ export const calendarAPI = {
       return response;
     } catch (error) {
       console.error('❌ Google disconnect error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create Event Type Configuration
+   */
+  async createEventType(payload: any): Promise<any> {
+    console.log('📅 POST /api/calendars/configurations/ - Creating Event Type');
+    
+    try {
+      const response = await apiCall('/api/calendars/configurations/', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      console.log('✅ Event Type created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type creation API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Calendar Configurations (Event Types)
+   */
+  async getCalendarConfigurations(): Promise<any> {
+    console.log('📋 GET /api/calendars/configurations/ - Fetching Event Types');
+    
+    try {
+      const response = await apiCall('/api/calendars/configurations/');
+      console.log('✅ Event Types loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Types loading API error:', error);
       throw error;
     }
   },
