@@ -455,13 +455,18 @@ function EventTypeModal({
     try {
       const payload = {
         id: crypto.randomUUID(),
+        name: formData.name,
         calendar: formData.calendar === 'none' ? null : formData.calendar,
         duration: formData.duration,
         prep_time: formData.prep_time,
         days_buffer: formData.days_buffer,
         from_time: formData.from_time,
         to_time: formData.to_time,
-        workdays: formData.workdays
+        workdays: formData.workdays,
+        meeting_type: formData.meeting_type,
+        meeting_link: formData.meeting_link,
+        meeting_address: formData.meeting_address,
+        conflict_calendars: formData.conflictCheckCalendars
       };
 
       const response = await calendarAPI.createEventType(payload);
@@ -544,40 +549,50 @@ function EventTypeModal({
 }
 
 // Event Type Card Component
-function EventTypeCard({ eventType }: { eventType: any }) {
+function EventTypeCard({ eventType, onEdit, onDelete }: { 
+  eventType: any; 
+  onEdit: (eventType: any) => void;
+  onDelete: (eventType: any) => void;
+}) {
   const formatDuration = (minutes: number) => {
     if (minutes < 60) return `${minutes} Min`;
     return `${Math.floor(minutes / 60)}h ${minutes % 60 > 0 ? `${minutes % 60}m` : ''}`.trim();
   };
 
-  const formatWorkdays = (workdays: string[]) => {
-    const dayMap: { [key: string]: string } = {
-      monday: 'Mo', tuesday: 'Di', wednesday: 'Mi', 
-      thursday: 'Do', friday: 'Fr', saturday: 'Sa', sunday: 'So'
-    };
-    return workdays.map(day => dayMap[day] || day).join(', ');
+  const formatBufferTime = (days: number) => {
+    if (days === 0) return null;
+    if (days === 1) return '3 Stunden';
+    if (days === 2) return '6 Stunden'; 
+    if (days === 3) return '1 Tag';
+    return `${days} Tage`;
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
+    <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{eventType.calendar?.name || 'Event Type'}</CardTitle>
+          <div className="flex-1">
+            <CardTitle className="text-lg">{eventType.name || 'Unbenannter Event Type'}</CardTitle>
             <p className="text-sm text-muted-foreground">
               {formatDuration(eventType.duration)} • {eventType.from_time?.slice(0, 5)} - {eventType.to_time?.slice(0, 5)}
             </p>
           </div>
-          <Badge className="bg-[#FE5B25] text-white">
-            Aktiv
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
+            <Button variant="ghost" size="sm" onClick={() => onEdit(eventType)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onDelete(eventType)} className="text-red-500 hover:text-red-700">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-3">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Verfügbare Tage</p>
-            <p className="text-sm">{formatWorkdays(eventType.workdays || [])}</p>
+            <p className="text-xs text-muted-foreground mb-1">Zielkalender</p>
+            <p className="text-sm truncate">{eventType.calendar_name || 'Nicht zugewiesen'}</p>
           </div>
           
           {eventType.prep_time > 0 && (
@@ -590,22 +605,191 @@ function EventTypeCard({ eventType }: { eventType: any }) {
           {eventType.days_buffer > 0 && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">Vorlaufzeit</p>
-              <p className="text-sm">
-                {eventType.days_buffer === 1 ? '3 Stunden' : 
-                 eventType.days_buffer === 2 ? '6 Stunden' : 
-                 eventType.days_buffer === 3 ? '1 Tag' : `${eventType.days_buffer} Tage`}
-              </p>
+              <p className="text-sm">{formatBufferTime(eventType.days_buffer)}</p>
             </div>
           )}
-
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-1">Kalender</p>
-            <p className="text-sm truncate">{eventType.calendar?.name || 'Nicht zugewiesen'}</p>
-          </div>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+// Event Type Edit Modal with Tabs
+function EventTypeEditModal({ 
+  open, 
+  onOpenChange, 
+  eventType,
+  availableCalendars,
+  onEventTypeUpdated
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eventType: any;
+  availableCalendars: BackendCalendar[];
+  onEventTypeUpdated: () => void;
+}) {
+  const [activeEditTab, setActiveEditTab] = useState('grundinformationen');
+  const [editFormData, setEditFormData] = useState<EventTypeFormData>({
+    name: '',
+    duration: 60,
+    calendar: 'none',
+    conflictCheckCalendars: [],
+    workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    from_time: '09:00:00',
+    to_time: '17:00:00',
+    prep_time: 0,
+    days_buffer: 0,
+    meeting_type: 'online',
+    meeting_link: '',
+    meeting_address: ''
+  });
+
+  // Load eventType data when modal opens
+  useEffect(() => {
+    if (eventType && open) {
+      setEditFormData({
+        name: eventType.name || '',
+        duration: eventType.duration || 60,
+        calendar: eventType.calendar || 'none',
+        conflictCheckCalendars: eventType.conflict_calendars || [],
+        workdays: eventType.workdays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        from_time: eventType.from_time || '09:00:00',
+        to_time: eventType.to_time || '17:00:00',
+        prep_time: eventType.prep_time || 0,
+        days_buffer: eventType.days_buffer || 0,
+        meeting_type: eventType.meeting_type || 'online',
+        meeting_link: eventType.meeting_link || '',
+        meeting_address: eventType.meeting_address || ''
+      });
+    }
+  }, [eventType, open]);
+
+  const handleUpdate = async () => {
+    try {
+      const payload = {
+        name: editFormData.name,
+        calendar: editFormData.calendar === 'none' ? null : editFormData.calendar,
+        duration: editFormData.duration,
+        prep_time: editFormData.prep_time,
+        days_buffer: editFormData.days_buffer,
+        from_time: editFormData.from_time,
+        to_time: editFormData.to_time,
+        workdays: editFormData.workdays,
+        meeting_type: editFormData.meeting_type,
+        meeting_link: editFormData.meeting_link,
+        meeting_address: editFormData.meeting_address,
+        conflict_calendars: editFormData.conflictCheckCalendars
+      };
+
+      await calendarAPI.updateEventType(eventType.id, payload);
+      console.log('✅ Event Type updated');
+      
+      onEventTypeUpdated();
+      onOpenChange(false);
+      
+    } catch (error) {
+      console.error('❌ Error updating Event Type:', error);
+    }
+  };
+
+  const editTabs = [
+    { key: 'grundinformationen', label: 'Grundinformationen' },
+    { key: 'planung', label: 'Planung' },
+    { key: 'verfuegbarkeit', label: 'Verfügbarkeit' },
+    { key: 'kalender', label: 'Kalender' },
+    { key: 'erweitert', label: 'Erweitert' }
+  ];
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <AlertDialogHeader className="border-b pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <AlertDialogTitle>Event-Typ bearbeiten</AlertDialogTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              <Plus className="h-4 w-4 rotate-45" />
+            </Button>
+          </div>
+          
+          {/* Tab Navigation */}
+          <div className="mt-4">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              {editTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveEditTab(tab.key)}
+                  className={`
+                    px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${activeEditTab === tab.key 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                    }
+                  `}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </AlertDialogHeader>
+        
+        <div className="flex-1 overflow-y-auto py-4">
+          {activeEditTab === 'grundinformationen' && (
+            <EventTypeEditStep1 formData={editFormData} setFormData={setEditFormData} />
+          )}
+          {activeEditTab === 'planung' && (
+            <EventTypeEditStep2 formData={editFormData} setFormData={setEditFormData} />
+          )}
+          {activeEditTab === 'verfuegbarkeit' && (
+            <EventTypeEditStep3 formData={editFormData} setFormData={setEditFormData} />
+          )}
+          {activeEditTab === 'kalender' && (
+            <EventTypeEditStep4 formData={editFormData} setFormData={setEditFormData} availableCalendars={availableCalendars} />
+          )}
+          {activeEditTab === 'erweitert' && (
+            <EventTypeEditStep5 formData={editFormData} setFormData={setEditFormData} />
+          )}
+        </div>
+
+        <AlertDialogFooter className="border-t pt-4">
+          <AlertDialogCancel onClick={() => onOpenChange(false)}>Abbrechen</AlertDialogCancel>
+          <Button onClick={handleUpdate} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+            Änderungen speichern
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// Edit Steps - reuse creation steps but with different names
+function EventTypeEditStep1({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep1 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep2({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep4 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep3({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep3 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep4({ formData, setFormData, availableCalendars }: { 
+  formData: EventTypeFormData, 
+  setFormData: (data: EventTypeFormData) => void,
+  availableCalendars: BackendCalendar[]
+}) {
+  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />;
+}
+
+function EventTypeEditStep5({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep5 formData={formData} setFormData={setFormData} />;
 }
 
 export default function Calendar() {
@@ -629,6 +813,14 @@ export default function Calendar() {
   const [allBackendCalendars, setAllBackendCalendars] = useState<BackendCalendar[]>([]);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
+  
+  // Event Type Edit/Delete State
+  const [showEditEventTypeModal, setShowEditEventTypeModal] = useState(false);
+  const [editingEventType, setEditingEventType] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
+    show: boolean;
+    eventType: any | null;
+  }>({ show: false, eventType: null });
 
   // Track deleted connections in localStorage to prevent reload issues
   const getDeletedConnections = (): string[] => {
@@ -650,6 +842,44 @@ export default function Calendar() {
 
   const clearDeletedConnections = () => {
     localStorage.removeItem('hotcalls_deleted_connections');
+  };
+
+  // Handle Edit Event Type
+  const handleEditEventType = (eventType: any) => {
+    setEditingEventType(eventType);
+    setShowEditEventTypeModal(true);
+  };
+
+  // Handle Delete Event Type
+  const handleDeleteEventType = (eventType: any) => {
+    setShowDeleteConfirm({ show: true, eventType });
+  };
+
+  // Confirm Delete Event Type
+  const confirmDeleteEventType = async () => {
+    if (!showDeleteConfirm.eventType) return;
+    
+    try {
+      await calendarAPI.deleteEventType(showDeleteConfirm.eventType.id);
+      console.log('✅ Event Type deleted');
+      
+      // Reload Event Types
+      await loadEventTypes();
+      
+      toast({
+        title: "Event Type gelöscht",
+        description: "Der Event Type wurde erfolgreich gelöscht.",
+      });
+    } catch (error) {
+      console.error('❌ Error deleting Event Type:', error);
+      toast({
+        title: "Fehler beim Löschen",
+        description: "Der Event Type konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteConfirm({ show: false, eventType: null });
+    }
   };
 
   // Load Event Types from backend
@@ -965,7 +1195,12 @@ export default function Calendar() {
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {eventTypes.map((eventType) => (
-                  <EventTypeCard key={eventType.id} eventType={eventType} />
+                  <EventTypeCard 
+                    key={eventType.id} 
+                    eventType={eventType} 
+                    onEdit={handleEditEventType}
+                    onDelete={handleDeleteEventType}
+                  />
                 ))}
               </div>
             </div>
@@ -1040,6 +1275,50 @@ export default function Calendar() {
         availableCalendars={allBackendCalendars}
         onEventTypeCreated={loadEventTypes}
       />
+
+      {/* Event Type Edit Modal */}
+      <EventTypeEditModal
+        open={showEditEventTypeModal}
+        onOpenChange={setShowEditEventTypeModal}
+        eventType={editingEventType}
+        availableCalendars={allBackendCalendars}
+        onEventTypeUpdated={loadEventTypes}
+      />
+
+      {/* Delete Event Type Confirmation Dialog */}
+      <AlertDialog 
+        open={showDeleteConfirm.show} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteConfirm({ show: false, eventType: null });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Event Type löschen
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Sind Sie sicher, dass Sie den Event Type{' '}
+              <strong>"{showDeleteConfirm.eventType?.name}"</strong> löschen möchten?
+              <br />
+              <br />
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteEventType}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

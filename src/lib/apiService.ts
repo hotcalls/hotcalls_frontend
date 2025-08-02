@@ -907,4 +907,41 @@ export const calendarAPI = {
       throw error;
     }
   },
+
+  /**
+   * Update Event Type Configuration
+   */
+  async updateEventType(id: string, payload: any): Promise<any> {
+    console.log(`🔄 PUT /api/calendars/configurations/${id}/ - Updating Event Type`);
+    
+    try {
+      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      console.log('✅ Event Type updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete Event Type Configuration
+   */
+  async deleteEventType(id: string): Promise<any> {
+    console.log(`🗑️ DELETE /api/calendars/configurations/${id}/ - Deleting Event Type`);
+    
+    try {
+      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
+        method: 'DELETE'
+      });
+      console.log('✅ Event Type deleted:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type delete API error:', error);
+      throw error;
+    }
+  },
 }; 
