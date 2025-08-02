@@ -686,9 +686,15 @@ export const paymentAPI = {
     subscription?: {
       id: string;
       status: string;
-      current_period_end: string;
-      plan: string;
+      current_period_end: number | null;
       cancel_at_period_end: boolean;
+      plan: {
+        id: string;
+        product: string;
+        amount: number;
+        currency: string;
+        interval: string;
+      };
     };
   }> {
     return apiCall(`/api/payments/workspaces/${workspaceId}/subscription/`);
