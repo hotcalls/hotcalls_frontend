@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -712,6 +713,33 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Hidden Advanced Settings - Only for non-Enterprise plans */}
+          {usage?.workspace?.plan && usage.workspace.plan !== 'Enterprise' && (
+            <div className="flex justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 h-6"
+                  >
+                    <SettingsIcon className="h-3 w-3 mr-1" />
+                    Advanced
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={handleManageSubscription}
+                    className="text-xs text-gray-600 cursor-pointer"
+                  >
+                    <CreditCard className="h-3 w-3 mr-2" />
+                    Subscription Portal
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </TabsContent>
 
         {/* Pläne & Guthaben Tab */}
@@ -977,19 +1005,7 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Subscription Management - Small button instead of big red card */}
-            {usage?.workspace?.plan && usage.workspace.plan !== 'Enterprise' && (
-              <div className="flex justify-end">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleManageSubscription}
-                  className="text-gray-600 hover:text-gray-800"
-                >
-                  Manage Subscription
-                </Button>
-              </div>
-            )}
+
 
             {/* Verfügbare Minuten */}
             <Card>

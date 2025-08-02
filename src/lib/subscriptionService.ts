@@ -168,10 +168,11 @@ class SubscriptionService {
   async createCustomerPortalSession(workspaceId: string): Promise<{ url: string }> {
     try {
       const currentUrl = window.location.origin;
-      return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/customer-portal/`, {
+      return await this.fetchWithAuth(`/api/payments/stripe/portal-session/`, {
         method: 'POST',
         body: JSON.stringify({
           return_url: `${currentUrl}/dashboard/settings?tab=billing`,
+          workspace_id: workspaceId,
         }),
       });
     } catch (error) {
