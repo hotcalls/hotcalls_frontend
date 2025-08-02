@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ArrowLeft, Check, Sparkles, Zap, Clock, Phone, CreditCard, Loader2, Play, Pause, User, UserCircle } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { authService, voiceService, agentService, Voice, AgentCreateRequest, getVoiceSampleUrl } from "@/lib/authService";
-import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest, agentAPI, CreateAgentRequest as APIAgentRequest } from "@/lib/apiService";
+import { workspaceAPI, callAPI, paymentAPI, MakeTestCallRequest, agentAPI, CreateAgentRequest as APIAgentRequest, plansAPI } from "@/lib/apiService";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
@@ -50,7 +50,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     pro: '',
     enterprise: ''
   });
-  const [isLoadingPrices, setIsLoadingPrices] = useState(false);
+  
+  // Dynamic plans from API
+  const [plans, setPlans] = useState<any[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false);
 
   // Get user profile for personalized greetings
   const { profile } = useUserProfile();
@@ -189,109 +192,101 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     loadVoices();
   }, []);
 
-  // Load Stripe products to get price IDs
+  // Load plans from API when reaching plan selection step
   useEffect(() => {
-    const loadStripePrices = async () => {
-      if (currentStep >= 5 && !planPriceMap.start) { // Load earlier - at step 5 instead of 6
-        setIsLoadingPrices(true);
+    const loadPlansFromAPI = async () => {
+      console.log('🔍 Plans useEffect triggered:', { currentStep, plansLength: plans.length });
+      
+      if (currentStep === 7 && plans.length === 0) {
+        console.log('✅ Conditions met - loading plans from API');
+        setIsLoadingPlans(true);
         try {
-          const response = await paymentAPI.getStripeProducts();
-          console.log('📦 Loaded Stripe products response:', response);
-          console.log('🕐 Loaded at:', new Date().toISOString());
+          console.log('📋 Loading plans from API...');
+          const plansResponse = await plansAPI.getPlans();
+          console.log('✅ Plans API response:', plansResponse);
           
-          // Extract products array from response
-          const products = response.products || response;
+          // Handle both array and paginated response formats
+          const plansData = Array.isArray(plansResponse) ? plansResponse : (plansResponse.results || []);
           
-          // Ensure it's an array
-          if (!Array.isArray(products)) {
-            console.error('❌ Invalid products response:', response);
-            throw new Error('Invalid products response from API');
-          }
+          // Transform API data to our expected format
+          const transformedPlans = plansData.map((plan: any) => ({
+            id: plan.plan_name.toLowerCase(), // "Start" -> "start"
+            name: plan.plan_name,
+            price: plan.formatted_price || `${plan.price_monthly}€/Monat`,
+            price_monthly: plan.price_monthly ? parseFloat(plan.price_monthly) : null,
+            description: plan.description,
+            features: transformFeatures(plan.features || [], plan.plan_name),
+            stripe_price_id: plan.stripe_price_id_monthly,
+            is_popular: plan.plan_name === 'Pro', // Pro ist am beliebtesten
+            is_contact: plan.plan_name === 'Enterprise'
+          }));
           
-          // Map products to our plan names based on price or name
-          const newPriceMap: Record<string, string> = {
-            start: '',
-            pro: '',
-            enterprise: ''
-          };
+          setPlans(transformedPlans);
+          console.log('🔄 Transformed plans:', transformedPlans);
           
-          // Sort by price to match plans
-          const sortedProducts = products.sort((a, b) => {
-            const priceA = a.prices[0]?.unit_amount || 0;
-            const priceB = b.prices[0]?.unit_amount || 0;
-            return priceA - priceB;
-          });
-          
-          // Map based on position or name matching
-          sortedProducts.forEach((product, index) => {
-            const monthlyPrice = product.prices.find(p => 
-              p.recurring?.interval === 'month' && 
-              p.recurring?.interval_count === 1 &&
-              p.unit_amount !== null // Skip metered prices
-            ) || product.prices[0];
-            
-            if (monthlyPrice && monthlyPrice.unit_amount) {
-              const lowerName = product.name.toLowerCase();
-              console.log(`🔍 Checking product: ${product.name} (${lowerName}) - Price: ${monthlyPrice.unit_amount/100}€`);
-              
-              // Check for Start plans (both "Start" and "Start Plan")
-              if ((lowerName === 'start' || lowerName === 'start plan') && !newPriceMap.start) {
-                console.log(`✅ Matched Start plan: ${product.name} -> ${monthlyPrice.id}`);
-                newPriceMap.start = monthlyPrice.id;
-              } 
-              // Check for Pro plan
-              else if (lowerName === 'pro' && !newPriceMap.pro) {
-                console.log(`✅ Matched Pro plan: ${product.name} -> ${monthlyPrice.id}`);
-                newPriceMap.pro = monthlyPrice.id;
-              }
-              // Enterprise doesn't need a price ID - it's a contact form
+          // Extract stripe price IDs from plans
+          const newPriceMap: Record<string, string> = {};
+          transformedPlans.forEach((plan: any) => {
+            if (plan.stripe_price_id && plan.id) {
+              newPriceMap[plan.id] = plan.stripe_price_id;
             }
           });
           
-          console.log('💰 Price mapping:', newPriceMap);
-          
-          // If no products were loaded or mapped, use actual Stripe price IDs
-          if (!newPriceMap.start || !newPriceMap.pro) {
-            console.warn('⚠️ Missing price mappings! Current map:', newPriceMap);
-            console.warn('⚠️ Products available:', products.map(p => ({
-              name: p.name,
-              prices: p.prices.map(pr => ({
-                id: pr.id,
-                amount: pr.unit_amount,
-                recurring: pr.recurring
-              }))
-            })));
-            
-            // Use the actual Stripe price IDs we know exist
-            if (!newPriceMap.start) {
-              newPriceMap.start = 'price_1RhukeRreb0r83OzezuvLXm2'; // Start - 199€
-              console.warn('⚠️ Using hardcoded Start price ID');
-            }
-            if (!newPriceMap.pro) {
-              newPriceMap.pro = 'price_1Rhul0Rreb0r83OzXyAcmohG';   // Pro - 549€
-              console.warn('⚠️ Using hardcoded Pro price ID');
-            }
-            // Enterprise doesn't need a price ID - it's a contact form
-          }
-          
-          console.log('📦 Final price mapping:', {
-            start: newPriceMap.start,
-            pro: newPriceMap.pro,
-            enterprise: newPriceMap.enterprise
-          });
-          
+          // Update price map with API data
           setPlanPriceMap(newPriceMap);
+          
+          console.log('✅ Loaded plans from API:', plansData);
+          console.log('💰 Updated price map:', newPriceMap);
+          
+          // Also load Stripe products for payment buttons - REAL Price IDs!
+          try {
+            console.log('💳 Loading Stripe products...');
+            const stripeResponse = await paymentAPI.getStripeProducts();
+            console.log('✅ Stripe products loaded:', stripeResponse);
+            
+            // Extract REAL Stripe Price IDs from products
+            const realPriceMap: Record<string, string> = {};
+            if (stripeResponse?.products) {
+              stripeResponse.products.forEach((product: any) => {
+                const monthlyPrice = product.prices?.find((price: any) => 
+                  price.recurring?.interval === 'month'
+                );
+                if (monthlyPrice && product.name) {
+                  const planKey = product.name.toLowerCase(); // "Start" -> "start"
+                  realPriceMap[planKey] = monthlyPrice.id;
+                  console.log(`💰 Real Stripe Price: ${planKey} -> ${monthlyPrice.id}`);
+                }
+              });
+            }
+            
+            // Override with REAL Stripe Price IDs
+            setPlanPriceMap(realPriceMap);
+            console.log('🎯 Using REAL Stripe Price IDs:', realPriceMap);
+            
+          } catch (stripeError) {
+            console.warn('⚠️ Failed to load Stripe products:', stripeError);
+            // Fallback to Plans API price IDs (might be fake)
+          }
+          
         } catch (error) {
-          console.error('Failed to load Stripe products:', error);
-          // Continue with fallback price IDs or plan names
+          console.warn('⚠️ Failed to load plans from API, using fallback plans and price IDs:', error);
+          // Set fallback price IDs if Plans API failed completely
+          setPlanPriceMap({
+            start: 'price_1RhukeRreb0r83OzezuvLXm2',
+            pro: 'price_1Rhul0Rreb0r83OzXyAcmohG',
+            enterprise: ''
+          });
+          console.log('💰 Set fallback price IDs due to API error');
         } finally {
-          setIsLoadingPrices(false);
+          setIsLoadingPlans(false);
         }
       }
     };
     
-    loadStripePrices();
-  }, [currentStep, planPriceMap.start]);
+    loadPlansFromAPI();
+  }, [currentStep, plans.length]);
+
+  // Both Plans API and Stripe Products are now loaded when Step 7 is reached
 
   const personalities = [
     "Professionell & Direkt",
@@ -299,9 +294,166 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     "Ruhig & Sachlich"
   ];
 
+  // Fallback plans if API fails
+  const fallbackPlans = [
+    {
+      id: 'start',
+      name: 'Start',
+      price: '199€',
+      price_monthly: 199,
+      description: 'Ideal für Einzelpersonen und kleine Teams',
+      features: [
+        'Inkl. 250 Minuten, dann 0,49€/Min.',
+        'Unbegrenzte Anzahl an Agenten',
+        'Automatisierte KI-Telefonate',
+        'Anbindung von Leadfunnels'
+      ],
+      stripe_price_id: 'price_1RhukeRreb0r83OzezuvLXm2',
+      is_popular: false
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: '549€',
+      price_monthly: 549,
+      description: 'Ideal für Unternehmen mit höherem Volumen',
+      features: [
+        'Alle Start-Features plus:',
+        'Inkl. 1000 Minuten, dann 0,29€/Min.',
+        'Priority Support',
+        'Advanced Analytics',
+        'CRM Integrationen'
+      ],
+      stripe_price_id: 'price_1Rhul0Rreb0r83OzXyAcmohG',
+      is_popular: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: 'Individuell',
+      price_monthly: null,
+      description: 'Individuelle Lösungen für große Unternehmen',
+      features: [
+        'Alle Pro-Features plus:',
+        'Unbegrenzte Agenten & Minuten',
+        'White Label Lösung',
+        'Dedizierter Account Manager',
+        'Custom Integrationen'
+      ],
+      stripe_price_id: null,
+      is_popular: false,
+      is_contact: true
+    }
+  ];
+
   const navigateToPlans = () => {
     localStorage.setItem('welcomeCompleted', 'true');
     window.location.href = '/dashboard/plans';
+  };
+
+  // Transform API features to user-friendly strings
+  const transformFeatures = (apiFeatures: any[], planName: string) => {
+    const features: string[] = [];
+    
+    apiFeatures.forEach(feature => {
+      const name = feature.feature_name;
+      const limit = feature.limit;
+      
+      switch (name) {
+        case 'call_minutes':
+          if (limit === 999999) {
+            // Skip "Unbegrenzte Minuten" for Enterprise per user request
+            if (planName !== 'Enterprise') {
+              features.push('Unbegrenzte Minuten');
+            }
+          } else {
+            features.push(`Inkl. ${limit} Minuten`);
+          }
+          break;
+        case 'overage_rate_cents':
+          if (limit > 0) {
+            const rate = (limit / 100).toFixed(2);
+            features.push(`dann ${rate}€/Min.`);
+          }
+          break;
+        case 'max_users':
+          if (limit === 999999) {
+            // Skip "Unbegrenzte Benutzer" for Enterprise per user request
+            if (planName !== 'Enterprise') {
+              features.push('Unbegrenzte Benutzer');
+            }
+          } else if (limit === 1) {
+            features.push('1 User pro Workspace');
+          } else if (limit === 3) {
+            features.push('3 User pro Workspace');
+          } else if (limit > 1) {
+            features.push(`${limit} User pro Workspace`);
+          }
+          break;
+        case 'max_agents':
+          if (limit === 999999) {
+            // Skip for Enterprise per user request
+            if (planName !== 'Enterprise') {
+              features.push('Unbegrenzte Agents');
+            }
+          } else if (limit === 1) {
+            features.push('1 Agent pro Workspace');
+          } else if (limit === 3) {
+            features.push('3 Agents pro Workspace');
+          } else if (limit > 1) {
+            features.push(`${limit} Agents pro Workspace`);
+          }
+          break;
+        case 'whitelabel_solution':
+          features.push('White Label Lösung');
+          break;
+        case 'crm_integrations':
+          features.push('CRM Integrationen');
+          break;
+        case 'priority_support':
+          features.push('Priority Support');
+          break;
+        case 'advanced_analytics':
+          // Skip "Advanced Analytics" for Enterprise per user request
+          if (planName !== 'Enterprise') {
+            features.push('Advanced Analytics');
+          }
+          break;
+        case 'custom_voice_cloning':
+          features.push('Custom Voice Cloning');
+          break;
+        default:
+          // Fallback: use description if available
+          if (feature.feature_description) {
+            features.push(feature.feature_description);
+          }
+      }
+    });
+    
+         // Add plan-specific features (Agent limits now come from API)
+     if (planName === 'Start') {
+       features.push('Automatisierte KI-Telefonate');
+       features.push('Anbindung von Leadfunnels');
+     } else if (planName === 'Pro') {
+       features.push('Automatisierte KI-Telefonate');
+       features.push('Anbindung von Leadfunnels');
+     } else if (planName === 'Enterprise') {
+       // Enterprise: Skip several features per user request
+       // Skip: Agent limits, "Automatisierte KI-Telefonate", "Anbindung von Leadfunnels", "Advanced Analytics"
+       console.log('🏢 Enterprise features before filtering:', features);
+     }
+    
+    return features;
+  };
+
+  // Get current plans (API or fallback)
+  const getCurrentPlans = () => {
+    if (plans.length > 0) {
+      console.log('📋 Using API plans:', plans);
+      return plans;
+    }
+    console.log('📋 Using fallback plans');
+    return fallbackPlans;
   };
 
   const steps = [
@@ -504,7 +656,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       const priceId = planPriceMap[plan];
       
       // If no price ID found, check if we're still loading
-      if (!priceId && isLoadingPrices) {
+      if (!priceId && isLoadingPlans) {
         toast.warning('Pläne werden noch geladen...', {
           description: 'Bitte versuche es in einem Moment erneut.'
         });
@@ -529,41 +681,27 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       setFormData(prev => ({ ...prev, selectedPlan: plan }));
       setSelectedPlanDetails({ id: plan, name: planName, price: planPrice });
       
-      // Check if workspace has Stripe customer
-      const workspaces = await workspaceAPI.getMyWorkspaces();
-      if (!workspaces || workspaces.length === 0) {
-        throw new Error('Kein Workspace gefunden');
-      }
-      
-      const primaryWorkspace = workspaces[0];
-      const stripeInfo = await paymentAPI.getStripeInfo(primaryWorkspace.id);
-      
-      // Create Stripe customer if needed
-      if (!stripeInfo.has_stripe_customer) {
-        console.log('📝 Creating Stripe customer...');
-        await paymentAPI.createStripeCustomer(primaryWorkspace.id, primaryWorkspace.workspace_name);
-        toast.success('Zahlungskonto erstellt');
-      }
-      
-      // Create checkout session with the actual price ID
-      console.log('💳 Creating checkout session with price ID:', finalPriceId);
-      const { checkout_url } = await paymentAPI.createCheckoutSession(
-        primaryWorkspace.id, 
-        finalPriceId
-      );
-      
       // Save plan selection to localStorage for after redirect
       localStorage.setItem('selectedPlan', plan);
       localStorage.setItem('welcomeFlowStep', '7');
       
-      // Redirect to Stripe Checkout
-      toast.info('Weiterleitung zu Stripe...', {
-        description: 'Du wirst zur sicheren Zahlungsseite weitergeleitet.'
-      });
+      console.log('💳 Selected plan with price ID:', finalPriceId);
       
-      setTimeout(() => {
-        window.location.href = checkout_url;
-      }, 1000);
+      // Create Stripe checkout session using real payment API
+      const checkoutResponse = await paymentAPI.createCheckoutSession(
+        primaryWorkspace.id,
+        finalPriceId
+      );
+      
+      console.log('✅ Checkout session created:', checkoutResponse);
+      
+      // Redirect to Stripe checkout
+      if (checkoutResponse.checkout_url) {
+        console.log('🚀 Redirecting to Stripe checkout:', checkoutResponse.checkout_url);
+        window.location.href = checkoutResponse.checkout_url;
+      } else {
+        throw new Error('No checkout URL received from payment API');
+      }
       
     } catch (error: any) {
       console.error('❌ Plan selection error:', error);
@@ -987,163 +1125,97 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 Wähle deinen Plan
               </h2>
               
-              <div className="grid md:grid-cols-3 gap-8 px-4">
-                {/* Start Plan */}
-                <div className="border-2 border-gray-200 rounded-lg p-8 hover:border-[#FE5B25] transition-all">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Start</h3>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Ideal für Einzelpersonen und kleine Teams
-                      </p>
-                    </div>
-                    <div>
-                      <div className="text-4xl font-bold text-gray-900">199€</div>
-                      <p className="text-sm text-gray-500">/Monat</p>
-                    </div>
-                    <ul className="space-y-3 text-sm">
-                      <li className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                        <span>Inkl. 250 Minuten, dann 0,49€/Min.</span>
-                      </li>
-                      <li className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                        <span>Unbegrenzte Anzahl an Agenten</span>
-                      </li>
-                      <li className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                        <span>Automatisierte KI-Telefonate</span>
-                      </li>
-                      <li className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                        <span>Anbindung von Leadfunnels</span>
-                      </li>
-                    </ul>
-                    <Button 
-                      className="w-full bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
-                      onClick={() => handlePlanSelection('start', 'Start', '199€')}
-                      disabled={isProcessingPayment}
-                    >
-                      {isProcessingPayment ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Verarbeitung...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 h-5 w-5" />
-                          Jetzt auswählen
-                        </>
-                      )}
-                    </Button>
-                  </div>
+              {isLoadingPlans && (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#FE5B25]" />
+                  <p className="text-gray-600 mt-2">Lade Pläne...</p>
                 </div>
-
-                {/* Pro Plan */}
-                <div className="border-2 border-[#FE5B25] bg-[#FEF5F1] rounded-lg p-8 relative transform scale-105 shadow-lg">
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
-                        <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
-                          Am beliebtesten
-                        </span>
+              )}
+              
+              {!isLoadingPlans && (
+                <div className="grid md:grid-cols-3 gap-8 px-4">
+                  {getCurrentPlans().map((plan, index) => {
+                    const isPopular = plan.is_popular;
+                    const isContact = plan.is_contact;
+                    
+                    return (
+                      <div key={plan.id} className={`border-2 rounded-lg p-8 hover:border-[#FE5B25] transition-all ${
+                        isPopular ? 'border-[#FE5B25] bg-[#FEF5F1] relative transform scale-105 shadow-lg' : 'border-gray-200'
+                      }`}>
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
+                              {isPopular && (
+                                <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
+                                  Am beliebtesten
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 mt-2">
+                              {plan.description}
+                            </p>
+                          </div>
+                          <div>
+                            <div className="text-4xl font-bold text-gray-900">
+                              {plan.price_monthly !== null ? `${plan.price_monthly}€` : 'Individuell'}
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              {plan.price_monthly !== null ? '/Monat' : 'Preis auf Anfrage'}
+                            </p>
+                          </div>
+                          {plan.features && plan.features.length > 0 && (
+                            <div>
+                              {index > 0 && plan.features[0]?.includes('Features plus:') && (
+                                <p className="text-sm font-medium text-gray-700 mb-3">{plan.features[0]}</p>
+                              )}
+                              <ul className="space-y-3 text-sm">
+                                {plan.features.slice(index > 0 && plan.features[0]?.includes('Features plus:') ? 1 : 0).map((feature, featureIndex) => (
+                                  <li key={featureIndex} className="flex items-center space-x-3">
+                                    <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                                    <span>{feature}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <Button 
+                            className={`w-full focus:ring-0 focus:ring-offset-0 ${
+                              isContact 
+                                ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                                : 'bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white'
+                            }`}
+                            onClick={() => {
+                              if (isContact) {
+                                window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
+                              } else {
+                                handlePlanSelection(plan.id, plan.name, plan.price);
+                              }
+                            }}
+                            disabled={isProcessingPayment && !isContact}
+                          >
+                            {isProcessingPayment && !isContact ? (
+                              <>
+                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                Verarbeitung...
+                              </>
+                            ) : (
+                              <>
+                                {isContact ? (
+                                  <Phone className="mr-2 h-5 w-5" />
+                                ) : (
+                                  <CreditCard className="mr-2 h-5 w-5" />
+                                )}
+                                {isContact ? 'Mit Gründer sprechen' : 'Jetzt auswählen'}
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Ideal für Unternehmen mit höherem Volumen
-                      </p>
-                    </div>
-                    <div>
-                      <div className="text-4xl font-bold text-gray-900">549€</div>
-                      <p className="text-sm text-gray-500">/Monat</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-3">Alle Start-Features plus:</p>
-                      <ul className="space-y-3 text-sm">
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Inkl. 1000 Minuten, dann 0,29€/Min.</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Priority Support</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Advanced Analytics</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>CRM Integrationen</span>
-                        </li>
-                      </ul>
-                    </div>
-                    <Button 
-                      className="w-full bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
-                      onClick={() => handlePlanSelection('pro', 'Pro', '549€')}
-                      disabled={isProcessingPayment}
-                    >
-                      {isProcessingPayment ? (
-                        <>
-                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                          Verarbeitung...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="mr-2 h-5 w-5" />
-                          Jetzt auswählen
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                    );
+                  })}
                 </div>
-
-                {/* Enterprise Plan */}
-                <div className="border-2 border-gray-200 rounded-lg p-8 hover:border-[#FE5B25] transition-all">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-2xl font-bold text-gray-900">Enterprise</h3>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Individuelle Lösungen für große Unternehmen
-                      </p>
-                    </div>
-                    <div>
-                      <div className="text-4xl font-bold text-gray-900">Individuell</div>
-                      <p className="text-sm text-gray-500">Preis auf Anfrage</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-3">Alle Pro-Features plus:</p>
-                      <ul className="space-y-3 text-sm">
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Unbegrenzte Agenten & Minuten</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>White Label Lösung</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Dedizierter Account Manager</span>
-                        </li>
-                        <li className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
-                          <span>Custom Integrationen</span>
-                        </li>
-                      </ul>
-                    </div>
-                                        <Button 
-                      className="w-full bg-gray-900 hover:bg-gray-800 text-white focus:ring-0 focus:ring-offset-0"
-                      onClick={() => {
-                        window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
-                      }}
-                    >
-                      <Phone className="mr-2 h-5 w-5" />
-                      Mit Gründer sprechen
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              )}
 
               <div className="text-center space-y-3">
                 <Button 
