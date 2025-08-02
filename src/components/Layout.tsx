@@ -34,52 +34,39 @@ export function Layout({ children }: LayoutProps) {
         const primaryWorkspace = workspaces[0];
         console.log('🏢 Checking plan for workspace:', primaryWorkspace.workspace_name);
         
-        // Check if WORKSPACE has active plan
+        // Check if WORKSPACE has active subscription using the correct endpoint
         try {
-          // Get workspace stripe info to check if it has active subscription
-          const stripeInfo = await paymentAPI.getStripeInfo(primaryWorkspace.id);
-          console.log('💳 Workspace Stripe info:', stripeInfo);
+          const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
+          console.log('💳 Workspace subscription check result:', subscriptionData);
           
-          // If workspace has stripe customer, check subscription status
-          if (stripeInfo.has_stripe_customer) {
-            const subscriptionData = await paymentAPI.getSubscription();
-            console.log('💳 Workspace subscription check result:', subscriptionData);
-            
-            // Check if workspace has active subscription or trial
-            const hasActivePlan = subscriptionData.has_subscription && 
-              (subscriptionData.subscription?.status === 'active' || 
-               subscriptionData.subscription?.status === 'trialing');
-            
-            console.log('💳 Workspace plan details:', {
-              workspace_id: primaryWorkspace.id,
-              workspace_name: primaryWorkspace.workspace_name,
-              has_stripe_customer: stripeInfo.has_stripe_customer,
-              has_subscription: subscriptionData.has_subscription,
-              status: subscriptionData.subscription?.status,
-              plan: subscriptionData.subscription?.plan,
-              hasActivePlan
-            });
-            
-            // MAIN LOGIC: Show welcome flow if workspace has NO active plan
-            if (!hasActivePlan) {
-              console.log('🆕 Workspace has no active plan, showing welcome flow');
-              localStorage.removeItem('welcomeCompleted');
-              setShowWelcome(true);
-            } else {
-              console.log('✅ Workspace has active plan, proceeding to dashboard');
-              localStorage.setItem('welcomeCompleted', 'true');
-              setShowWelcome(false);
-            }
-          } else {
-            // No stripe customer = no plan
-            console.log('🆕 Workspace has no Stripe customer, showing welcome flow');
+          // Check if workspace has active subscription
+          const hasActiveSubscription = subscriptionData.has_subscription && 
+            subscriptionData.subscription?.status === 'active';
+          
+          console.log('💳 Workspace subscription details:', {
+            workspace_id: primaryWorkspace.id,
+            workspace_name: primaryWorkspace.workspace_name,
+            has_subscription: subscriptionData.has_subscription,
+            status: subscriptionData.subscription?.status,
+            plan: subscriptionData.subscription?.plan,
+            hasActiveSubscription
+          });
+          
+          // MAIN LOGIC: Show welcome flow (plan selection) if workspace has NO active subscription
+          if (!hasActiveSubscription) {
+            console.log('🆕 Workspace has no active subscription, showing plan selection');
+            localStorage.removeItem('welcomeCompleted');
             setShowWelcome(true);
+          } else {
+            console.log('✅ Workspace has active subscription, proceeding to dashboard');
+            localStorage.setItem('welcomeCompleted', 'true');
+            setShowWelcome(false);
           }
         } catch (subscriptionError: any) {
-          console.error('❌ Failed to check workspace plan:', subscriptionError);
+          console.error('❌ Failed to check workspace subscription:', subscriptionError);
           
-          // If error checking plan, show welcome flow
-          console.log('⚠️ Could not verify workspace plan, showing welcome flow as fallback');
+          // If error checking subscription, show welcome flow (plan selection) as fallback
+          console.log('⚠️ Could not verify workspace subscription, showing plan selection as fallback');
           setShowWelcome(true);
         }
       } catch (error) {

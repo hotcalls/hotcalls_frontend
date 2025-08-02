@@ -679,19 +679,25 @@ export const paymentAPI = {
   },
 
   /**
-   * Get current subscription status
+   * Get current subscription status for workspace
    */
-  async getSubscription(): Promise<{
+  async getSubscription(workspaceId: string): Promise<{
     has_subscription: boolean;
     subscription?: {
       id: string;
       status: string;
-      current_period_end: string;
-      plan: string;
+      current_period_end: number | null;
       cancel_at_period_end: boolean;
+      plan: {
+        id: string;
+        product: string;
+        amount: number;
+        currency: string;
+        interval: string;
+      };
     };
   }> {
-    return apiCall('/api/payments/stripe/subscription/');
+    return apiCall(`/api/payments/workspaces/${workspaceId}/subscription/`);
   },
 
   /**

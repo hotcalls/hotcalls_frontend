@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '@/lib/authService';
-import { authAPI } from '@/lib/apiService';
+import { authAPI, workspaceAPI, paymentAPI } from '@/lib/apiService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,11 +10,61 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [shouldShowPlanSelection, setShouldShowPlanSelection] = useState(false);
 
   useEffect(() => {
     console.log('🔒 ProtectedRoute: Validating authentication...');
     validateAuthentication();
   }, []);
+
+  const checkSubscriptionStatus = async () => {
+    try {
+      console.log('🔍 Checking subscription status at login...');
+      
+      // Get user's workspaces
+      const workspaces = await workspaceAPI.getMyWorkspaces();
+      if (!workspaces || workspaces.length === 0) {
+        console.log('🆕 No workspace found, need plan selection');
+        setShouldShowPlanSelection(true);
+        return;
+      }
+      
+      const primaryWorkspace = workspaces[0];
+      console.log('🏢 Checking subscription for workspace:', primaryWorkspace.workspace_name);
+      
+      // Check subscription status using the correct endpoint
+      const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
+      console.log('💳 Login subscription check result:', subscriptionData);
+      
+      const hasActiveSubscription = subscriptionData.has_subscription && 
+        subscriptionData.subscription?.status === 'active';
+      
+      console.log('💳 Login subscription details:', {
+        workspace_id: primaryWorkspace.id,
+        workspace_name: primaryWorkspace.workspace_name,
+        has_subscription: subscriptionData.has_subscription,
+        status: subscriptionData.subscription?.status,
+        plan: subscriptionData.subscription?.plan,
+        hasActiveSubscription
+      });
+      
+      setHasActiveSubscription(hasActiveSubscription);
+      setShouldShowPlanSelection(!hasActiveSubscription);
+      
+      if (!hasActiveSubscription) {
+        console.log('🆕 No active subscription at login, will show plan selection');
+      } else {
+        console.log('✅ Active subscription confirmed at login, proceeding to dashboard');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Failed to check subscription status at login:', error);
+      // On error, assume no subscription and show plan selection
+      setShouldShowPlanSelection(true);
+      setHasActiveSubscription(false);
+    }
+  };
 
   const validateAuthentication = async () => {
     try {
@@ -44,6 +94,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         const profileResponse = await authAPI.getProfile();
         console.log('✅ Token validation successful:', { userEmail: profileResponse?.email });
         setIsAuthenticated(true);
+        
+        // After successful authentication, check subscription status
+        await checkSubscriptionStatus();
         
       } catch (error: any) {
         console.error('❌ Token validation failed:', error);
@@ -77,7 +130,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FE5B25] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Überprüfe Anmeldung...</p>
+          <p className="mt-4 text-gray-600">Überprüfe Anmeldung und Subscription...</p>
         </div>
       </div>
     );
@@ -89,6 +142,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  console.log('✅ User authenticated - allowing access to protected content');
+  // If authenticated but no active subscription, redirect to dashboard with plan selection
+  if (shouldShowPlanSelection) {
+    console.log('🆕 User authenticated but no active subscription - dashboard will show plan selection');
+    // Let the Layout component handle showing the WelcomeFlow for plan selection
+  }
+
+  console.log('✅ User authenticated and subscription checked - allowing access to protected content');
   return <>{children}</>;
 } 

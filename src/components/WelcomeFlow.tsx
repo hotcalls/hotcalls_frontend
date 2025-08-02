@@ -712,7 +712,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     }
   };
 
-  // Check payment status from URL
+  // Check payment status from URL and verify subscription
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const payment = urlParams.get('payment');
@@ -720,15 +720,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     
     if (payment === 'success' && price) {
       console.log('✅ Payment successful for price:', price);
-      // Set subscription active
-      setHasActiveSubscription(true);
-      // Jump to last step
-      setCurrentStep(8);
-      // Clear URL params
-      window.history.replaceState({}, '', window.location.pathname);
-      toast.success('Zahlung erfolgreich!', {
-        description: `Dein Plan ist jetzt aktiv.`
-      });
+      // Verify actual subscription status with API
+      verifySubscriptionAfterPayment();
     } else if (payment === 'cancelled') {
       console.log('❌ Payment cancelled');
       // Stay on plan selection
@@ -740,6 +733,58 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       });
     }
   }, []);
+
+  const verifySubscriptionAfterPayment = async () => {
+    try {
+      console.log('🔍 Verifying subscription status after Stripe payment...');
+      
+      if (!currentWorkspace) {
+        console.error('❌ No workspace available for subscription verification');
+        toast.error('Fehler bei der Verifizierung', {
+          description: 'Kein Workspace gefunden.'
+        });
+        return;
+      }
+
+      // Check subscription status using the correct endpoint
+      const subscriptionData = await paymentAPI.getSubscription(currentWorkspace.id);
+      console.log('💳 Subscription verification result:', subscriptionData);
+      
+      const hasActiveSubscription = subscriptionData.has_subscription && 
+        subscriptionData.subscription?.status === 'active';
+      
+      if (hasActiveSubscription) {
+        console.log('✅ Subscription verified - payment successful!');
+        // Set subscription active
+        setHasActiveSubscription(true);
+        // Jump to last step
+        setCurrentStep(8);
+        // Clear URL params
+        window.history.replaceState({}, '', window.location.pathname);
+        toast.success('Zahlung erfolgreich!', {
+          description: `Dein Plan ist jetzt aktiv.`
+        });
+      } else {
+        console.log('❌ Subscription not active after payment');
+        // Stay on plan selection
+        setCurrentStep(7);
+        // Clear URL params
+        window.history.replaceState({}, '', window.location.pathname);
+        toast.error('Subscription nicht aktiv', {
+          description: 'Bitte versuche es erneut oder kontaktiere den Support.'
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to verify subscription after payment:', error);
+      // Stay on plan selection on error
+      setCurrentStep(7);
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+      toast.error('Fehler bei der Verifizierung', {
+        description: 'Bitte versuche es erneut.'
+      });
+    }
+  };
 
   const nextStep = () => {
     if (currentStep === 4) {
