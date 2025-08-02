@@ -106,8 +106,9 @@ class SubscriptionService {
    */
   async getPlanDetailsByName(planName: string): Promise<any | null> {
     try {
-      const plans = await this.getPlanPricing();
-      return plans.find(plan => plan.name === planName) || null;
+      // Use main plans API which includes stripe_price_id_monthly (pricing API doesn't!)
+      const plans = await this.getPlans();
+      return plans.find(plan => plan.plan_name === planName) || null;
     } catch (error) {
       console.error('❌ Failed to get plan details:', error);
       return null;

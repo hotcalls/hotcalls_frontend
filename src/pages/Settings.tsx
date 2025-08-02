@@ -210,20 +210,15 @@ export default function Settings() {
     try {
       console.log('🔄 Changing to plan:', planName);
       
-      // Get the price ID based on plan name
-      let priceId = '';
-      switch (planName) {
-        case 'Start':
-          priceId = 'price_1QStbGLkdIwHu7ixUzPSJI4t'; // Start plan price ID
-          break;
-        case 'Pro':
-          priceId = 'price_1QStbnLkdIwHu7ixb8VKJMOH'; // Pro plan price ID
-          break;
-        default:
-          toast('Plan switching not available for this plan');
-          setChangingPlan(false);
-          return;
+      // Get price ID from backend API (NO HARDCODED BULLSHIT!)
+      const planDetails = await subscriptionService.getPlanDetailsByName(planName);
+      if (!planDetails || !planDetails.stripe_price_id_monthly) {
+        toast(`Unable to get pricing details for ${planName} plan from backend`);
+        setChangingPlan(false);
+        return;
       }
+      
+      const priceId = planDetails.stripe_price_id_monthly;
       
       const checkoutSession = await subscriptionService.createCheckoutSession({
         workspace_id: primaryWorkspace.id,

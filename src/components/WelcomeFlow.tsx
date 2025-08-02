@@ -270,10 +270,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           
         } catch (error) {
           console.warn('⚠️ Failed to load plans from API, using fallback plans and price IDs:', error);
-          // Set fallback price IDs if Plans API failed completely
+          // NO FALLBACK PRICE IDs! Force user to fix API issue instead of using wrong IDs
+          console.error('❌ CRITICAL: Cannot load plans from API. Fix the backend before allowing plan selection!');
           setPlanPriceMap({
-            start: 'price_1RhukeRreb0r83OzezuvLXm2',
-            pro: 'price_1Rhul0Rreb0r83OzXyAcmohG',
+            start: '',
+            pro: '',
             enterprise: ''
           });
           console.log('💰 Set fallback price IDs due to API error');
@@ -308,7 +309,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         'Automatisierte KI-Telefonate',
         'Anbindung von Leadfunnels'
       ],
-      stripe_price_id: 'price_1RhukeRreb0r83OzezuvLXm2',
+      stripe_price_id: '', // NO HARDCODED IDs! Must come from API
       is_popular: false
     },
     {
@@ -324,7 +325,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         'Advanced Analytics',
         'CRM Integrationen'
       ],
-      stripe_price_id: 'price_1Rhul0Rreb0r83OzXyAcmohG',
+      stripe_price_id: '', // NO HARDCODED IDs! Must come from API
       is_popular: true
     },
     {
@@ -357,17 +358,20 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     
     apiFeatures.forEach(feature => {
       const name = feature.feature_name;
-      const limit = feature.limit;
+      const limitRaw = feature.limit;
+      const limit = parseInt(parseFloat(limitRaw)); // Convert "1000.000" to 1000
       
       switch (name) {
         case 'call_minutes':
-          if (limit === 999999) {
-            // Skip "Unbegrenzte Minuten" for Enterprise per user request
-            if (planName !== 'Enterprise') {
+          if (limit >= 999999) {
+            // Enterprise gets "Individuell" instead of huge numbers
+            if (planName === 'Enterprise') {
+              // Skip adding big numbers for Enterprise - will be handled in the UI separately
+            } else {
               features.push('Unbegrenzte Minuten');
             }
           } else {
-            features.push(`Inkl. ${limit} Minuten`);
+            features.push(`Inkl. ${limit.toLocaleString()} Minuten`); // Remove decimals, add thousand separators
           }
           break;
         case 'overage_rate_cents':
@@ -377,31 +381,35 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           }
           break;
         case 'max_users':
-          if (limit === 999999) {
-            // Skip "Unbegrenzte Benutzer" for Enterprise per user request
-            if (planName !== 'Enterprise') {
+          if (limit >= 999999) {
+            // Enterprise gets "Individuell" instead of huge numbers
+            if (planName === 'Enterprise') {
+              // Skip adding big numbers for Enterprise - will be handled in the UI separately
+            } else {
               features.push('Unbegrenzte Benutzer');
             }
           } else if (limit === 1) {
             features.push('1 User pro Workspace');
           } else if (limit === 3) {
-            features.push('3 User pro Workspace');
+            features.push('3 User pro Workspace'); // No decimals!
           } else if (limit > 1) {
-            features.push(`${limit} User pro Workspace`);
+            features.push(`${limit.toLocaleString()} User pro Workspace`);
           }
           break;
         case 'max_agents':
-          if (limit === 999999) {
-            // Skip for Enterprise per user request
-            if (planName !== 'Enterprise') {
+          if (limit >= 999999) {
+            // Enterprise gets "Individuell" instead of huge numbers
+            if (planName === 'Enterprise') {
+              // Skip adding big numbers for Enterprise - will be handled in the UI separately
+            } else {
               features.push('Unbegrenzte Agents');
             }
           } else if (limit === 1) {
             features.push('1 Agent pro Workspace');
           } else if (limit === 3) {
-            features.push('3 Agents pro Workspace');
+            features.push('3 Agents pro Workspace'); // No decimals!
           } else if (limit > 1) {
-            features.push(`${limit} Agents pro Workspace`);
+            features.push(`${limit.toLocaleString()} Agents pro Workspace`);
           }
           break;
         case 'whitelabel_solution':
@@ -438,8 +446,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
        features.push('Automatisierte KI-Telefonate');
        features.push('Anbindung von Leadfunnels');
      } else if (planName === 'Enterprise') {
-       // Enterprise: Skip several features per user request
-       // Skip: Agent limits, "Automatisierte KI-Telefonate", "Anbindung von Leadfunnels", "Advanced Analytics"
+       // Enterprise: Add proper "Individuell" features instead of big numbers
+       features.push('Individuell - Unbegrenzte Minuten');
+       features.push('Individuell - Unbegrenzte User');
+       features.push('Individuell - Unbegrenzte Agents');
        console.log('🏢 Enterprise features before filtering:', features);
      }
     
@@ -664,12 +674,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         return;
       }
       
-      // If still no price ID, use hardcoded ones
-      const finalPriceId = priceId || (
-        plan === 'start' ? 'price_1RhukeRreb0r83OzezuvLXm2' :
-        plan === 'pro' ? 'price_1Rhul0Rreb0r83OzXyAcmohG' :
-        null
-      );
+      // NO HARDCODED PRICE IDs! Must come from backend API
+      const finalPriceId = priceId;
       
       if (!finalPriceId) {
         throw new Error(`Keine Price ID für Plan ${plan} gefunden`);

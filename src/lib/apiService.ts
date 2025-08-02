@@ -663,8 +663,8 @@ export const paymentAPI = {
     checkout_url: string;
     session_id: string;
   }> {
-    const successUrl = `${window.location.origin}/?payment=success&price=${priceIdOrPlan}`;
-    const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+    const successUrl = `${window.location.origin}/dashboard?payment=success&price=${priceIdOrPlan}`;
+    const cancelUrl = `${window.location.origin}/dashboard?payment=cancelled`;
     
     // Use the correct endpoint as specified by user
     return apiCall('/api/payments/stripe/create-checkout-session/', {
@@ -734,10 +734,10 @@ export const plansAPI = {
    * Get all available subscription plans
    */
   async getPlans(): Promise<any> {
-    console.log('📋 GET /api/plans/plans/ - Fetching available plans');
+    console.log('📋 GET /api/plans/ - Fetching available plans');
     
     try {
-      const response = await apiCall<any>('/api/plans/plans/');
+      const response = await apiCall<any>('/api/plans/');
       console.log('✅ Plans API response:', response);
       return response;
     } catch (error) {
