@@ -1,9 +1,11 @@
-import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut } from "lucide-react";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut, AlertTriangle } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
 import { buttonStyles, iconSizes } from "@/lib/buttonStyles";
 import { useUserProfile } from "@/hooks/use-user-profile";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useCallMinutesUsage } from "@/hooks/use-usage-status";
 import { authService } from "@/lib/authService";
 import { apiConfig } from "@/lib/apiConfig";
 
@@ -15,35 +17,118 @@ const items = [
   { title: "Lead Quellen", url: "/dashboard/lead-sources", icon: Webhook },
 ];
 
-const currentPlan = {
-  name: "Pro",
-  usedMinutes: 247,
-  totalMinutes: 1000,
-  needsUpgrade: false
-};
-
 const PlanSection = () => {
-  const progressPercentage = (currentPlan.usedMinutes / currentPlan.totalMinutes) * 100;
-  const needsUpgrade = progressPercentage > 80; // Show upgrade button if > 80% used
+  const { primaryWorkspace } = useWorkspace();
+  const { 
+    callMinutes, 
+    loading, 
+    error, 
+    isNearingLimit, 
+    isOverLimit, 
+    usageColor, 
+    displayText, 
+    percentage 
+  } = useCallMinutesUsage(primaryWorkspace?.id || null);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="px-2 py-3">
+        <div className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-32"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="px-2 py-3">
+        <div className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-xs">Usage data unavailable</span>
+          </div>
+          <button 
+            className={buttonStyles.secondary.fullWidth}
+            onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
+          >
+            <Eye className={iconSizes.small} />
+            <span>View Plan</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // No workspace selected
+  if (!primaryWorkspace) {
+    return (
+      <div className="px-2 py-3">
+        <div className="bg-white rounded-lg border p-4 space-y-3">
+          <div className="text-sm text-gray-500">No workspace selected</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate progress percentage for progress bar
+  const progressPercentage = callMinutes && !callMinutes.unlimited && callMinutes.limit 
+    ? Math.min((callMinutes.used / callMinutes.limit) * 100, 100)
+    : 0;
+
+  // Determine progress bar color based on usage
+  const getProgressBarColor = () => {
+    if (isOverLimit) return 'bg-red-500';
+    if (isNearingLimit) return 'bg-orange-500';
+    if (usageColor === 'yellow') return 'bg-yellow-500';
+    return 'bg-[#FE5B25]'; // Default orange
+  };
+
+  // Show upgrade button if nearing or over limit
+  const needsUpgrade = isNearingLimit || isOverLimit;
 
   return (
     <div className="px-2 py-3">
       <div className="bg-white rounded-lg border p-4 space-y-3">
         <div>
-          <div className="text-sm font-medium text-gray-900">{currentPlan.name} Plan</div>
+          <div className="text-sm font-medium text-gray-900">
+            {primaryWorkspace.workspace_name}
+          </div>
           <div className="text-xs text-gray-500">
-            {currentPlan.usedMinutes} / {currentPlan.totalMinutes} Minuten
+            {callMinutes?.unlimited ? displayText : displayText}
           </div>
         </div>
         
-        <div className="space-y-2">
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
-            <div 
-              className="bg-[#FE5B25] h-1.5 rounded-full transition-all" 
-              style={{ width: `${progressPercentage}%` }}
-            />
+        {/* Progress bar - only show if not unlimited */}
+        {callMinutes && !callMinutes.unlimited && (
+          <div className="space-y-2">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div 
+                className={`${getProgressBarColor()} h-1.5 rounded-full transition-all`}
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+            {/* Show percentage if over 0% */}
+            {progressPercentage > 0 && (
+              <div className="text-xs text-gray-500 text-right">
+                {percentage}
+              </div>
+            )}
           </div>
-        </div>
+        )}
+        
+        {/* Show warning for over limit */}
+        {isOverLimit && (
+          <div className="flex items-center gap-2 text-red-600 text-xs">
+            <AlertTriangle className="h-3 w-3" />
+            <span>Quota exceeded</span>
+          </div>
+        )}
         
         {needsUpgrade ? (
           <button 
@@ -51,7 +136,7 @@ const PlanSection = () => {
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <CreditCard className={iconSizes.small} />
-            <span>Guthaben auffüllen</span>
+            <span>Upgrade Plan</span>
           </button>
         ) : (
           <button 
@@ -59,7 +144,7 @@ const PlanSection = () => {
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
-            <span>Plan ansehen</span>
+            <span>View Usage</span>
           </button>
         )}
       </div>

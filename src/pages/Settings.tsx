@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon, Clock, AlertTriangle, Calendar, Infinity } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { toast } from "sonner";
 
 // Mock data für Minuten-Pakete basierend auf Plan
@@ -38,29 +40,43 @@ const getMinutePackages = (plan: string) => {
   }
 };
 
-const currentBalance = 127; // Current minute balance
-const currentPlan = {
-  name: "Pro",
-  price: "549€",
-  features: ["Bis zu 5 User", "Max 12 aktive Agenten", "1000 Minuten inkludiert"],
-  usedMinutes: 247,
-  totalMinutes: 1000,
-  currentUsers: 3,
-  maxUsers: 5,
-  currentAgents: 8,
-  maxAgents: 12,
-  isTestPhase: false // Ändere zu true für "Pläne vergleichen" statt "Plan ändern"
-};
-
-// Note: Team members are now loaded via API hooks
+// Note: Plan and usage data are now loaded via API hooks
 
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
   const [isProcessing, setIsProcessing] = useState(false);
+  
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
-  const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
+  
+  // Load workspace and usage data
   const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
+  const { usage, features, loading: usageLoading, error: usageError, lastUpdated } = useAllFeaturesUsage(primaryWorkspace?.id || null);
+  const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
+  
+  // Generate current plan data from API
+  const callMinutesFeature = features.find(f => f.name === 'call_minutes');
+  const maxUsersFeature = features.find(f => f.name === 'max_users');
+  const maxAgentsFeature = features.find(f => f.name === 'max_agents');
+  
+  const currentPlan = {
+    name: usage?.workspace?.plan || "Loading...",
+    price: usage?.workspace?.plan === "Enterprise" ? "Custom" : "549€", // You might want to get this from API too
+    features: [], // Could be populated from cosmetic_features
+    usedMinutes: callMinutesFeature?.used || 0,
+    totalMinutes: callMinutesFeature?.limit || 0,
+    unlimited: callMinutesFeature?.unlimited || false,
+    currentUsers: maxUsersFeature?.used || 0,
+    maxUsers: maxUsersFeature?.limit || 0,
+    currentAgents: maxAgentsFeature?.used || 0,
+    maxAgents: maxAgentsFeature?.limit || 0,
+    isTestPhase: false
+  };
+  
+  // Calculate available minutes from usage data
+  const currentBalance = callMinutesFeature ? 
+    (callMinutesFeature.unlimited ? 'Unlimited' : (callMinutesFeature.remaining || 0)) : 
+    'Loading...';
 
   // Profile form data
   const [profileFormData, setProfileFormData] = useState({
@@ -516,6 +532,142 @@ export default function Settings() {
 
         {/* Pläne & Guthaben Tab */}
         <TabsContent value="billing" className="space-y-6">
+          {/* Usage Overview Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className={textStyles.sectionTitle}>Current Usage & Quotas</CardTitle>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {usage?.billing_period ? (
+                      <>
+                        Billing period: {new Date(usage.billing_period.start!).toLocaleDateString()} - {new Date(usage.billing_period.end!).toLocaleDateString()}
+                        {usage.billing_period.days_remaining !== null && (
+                          <span className="ml-2">({usage.billing_period.days_remaining} days remaining)</span>
+                        )}
+                      </>
+                    ) : (
+                      'Current usage for your workspace'
+                    )}
+                    {lastUpdated && (
+                      <span className="block text-xs mt-1">Last updated: {lastUpdated.toLocaleTimeString()}</span>
+                    )}
+                  </p>
+                </div>
+                {usageError && (
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Data Error
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {usageLoading ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                      <div className="h-2 bg-gray-200 rounded mb-1"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/6"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : usageError ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load usage data</h3>
+                  <p className="text-gray-600 mb-4">{usageError}</p>
+                  <Button onClick={() => window.location.reload()} variant="outline">
+                    Try Again
+                  </Button>
+                </div>
+              ) : features.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-gray-500">No usage data available</div>
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {features.map((feature) => (
+                    <div key={feature.name} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {feature.name === 'call_minutes' && <Clock className="h-4 w-4 text-gray-500" />}
+                          {feature.name === 'max_users' && <Users className="h-4 w-4 text-gray-500" />}
+                          {feature.name === 'max_agents' && <Building className="h-4 w-4 text-gray-500" />}
+                          <span className="font-medium text-sm">
+                            {feature.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        </div>
+                        {feature.isOverLimit && (
+                          <Badge variant="destructive" className="text-xs">Over Limit</Badge>
+                        )}
+                        {feature.isNearingLimit && !feature.isOverLimit && (
+                          <Badge variant="outline" className="text-xs border-orange-200 text-orange-600">Warning</Badge>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Used</span>
+                          <span className="font-medium">
+                            {feature.unlimited ? (
+                              <span className="flex items-center gap-1">
+                                {feature.used} {feature.unit} <Infinity className="h-3 w-3" />
+                              </span>
+                            ) : (
+                              `${feature.used} / ${feature.limit || 0} ${feature.unit}`
+                            )}
+                          </span>
+                        </div>
+                        
+                        {!feature.unlimited && feature.limit && (
+                          <>
+                            <Progress 
+                              value={feature.percentage_used || 0} 
+                              className={`h-2 ${
+                                feature.isOverLimit ? 'text-red-500' : 
+                                feature.isNearingLimit ? 'text-orange-500' : 
+                                'text-green-500'
+                              }`}
+                            />
+                            <div className="text-xs text-gray-500 text-right">
+                              {feature.percentageText}
+                            </div>
+                          </>
+                        )}
+                        
+                        {feature.unlimited && (
+                          <div className="text-xs text-green-600 font-medium">Unlimited</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Cosmetic Features */}
+              {usage?.cosmetic_features && Object.keys(usage.cosmetic_features).length > 0 && (
+                <div className="mt-8 pt-6 border-t">
+                  <h4 className="font-semibold text-sm mb-4">Plan Features</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {Object.entries(usage.cosmetic_features).map(([feature, value]) => (
+                      <div key={feature} className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${value && value !== 'standard' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <span className="text-sm">
+                          {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                        {typeof value === 'string' && value !== 'true' && value !== 'false' && value !== 'standard' && (
+                          <Badge variant="secondary" className="text-xs">{value}</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
           {/* Aktueller Plan & Verfügbare Minuten - NEBENEINANDER */}
           <div className="grid md:grid-cols-2 gap-6">
             {/* Aktueller Plan */}
@@ -544,15 +696,28 @@ export default function Settings() {
                   
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span>Verbrauchte Minuten</span>
-                      <span>{currentPlan.usedMinutes} / {currentPlan.totalMinutes}</span>
+                      <span>Call Minutes</span>
+                      <span>
+                        {currentPlan.unlimited ? (
+                          <span className="flex items-center gap-1">
+                            {currentPlan.usedMinutes} minutes <Infinity className="h-3 w-3" />
+                          </span>
+                        ) : (
+                          `${currentPlan.usedMinutes} / ${currentPlan.totalMinutes}`
+                        )}
+                      </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-[#FE5B25] h-2 rounded-full" 
-                        style={{ width: `${(currentPlan.usedMinutes / currentPlan.totalMinutes) * 100}%` }}
-                      />
-                    </div>
+                    {!currentPlan.unlimited && currentPlan.totalMinutes > 0 && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-[#FE5B25] h-2 rounded-full" 
+                          style={{ width: `${Math.min((currentPlan.usedMinutes / currentPlan.totalMinutes) * 100, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    {currentPlan.unlimited && (
+                      <div className="text-xs text-green-600 font-medium">Unlimited usage</div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -585,8 +750,35 @@ export default function Settings() {
               </CardHeader>
               <CardContent>
                 <div className="text-center py-6">
-                  <div className="text-4xl font-bold text-gray-900">{currentBalance}</div>
-                  <p className="text-gray-600">Verfügbare Minuten</p>
+                  {usageLoading ? (
+                    <div className="animate-pulse">
+                      <div className="h-12 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
+                    </div>
+                  ) : usageError ? (
+                    <div>
+                      <div className="text-2xl text-red-500 mb-2">Error</div>
+                      <p className="text-gray-600">Unable to load balance</p>
+                    </div>
+                  ) : callMinutesFeature?.unlimited ? (
+                    <div>
+                      <div className="text-4xl font-bold text-green-600 flex items-center justify-center gap-2">
+                        <Infinity className="h-10 w-10" />
+                        Unlimited
+                      </div>
+                      <p className="text-gray-600">Available Minutes</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-4xl font-bold text-gray-900">
+                        {Math.max(0, callMinutesFeature?.remaining || 0)}
+                      </div>
+                      <p className="text-gray-600">Remaining Minutes</p>
+                      {callMinutesFeature && callMinutesFeature.remaining !== null && callMinutesFeature.remaining < 50 && (
+                        <p className="text-orange-600 text-sm mt-2">⚠️ Low balance</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
