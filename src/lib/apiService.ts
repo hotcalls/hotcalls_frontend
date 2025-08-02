@@ -747,4 +747,118 @@ export const plansAPI = {
   },
 };
 
-// Export all APIs 
+// Export all APIs
+
+// Calendar API Types
+export interface BackendCalendar {
+  id: string;
+  workspace: string;
+  workspace_name: string;
+  name: string;
+  provider: string;
+  active: boolean;
+  config_count: number;
+  provider_details: {
+    external_id: string;
+    primary: boolean;
+    time_zone: string;
+    created_at: string;
+    updated_at: string;
+  };
+  connection_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoogleConnection {
+  id: string;
+  account_email: string;
+  active: boolean;
+  calendar_count: number;
+  status: string;
+}
+
+// Calendar API calls
+export const calendarAPI = {
+  /**
+   * Get all calendars for the current user/workspace
+   */
+  async getCalendars(): Promise<BackendCalendar[]> {
+    console.log('📅 GET /api/calendars/ - Fetching all calendars');
+    
+    try {
+      const response = await apiCall<BackendCalendar[]>('/api/calendars/');
+      console.log('✅ Calendars loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Calendar API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Google Calendar connections
+   */
+  async getGoogleConnections(): Promise<GoogleConnection[]> {
+    console.log('🔗 GET /api/calendars/google_connections/ - Fetching Google connections');
+    
+    try {
+      const response = await apiCall<GoogleConnection[]>('/api/calendars/google_connections/');
+      console.log('✅ Google connections loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Google connections API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate Google OAuth URL
+   */
+  async getGoogleOAuthURL(): Promise<{
+    authorization_url: string;
+    state: string;
+    message: string;
+  }> {
+    console.log('🔐 POST /api/calendars/google_auth_url/ - Generating OAuth URL');
+    
+    try {
+      const response = await apiCall<{
+        authorization_url: string;
+        state: string;
+        message: string;
+      }>('/api/calendars/google_auth_url/', {
+        method: 'POST'
+      });
+      console.log('✅ Google OAuth URL generated:', response.authorization_url);
+      return response;
+    } catch (error) {
+      console.error('❌ Google OAuth URL generation error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Disconnect Google Calendar connection
+   */
+  async disconnectGoogleCalendar(connectionId: string): Promise<{
+    success: boolean;
+    message?: string;
+  }> {
+    console.log('🔌 POST /api/calendars/${connectionId}/google_disconnect/ - Disconnecting Google Calendar');
+    
+    try {
+      const response = await apiCall<{
+        success: boolean;
+        message?: string;
+      }>(`/api/calendars/${connectionId}/google_disconnect/`, {
+        method: 'POST'
+      });
+      console.log('✅ Google Calendar disconnected:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Google disconnect error:', error);
+      throw error;
+    }
+  },
+}; 

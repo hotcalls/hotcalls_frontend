@@ -18,6 +18,11 @@ export function Layout({ children }: LayoutProps) {
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
 
   useEffect(() => {
+    // Temporarily disable Welcome Flow for development
+    setShowWelcome(false);
+    setIsCheckingSubscription(false);
+    
+    /* 
     const checkWelcomeFlow = async () => {
       try {
         console.log('🔍 Checking workspace plan status for welcome flow...');
@@ -80,6 +85,7 @@ export function Layout({ children }: LayoutProps) {
 
     // Check immediately on mount
     checkWelcomeFlow();
+    */
   }, [navigate]);
 
   const handleWelcomeComplete = () => {

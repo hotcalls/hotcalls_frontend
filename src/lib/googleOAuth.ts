@@ -1,15 +1,48 @@
 // Google OAuth Service for Calendar Integration
 
-const GOOGLE_CLIENT_ID = '987536634145-lklsm8o5fgg7o8fcin1q2po515ug6f2h.apps.googleusercontent.com';
-// Dynamically use the current origin to support different ports
-const REDIRECT_URI = `${window.location.origin}/oauth2callback`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Scopes for Google Calendar access
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly',
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/userinfo.email'
-].join(' ');
+// Backend Redirect URI - Google redirects hier nach OAuth
+const REDIRECT_URI = `${API_BASE_URL}/api/calendars/google_callback/`;
+
+// Helper function to get auth token
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('authToken');
+};
+
+// Helper function for API calls
+async function apiCall<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  // Add auth token if available
+  const authToken = getAuthToken();
+  if (authToken) {
+    headers['Authorization'] = `Token ${authToken}`;
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({
+      error: `HTTP ${response.status}: ${response.statusText}`
+    }));
+    throw new Error(errorData?.error || errorData?.message || `API call failed: ${response.statusText}`);
+  }
+
+  return response.json();
+}
 
 export interface GoogleOAuthParams {
   client_id: string;
@@ -23,22 +56,35 @@ export interface GoogleOAuthParams {
 }
 
 /**
- * Generate Google OAuth URL for calendar authorization
+ * Backend OAuth Response Format
  */
-export function getGoogleOAuthURL(state?: string): string {
-  const params: GoogleOAuthParams = {
-    client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    response_type: 'code',
-    scope: SCOPES,
-    access_type: 'offline', // Required for refresh token
-    prompt: 'consent', // Force consent screen to get refresh token
-    include_granted_scopes: 'true',
-    state: state || generateState()
-  };
+export interface GoogleOAuthResponse {
+  authorization_url: string;
+  state: string;
+  message: string;
+}
 
-  const searchParams = new URLSearchParams(params as any);
-  return `https://accounts.google.com/o/oauth2/v2/auth?${searchParams.toString()}`;
+/**
+ * Generate Google OAuth URL using backend API (via calendarAPI)
+ */
+export async function getGoogleOAuthURL(state?: string): Promise<string> {
+  // Import calendarAPI dynamically to avoid circular dependency
+  const { calendarAPI } = await import('./apiService');
+  
+  try {
+    const stateParam = state || generateState();
+    storeState(stateParam);
+    
+    console.log('🔐 Getting Google OAuth URL from backend...');
+    const response = await calendarAPI.getGoogleOAuthURL();
+    
+    console.log('✅ Google OAuth URL erhalten:', response.authorization_url);
+    return response.authorization_url;
+    
+  } catch (error) {
+    console.error('❌ Backend OAuth URL generation failed:', error);
+    throw error; // Kein Fallback mehr - Backend muss funktionieren
+  }
 }
 
 /**
@@ -95,81 +141,78 @@ export function extractAuthCode(urlParams: URLSearchParams): {
 }
 
 /**
- * Handle OAuth callback - exchange code for tokens via backend
+ * Backend Calendar API Types (imported for consistency)
  */
-export async function handleOAuthCallback(code: string): Promise<{
+export interface GoogleConnection {
+  id: string;
+  account_email: string;
+  active: boolean;
+  calendar_count: number;
+  status: string;
+}
+
+/**
+ * Get all Google Calendar connections (via calendarAPI)
+ */
+export async function getGoogleConnections(): Promise<GoogleConnection[]> {
+  // Import calendarAPI dynamically to avoid circular dependency
+  const { calendarAPI } = await import('./apiService');
+  
+  try {
+    console.log('🔗 Loading Google connections via calendarAPI...');
+    const connections = await calendarAPI.getGoogleConnections();
+    console.log('✅ Google Connections geladen:', connections);
+    return connections;
+  } catch (error) {
+    console.error('❌ Error loading Google connections:', error);
+    throw error;
+  }
+}
+
+/**
+ * Disconnect Google Calendar connection (via calendarAPI)
+ */
+export async function disconnectGoogleCalendar(connectionId: string): Promise<{ success: boolean; message?: string }> {
+  // Import calendarAPI dynamically to avoid circular dependency
+  const { calendarAPI } = await import('./apiService');
+  
+  try {
+    console.log('🔌 Disconnecting Google Calendar via calendarAPI:', connectionId);
+    const response = await calendarAPI.disconnectGoogleCalendar(connectionId);
+    console.log('✅ Google Calendar disconnected:', response);
+    return response;
+  } catch (error) {
+    console.error('❌ Error disconnecting Google Calendar:', error);
+    throw error;
+  }
+}
+
+/**
+ * VEREINFACHTER OAuth Callback Handler
+ * Backend macht alles automatisch - Frontend lädt nur Kalender neu
+ */
+export async function handleOAuthCallback(): Promise<{
   success: boolean;
   calendars?: any[];
   error?: string;
 }> {
   try {
-    // Mock response für Frontend-Testing
-    // TODO: Ersetze mit echtem Backend-Call wenn verfügbar
+    console.log('🔄 OAuth completed - loading calendars from backend...');
     
-    // Simuliere Backend-Call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Einfach die Google Connections vom Backend laden - kein Code-Handling nötig
+    const connections = await getGoogleConnections();
     
-    // Mock erfolgreiche Response mit Google Kalendern
-    // TODO: Diese Daten sollten aus dem echten Google OAuth Response kommen
-    
-    // Get the real email from OAuth flow (passed through URL params)
-    const urlParams = new URLSearchParams(window.location.search);
-    const authUser = urlParams.get('authuser');
-    const storedEmail = getStoredUserEmail();
-    
-    // Use the real email from the OAuth flow
-    const userEmail = storedEmail || 'mmmalmachen@gmail.com';
-    
-    const mockCalendars = [
-      {
-        id: "primary",
-        connection_id: `google-${Date.now()}`,
-        external_id: userEmail,
-        name: `${userEmail} (Haupt)`,
-        email: userEmail,
-        color: "#1a73e8",
-        primary: true,
-        access_role: "owner",
-        time_zone: "Europe/Berlin",
-        active: true
-      },
-      {
-        id: `calendar-${Date.now()}`,
-        connection_id: `google-${Date.now()}`,
-        external_id: `work-${userEmail}`,
-        name: "Arbeit",
-        email: userEmail,
-        color: "#0d7377",
-        primary: false,
-        access_role: "owner",
-        time_zone: "Europe/Berlin",
-        active: true
-      }
-    ];
-    
-    // Clear stored email after use
+    // Clear stored state after successful OAuth
+    sessionStorage.removeItem('oauth_state');
     sessionStorage.removeItem('oauth_user_email');
     
-    return { success: true, calendars: mockCalendars };
+    return { 
+      success: true, 
+      calendars: connections 
+    };
     
-    /* Original Code für später:
-    const response = await fetch('/api/calendars/google/callback', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ code, redirect_uri: REDIRECT_URI })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to exchange authorization code');
-    }
-
-    const data = await response.json();
-    return { success: true, calendars: data.calendars };
-    */
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('❌ OAuth callback error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 

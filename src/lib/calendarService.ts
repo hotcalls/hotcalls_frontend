@@ -195,26 +195,44 @@ export function canEditCalendar(calendar: Calendar): boolean {
 }
 
 /**
- * Get calendar display name
+ * Get calendar display name - improved for backend schema
  */
 export function getCalendarDisplayName(calendar: Calendar): string {
-  // If calendar has a custom name that includes (Haupt), use it as is
-  if (calendar.name && calendar.name.includes('(Haupt)')) {
-    return calendar.name;
-  }
-  
-  // If calendar has a name different from email, use the name
-  if (calendar.name && calendar.name !== calendar.email) {
+  // Use the calendar name from backend as primary display
+  if (calendar.name && calendar.name.trim() !== '') {
     const isPrimary = calendar.isPrimary || calendar.isDefault;
     return isPrimary ? `${calendar.name} (Haupt)` : calendar.name;
   }
   
-  // Extract username from email for cleaner display
-  const emailParts = calendar.email.split('@');
-  const username = emailParts[0];
-  const isPrimary = calendar.isPrimary || calendar.isDefault;
+  // Fallback to email if name is not available
+  if (calendar.email && calendar.email.includes('@')) {
+    // If it's a real email, extract username
+    const emailParts = calendar.email.split('@');
+    const username = emailParts[0];
+    const isPrimary = calendar.isPrimary || calendar.isDefault;
+    return isPrimary ? `${username} (Haupt)` : username;
+  }
   
-  return isPrimary ? `${username} (Haupt)` : username;
+  // Fallback to connection ID or generic name
+  return calendar.connectionId ? `Kalender ${calendar.connectionId.substring(0, 8)}` : 'Unbekannter Kalender';
+}
+
+/**
+ * Get calendar email for display - handles external_id vs real email
+ */
+export function getCalendarEmail(calendar: Calendar): string {
+  // If email looks like a real email, return it
+  if (calendar.email && calendar.email.includes('@') && !calendar.email.includes('group.calendar.google.com')) {
+    return calendar.email;
+  }
+  
+  // If it's a Google Calendar group ID, return a friendly version
+  if (calendar.email && calendar.email.includes('group.calendar.google.com')) {
+    return 'Google Kalender';
+  }
+  
+  // Fallback
+  return calendar.email || 'Unbekannt';
 }
 
 /**
