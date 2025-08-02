@@ -42,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
           
           // If workspace has stripe customer, check subscription status
           if (stripeInfo.has_stripe_customer) {
-            const subscriptionData = await paymentAPI.getSubscription();
+            const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
             console.log('💳 Workspace subscription check result:', subscriptionData);
             
             // Check if workspace has active subscription or trial

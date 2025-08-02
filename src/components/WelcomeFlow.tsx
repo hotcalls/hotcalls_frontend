@@ -83,8 +83,113 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     };
   }, []);
 
-  // Check subscription status and agent existence to determine starting step
+  // Handle payment success from Stripe redirect
   useEffect(() => {
+    const handlePaymentSuccess = async () => {
+      if (workspaceLoading || !primaryWorkspace) return;
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const payment = urlParams.get('payment');
+      const priceId = urlParams.get('price');
+      
+      console.log('🔍 URL Debug:', {
+        fullUrl: window.location.href,
+        search: window.location.search,
+        payment,
+        priceId,
+        allParams: Array.from(urlParams.entries())
+      });
+      
+      if (payment === 'success') {
+        console.log('🎉 Payment success detected! Price ID:', priceId);
+        console.log('⏳ Waiting for Stripe webhook to process...');
+        
+        // Show loading state
+        setCurrentStep(null);
+        
+        // Wait a bit for Stripe webhook to reach backend
+        setTimeout(async () => {
+          try {
+            console.log('🔍 Checking subscription status after payment...');
+            console.log('📤 API Call: GET /api/payments/workspaces/' + primaryWorkspace.id + '/subscription/');
+            const subscriptionStatus = await paymentAPI.getSubscription(primaryWorkspace.id);
+            console.log('💳 Subscription status response:', subscriptionStatus);
+            console.log('🎯 has_subscription value:', subscriptionStatus.has_subscription);
+            
+            if (subscriptionStatus.has_subscription) {
+              console.log('✅ Subscription confirmed! Redirecting to dashboard...');
+              setHasActiveSubscription(true);
+              
+              // Clean URL
+              window.history.replaceState({}, '', '/');
+              
+              // Show success message and exit welcome flow
+              toast.success('Zahlung erfolgreich!', {
+                description: 'Dein Plan ist jetzt aktiv. Willkommen zurück!'
+              });
+              
+              onComplete(); // Exit to dashboard
+              return;
+            } else {
+              // Try workspace details as fallback
+              console.log('🔄 Subscription API returned false, trying workspace details...');
+              const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
+              const hasActiveSubscription = workspaceDetails.has_active_subscription || 
+                                          workspaceDetails.subscription_active || 
+                                          workspaceDetails.active_subscription ||
+                                          (workspaceDetails.subscription_status === 'active') ||
+                                          (workspaceDetails.plan_status === 'active');
+              
+              console.log('🏢 Workspace details subscription check:', hasActiveSubscription);
+              
+              if (hasActiveSubscription) {
+                console.log('✅ Subscription confirmed via workspace details!');
+                setHasActiveSubscription(true);
+                window.history.replaceState({}, '', '/');
+                toast.success('Zahlung erfolgreich!', {
+                  description: 'Dein Plan ist jetzt aktiv. Willkommen zurück!'
+                });
+                onComplete();
+                return;
+              }
+              console.warn('⚠️ Payment success but no subscription found. Webhook might be delayed.');
+              toast.warning('Zahlung verarbeitet', {
+                description: 'Dein Plan wird aktiviert. Bitte warte einen Moment...'
+              });
+              
+              // Retry after a longer delay
+              setTimeout(async () => {
+                try {
+                  const retryStatus = await paymentAPI.getSubscription(primaryWorkspace.id);
+                  if (retryStatus.has_subscription) {
+                    setHasActiveSubscription(true);
+                    onComplete();
+                  } else {
+                    // Continue with normal flow if still no subscription
+                    checkWorkspaceAndAgents();
+                  }
+                } catch (error) {
+                  console.error('❌ Retry subscription check failed:', error);
+                  checkWorkspaceAndAgents();
+                }
+              }, 5000); // 5 more seconds
+            }
+          } catch (error) {
+            console.error('❌ Failed to check subscription after payment:', error);
+            toast.error('Fehler beim Prüfen der Zahlung', {
+              description: 'Bitte lade die Seite neu oder kontaktiere den Support.'
+            });
+            checkWorkspaceAndAgents(); // Fall back to normal flow
+          }
+        }, 3000); // 3 seconds initial wait
+        
+        return; // Don't run normal checks
+      }
+      
+      // No payment success, run normal checks
+      checkWorkspaceAndAgents();
+    };
+
     const checkWorkspaceAndAgents = async () => {
       if (workspaceLoading || !primaryWorkspace) return;
       
@@ -132,7 +237,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       }
     };
 
-    checkWorkspaceAndAgents();
+    // Start with payment success handling
+    handlePaymentSuccess();
   }, [workspaceLoading, primaryWorkspace, onComplete]);
 
   // Load voices from API
@@ -712,24 +818,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     }
   };
 
-  // Check payment status from URL
+  // Handle payment cancellation from URL (success is handled in main useEffect above)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const payment = urlParams.get('payment');
-    const price = urlParams.get('price');
     
-    if (payment === 'success' && price) {
-      console.log('✅ Payment successful for price:', price);
-      // Set subscription active
-      setHasActiveSubscription(true);
-      // Jump to last step
-      setCurrentStep(8);
-      // Clear URL params
-      window.history.replaceState({}, '', window.location.pathname);
-      toast.success('Zahlung erfolgreich!', {
-        description: `Dein Plan ist jetzt aktiv.`
-      });
-    } else if (payment === 'cancelled') {
+    if (payment === 'cancelled') {
       console.log('❌ Payment cancelled');
       // Stay on plan selection
       setCurrentStep(7);
