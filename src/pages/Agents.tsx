@@ -348,14 +348,20 @@ export default function Agents() {
                 </CardHeader>
                 
                 <CardContent className={layoutStyles.cardContent}>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <p className={textStyles.metricLabel}>Charakter</p>
-                      <p className={textStyles.metric}>{agent.character}</p>
+                      <p className="text-sm font-normal text-gray-600">{agent.character}</p>
                     </div>
                     <div>
                       <p className={textStyles.metricLabel}>Stimme</p>
-                      <p className={textStyles.metric}>{voiceName}</p>
+                      <p className="text-sm font-normal text-gray-600">{voiceName}</p>
+                    </div>
+                    <div>
+                      <p className={textStyles.metricLabel}>Arbeitszeiten</p>
+                      <p className="text-sm font-normal text-gray-600">
+                        {agent.call_from?.slice(0, 5) || '09:00'} - {agent.call_to?.slice(0, 5) || '17:00'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
