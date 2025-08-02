@@ -130,11 +130,19 @@ class UsageService {
 
   /**
    * Check if feature is nearing limit (80%+ usage)
+   * FIXED: Don't show warnings for capacity limits (max_users, max_agents) at 100%
    */
   isNearingLimit(featureUsage: FeatureUsage): boolean {
     if (featureUsage.unlimited || !featureUsage.percentage_used) {
       return false;
     }
+    
+    // For capacity limits like max_users/max_agents, 100% is normal and expected
+    // Only show warnings for consumable resources like call_minutes
+    if (featureUsage.unit === 'general_unit' && featureUsage.percentage_used === 100) {
+      return false; // 100% capacity usage is normal, not a warning
+    }
+    
     return featureUsage.percentage_used >= 80;
   }
 
@@ -174,10 +182,14 @@ class UsageService {
 
   /**
    * Format percentage for display
+   * FIXED: Remove infinity symbols since backend now correctly returns unlimited: false
    */
   formatPercentage(featureUsage: FeatureUsage): string {
-    if (featureUsage.unlimited || !featureUsage.percentage_used) {
+    if (featureUsage.unlimited) {
       return '∞';
+    }
+    if (!featureUsage.percentage_used) {
+      return '0%';
     }
     return `${Math.round(featureUsage.percentage_used)}%`;
   }

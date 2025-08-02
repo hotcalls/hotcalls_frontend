@@ -841,9 +841,15 @@ export default function Settings() {
                       <div key={feature} className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${value && value !== 'standard' ? 'bg-green-500' : 'bg-gray-300'}`} />
                         <span className="text-sm">
-                          {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          {feature === 'overage_rate_per_minute_euros' ? 'Minutenkosten' : 
+                           feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                         </span>
-                        {typeof value === 'string' && value !== 'true' && value !== 'false' && value !== 'standard' && (
+                        {/* Show overage rate value in German format (cents/min) */}
+                        {feature === 'overage_rate_per_minute_euros' && typeof value === 'number' && (
+                          <Badge variant="secondary" className="text-xs">{Math.round(value * 100)} Cent/Min</Badge>
+                        )}
+                        {/* Show other string values */}
+                        {feature !== 'overage_rate_per_minute_euros' && typeof value === 'string' && value !== 'true' && value !== 'false' && value !== 'standard' && (
                           <Badge variant="secondary" className="text-xs">{value}</Badge>
                         )}
                       </div>
