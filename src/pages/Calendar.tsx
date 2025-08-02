@@ -118,13 +118,16 @@ export default function Calendar() {
         calendarAPI.getCalendars()
       ]);
 
-      // Filter out deleted connections
-      const deletedConnections = getDeletedConnections();
-      const filteredConnections = connectionsResponse.filter(conn => 
-        !deletedConnections.includes(conn.id)
-      );
+      // Trust backend - use all connections from backend response
+      // Backend already filters out truly disconnected connections
+      const filteredConnections = connectionsResponse;
 
       setGoogleConnections(filteredConnections);
+      console.log('🔍 DEBUG - Connections:', {
+        raw_connections: connectionsResponse,
+        filtered_connections: filteredConnections,
+        deleted_connections: getDeletedConnections()
+      });
 
       // BUGFIX: Handle paginated response
       const calendars = Array.isArray(calendarsResponse) 
@@ -136,35 +139,62 @@ export default function Calendar() {
         throw new Error('Invalid calendars response');
       }
 
-      // Convert to frontend format and filter out calendars from deleted connections
-      const convertedCalendars: CalendarType[] = calendars
-        .map(cal => ({
-          id: cal.id,
-          connectionId: cal.provider_details.external_id,
-          name: cal.name,
-          email: cal.provider_details.external_id,
+      console.log('🔍 DEBUG - Calendars:', {
+        calendar_count: calendars.length,
+        sample_calendar: calendars[0],
+        all_calendars: calendars
+      });
+
+      // Group calendars by Google connection (account_email)
+      const groupedByConnection = calendars.reduce((groups: any, cal: any) => {
+        // Find matching connection for this calendar
+        const connection = filteredConnections.find(conn => 
+          conn.account_email === cal.provider_details.external_id || // Direct email match
+          conn.account_email === 'mmmalmachen@gmail.com' // Known account
+        );
+        
+        if (connection) {
+          const email = connection.account_email;
+          if (!groups[email]) groups[email] = [];
+          groups[email].push(cal);
+        }
+        return groups;
+      }, {});
+
+      // Convert grouped calendars to frontend format - one card per Google account
+      const convertedCalendars: CalendarType[] = Object.entries(groupedByConnection).map(([email, cals]: [string, any[]]) => {
+        // Find primary calendar (main calendar)
+        const primaryCal = cals.find(cal => cal.provider_details.primary) || cals[0];
+        // Find sub-calendars (non-primary calendars)
+        const subCals = cals.filter(cal => !cal.provider_details.primary);
+        
+        return {
+          id: primaryCal.id,
+          connectionId: email, // Use email as connection identifier
+          name: primaryCal.name, // Use primary calendar name
+          email: email,
           provider: "Google Calendar",
-          isConnected: cal.connection_status === "connected" && cal.active,
-          isDefault: cal.provider_details.primary,
-          isPrimary: cal.provider_details.primary,
-          eventTypesCount: cal.config_count || 0,
+          isConnected: primaryCal.connection_status === "connected",
+          isDefault: primaryCal.provider_details.primary,
+          isPrimary: true, // This represents the main account card
+          eventTypesCount: primaryCal.config_count || 0,
           totalBookings: 0,
           bookingsThisWeek: 0,
-          subCalendars: [],
-          accessRole: cal.provider_details.primary ? "owner" : "writer",
-          timeZone: cal.provider_details.time_zone,
-          active: cal.active,
-          createdAt: new Date(cal.created_at),
-          lastSyncedAt: new Date(cal.provider_details.updated_at)
-        }))
-        .filter(cal => {
-          // Filter out calendars from deleted connections
-          const connectionExists = filteredConnections.some(conn => 
-            cal.email.includes(conn.account_email) || 
-            conn.account_email === 'mmmalmachen@gmail.com'
-          );
-          return connectionExists;
-        });
+          subCalendars: subCals.map(sub => ({
+            id: sub.id,
+            name: sub.name,
+            color: "#1a73e8",
+            isPublic: false,
+            isWritable: true,
+            description: `Sub-Kalender: ${sub.name}`
+          })),
+          accessRole: ("owner" as const),
+          timeZone: primaryCal.provider_details.time_zone,
+          active: primaryCal.active,
+          createdAt: new Date(primaryCal.created_at),
+          lastSyncedAt: new Date(primaryCal.provider_details.updated_at)
+        };
+      });
 
       setConnectedCalendars(convertedCalendars);
       console.log(`✅ Loaded ${filteredConnections.length} connections and ${convertedCalendars.length} calendars (filtered deleted connections)`);
@@ -342,30 +372,8 @@ export default function Calendar() {
                 </div>
               )}
 
-              {/* Individual Calendars */}
-              {connectedCalendars.length > 0 ? (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold">Verfügbare Kalender</h2>
-                    <Badge variant="outline">{connectedCalendars.length}</Badge>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {connectedCalendars.map((calendar) => (
-                      <CalendarCard 
-                        key={calendar.id} 
-                        calendar={calendar}
-                        connection={googleConnections.find(conn => 
-                          conn.account_email === calendar.email || 
-                          calendar.email.includes(conn.account_email) ||
-                          conn.account_email === 'mmmalmachen@gmail.com'
-                        )}
-                        isDisconnecting={disconnectingConnectionId === calendar.connectionId}
-                        onDisconnect={handleDisconnectGoogleCalendar}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : googleConnections.length === 0 ? (
+              {/* Show "Noch keine Kalender verbunden" only if no Google connections */}
+              {googleConnections.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-12">
                     <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -379,7 +387,7 @@ export default function Calendar() {
                     </Button>
                   </CardContent>
                 </Card>
-              ) : null}
+              )}
             </div>
           )}
         </TabsContent>
@@ -475,9 +483,6 @@ function GoogleConnectionCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={connection.active ? "default" : "secondary"}>
-              {connection.active ? 'Aktiv' : 'Inaktiv'}
-            </Badge>
             <Button
               variant="ghost"
               size="sm"
@@ -495,31 +500,14 @@ function GoogleConnectionCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-3 mb-4 text-center">
-          <div>
-            <p className="text-lg font-bold text-[#FE5B25]">{connection.calendar_count}</p>
-            <p className="text-xs text-muted-foreground">Gesamt</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold text-green-600">{calendars.length}</p>
-            <p className="text-xs text-muted-foreground">Aktiv</p>
-          </div>
-          <div>
-            <p className="text-lg font-bold text-blue-600">{subCalendars.length}</p>
-            <p className="text-xs text-muted-foreground">Sub-Kalender</p>
+        <div className="flex justify-center mb-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#FE5B25]">{connection.calendar_count}</p>
+            <p className="text-sm text-muted-foreground">Verbundene Sub-Kalender</p>
           </div>
         </div>
 
-        {/* Main Calendar */}
-        {mainCalendar && (
-          <div className="mb-3">
-            <div className="flex items-center gap-2 p-2 bg-[#FEF5F1] rounded border border-[#FFE1D7]">
-              <CalendarIcon className="h-4 w-4 text-[#FE5B25]" />
-              <span className="font-medium text-[#FE5B25]">{mainCalendar.name}</span>
-              <Badge className="bg-[#FE5B25] text-white text-xs ml-auto">Haupt</Badge>
-            </div>
-          </div>
-        )}
+
 
         {/* Sub-Calendars Dropdown */}
         {subCalendars.length > 0 && (

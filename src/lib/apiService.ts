@@ -159,9 +159,14 @@ async function apiCall<T>(
   const authToken = localStorage.getItem('authToken');
   if (authToken) {
     headers['Authorization'] = `Token ${authToken}`;
-    console.log('🔑 Added auth token to request headers');
+    console.log('🔑 Added auth token to request headers:', authToken.substring(0, 20) + '...');
   } else {
-    console.warn('⚠️ No auth token available - request might fail with 401');
+    console.error('❌ NO AUTH TOKEN FOUND! User might not be logged in. Calendar API will fail!');
+    console.log('🔍 Debug info:', {
+      localStorage_keys: Object.keys(localStorage),
+      current_url: window.location.href,
+      has_token: !!authToken
+    });
   }
   
   // Add CSRF token for non-GET requests
