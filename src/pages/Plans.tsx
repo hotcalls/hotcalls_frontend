@@ -1,27 +1,121 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Phone, ArrowLeft, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { Check, Phone, ArrowLeft, MessageCircle, Loader2, AlertTriangle, Crown, Building, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-
-const currentPlan = "Pro"; // Aktueller Plan des Users
+import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus } from "@/lib/subscriptionService";
+import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Plans() {
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+  const { primaryWorkspace } = useWorkspace();
+  const { usage } = useAllFeaturesUsage(primaryWorkspace?.id || null);
+  
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<WorkspaceSubscriptionStatus | null>(null);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  
+  // Get current plan from usage data
+  const currentPlan = usage?.workspace?.plan || null;
 
-  const handlePlanChange = async (planName: string) => {
-    setIsProcessing(true);
-    console.log('Changing to plan:', planName);
+  // Load plans and subscription status
+  useEffect(() => {
+    const loadData = async () => {
+      if (!primaryWorkspace?.id) return;
+
+      try {
+        setIsLoadingPlans(true);
+        setIsLoadingSubscription(true);
+        
+        const [plansData, subStatus] = await Promise.all([
+          subscriptionService.getPlans(),
+          subscriptionService.getSubscriptionStatus(primaryWorkspace.id),
+        ]);
+        
+        setPlans(plansData);
+        setSubscriptionStatus(subStatus);
+      } catch (error) {
+        console.error('❌ Failed to load data:', error);
+        toast({
+          title: "Error loading plans",
+          description: error instanceof Error ? error.message : "Failed to load plan information",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingPlans(false);
+        setIsLoadingSubscription(false);
+      }
+    };
+
+    loadData();
+  }, [primaryWorkspace?.id, toast]);
+
+  const handlePlanChange = async (plan: PlanInfo) => {
+    if (!primaryWorkspace?.id || !plan.stripe_price_id_monthly) {
+      toast({
+        title: "Unable to process",
+        description: "Plan switching is not available for this plan",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingPlan(plan.id);
     
-    // Simulate plan change
-    setTimeout(() => {
-      setIsProcessing(false);
-      console.log('Plan changed successfully');
-      navigate('/settings?tab=billing');
-    }, 1500);
+    try {
+      console.log('🔄 Creating checkout session for plan:', plan.name);
+      
+      const checkoutSession = await subscriptionService.createCheckoutSession({
+        workspace_id: primaryWorkspace.id,
+        price_id: plan.stripe_price_id_monthly,
+      });
+      
+      // Redirect to Stripe Checkout
+      window.location.href = checkoutSession.checkout_url;
+      
+    } catch (error) {
+      console.error('❌ Plan change failed:', error);
+      toast({
+        title: "Plan change failed",
+        description: error instanceof Error ? error.message : "Unable to process plan change",
+        variant: "destructive",
+      });
+      setProcessingPlan(null);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!primaryWorkspace?.id || !subscriptionStatus?.has_subscription) return;
+
+    try {
+      console.log('🚫 Cancelling subscription...');
+      
+      const result = await subscriptionService.cancelSubscription(primaryWorkspace.id);
+      
+      toast({
+        title: "Subscription cancelled",
+        description: "Your subscription will be cancelled at the end of the billing period",
+      });
+      
+      // Refresh subscription status
+      const newStatus = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
+      setSubscriptionStatus(newStatus);
+      
+    } catch (error) {
+      console.error('❌ Cancellation failed:', error);
+      toast({
+        title: "Cancellation failed", 
+        description: error instanceof Error ? error.message : "Unable to cancel subscription",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -85,8 +179,8 @@ export default function Plans() {
               <Button 
                 variant="outline" 
                 className="w-full h-12 text-[#FE5B25] border-[#FE5B25] hover:bg-[#FEF5F1]"
-                onClick={() => handlePlanChange("Start")}
-                disabled={isProcessing}
+                onClick={() => handlePlanChange({ name: "Start", stripe_price_id_monthly: "price_1QStbGLkdIwHu7ixUzPSJI4t", id: "start", price_monthly: 19900, is_active: true } as PlanInfo)}
+                disabled={processingPlan === "start"}
               >
                 {isProcessing ? "Wechsle..." : "14 Tage kostenlos testen"}
               </Button>

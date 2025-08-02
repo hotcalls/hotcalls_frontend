@@ -18,6 +18,7 @@ import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
+import { subscriptionService } from "@/lib/subscriptionService";
 import { toast } from "sonner";
 
 // Mock data für Minuten-Pakete basierend auf Plan
@@ -48,6 +49,7 @@ export default function Settings() {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const [changingPlan, setChangingPlan] = useState(false);
   
   // Load workspace and usage data
   const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
@@ -59,13 +61,130 @@ export default function Settings() {
   const maxUsersFeature = features.find(f => f.name === 'max_users');
   const maxAgentsFeature = features.find(f => f.name === 'max_agents');
   
+  // State for plan details from API
+  const [planDetails, setPlanDetails] = useState<any>(null);
+  const [loadingPlanDetails, setLoadingPlanDetails] = useState(false);
+
+  // Load plan details from database API
+  useEffect(() => {
+    const loadPlanDetails = async () => {
+      const planName = usage?.workspace?.plan;
+      console.log('🔄 Loading plan details for:', planName);
+      console.log('🔍 Current usage data:', usage);
+      
+      if (!planName) {
+        console.log('⚠️ No plan name available yet');
+        return;
+      }
+
+      setLoadingPlanDetails(true);
+      try {
+        console.log('📡 Calling subscriptionService.getPlanDetailsByName...');
+        const details = await subscriptionService.getPlanDetailsByName(planName);
+        console.log('✅ Got plan details:', details);
+        
+        if (details) {
+          const planDetails = {
+            name: details.name,
+            price: details.formatted_price,
+            description: details.name === 'Start' ? 'Ideal für Einzelpersonen und kleine Teams' :
+                        details.name === 'Pro' ? 'Perfekt für wachsende Unternehmen' :
+                        details.name === 'Enterprise' ? 'Maßgeschneiderte Lösung für große Unternehmen' :
+                        'Custom plan configuration',
+            monthly_price: details.monthly_price
+          };
+          console.log('📋 Setting plan details:', planDetails);
+          setPlanDetails(planDetails);
+        } else {
+          console.log('⚠️ No plan details found, using fallback');
+          // Fallback for unknown plans
+          setPlanDetails({
+            name: planName,
+            price: planName === 'Enterprise' ? 'Individuell' : 'Custom',
+            description: 'Custom plan configuration',
+            monthly_price: null
+          });
+        }
+      } catch (error) {
+        console.error('❌ Failed to load plan details:', error);
+        console.error('❌ Error details:', error.message, error.stack);
+        // FORCE FALLBACK - Don't stay in loading state!
+        setPlanDetails({
+          name: planName,
+          price: planName === 'Enterprise' ? 'Individuell' : 'Unknown',
+          description: 'Plan details temporarily unavailable',
+          monthly_price: null
+        });
+      } finally {
+        setLoadingPlanDetails(false);
+      }
+    };
+
+    if (usage?.workspace?.plan) {
+      loadPlanDetails();
+    }
+  }, [usage?.workspace?.plan]);
+
+  // Get real plan data from database instead of hardcoding
+  const getCurrentPlanDetails = () => {
+    const planName = usage?.workspace?.plan;
+    console.log('🎯 getCurrentPlanDetails called with planName:', planName);
+    console.log('🎯 Full usage object:', usage);
+    console.log('🎯 Workspace object:', usage?.workspace);
+    console.log('🎯 planDetails state:', planDetails);
+    console.log('🎯 loadingPlanDetails state:', loadingPlanDetails);
+    
+    // If we have loaded plan details, use them
+    if (planDetails) {
+      console.log('✅ Using loaded planDetails');
+      return planDetails;
+    }
+
+    // TEMP WORKAROUND: If usage data exists but plan is null/undefined, assume Enterprise
+    if (usage && usage.cosmetic_features && Object.keys(usage.cosmetic_features).length > 0 && !planName) {
+      console.log('🔧 WORKAROUND: Detected Enterprise based on cosmetic features');
+      return {
+        name: 'Enterprise',
+        price: 'Individuell',
+        description: 'Maßgeschneiderte Lösung für große Unternehmen'
+      };
+    }
+
+    // If we have a plan name but no details yet, show plan-specific fallback
+    if (planName) {
+      console.log('🔄 Using planName fallback for:', planName);
+      return {
+        name: planName,
+        price: planName === 'Enterprise' ? 'Individuell' : 
+               planName === 'Pro' ? '549.00€/Monat' :
+               planName === 'Start' ? '199.00€/Monat' : 'Custom',
+        description: planName === 'Start' ? 'Ideal für Einzelpersonen und kleine Teams' :
+                    planName === 'Pro' ? 'Perfekt für wachsende Unternehmen' :
+                    planName === 'Enterprise' ? 'Maßgeschneiderte Lösung für große Unternehmen' :
+                    'Custom plan configuration'
+      };
+    }
+
+    // Only show loading if we truly have no data
+    console.log('⏳ Showing loading state');
+    return {
+      name: "Loading...",
+      price: "Loading...",
+      description: "Loading plan information..."
+    };
+  };
+
+  const currentPlanDetails = getCurrentPlanDetails();
+  
   const currentPlan = {
-    name: usage?.workspace?.plan || "Loading...",
-    price: usage?.workspace?.plan === "Enterprise" ? "Custom" : "549€", // You might want to get this from API too
-    features: [], // Could be populated from cosmetic_features
+    name: currentPlanDetails.name,
+    price: currentPlanDetails.price,
+    description: currentPlanDetails.description,
+    features: usage?.cosmetic_features || {}, // Real cosmetic features from database
     usedMinutes: callMinutesFeature?.used || 0,
     totalMinutes: callMinutesFeature?.limit || 0,
-    unlimited: callMinutesFeature?.unlimited || false,
+    // FIX: Only Enterprise should be unlimited, Start/Pro should show actual limits
+    unlimited: currentPlanDetails.name === 'Enterprise' ? (callMinutesFeature?.unlimited || false) : false,
     currentUsers: maxUsersFeature?.used || 0,
     maxUsers: maxUsersFeature?.limit || 0,
     currentAgents: maxAgentsFeature?.used || 0,
@@ -75,8 +194,73 @@ export default function Settings() {
   
   // Calculate available minutes from usage data
   const currentBalance = callMinutesFeature ? 
-    (callMinutesFeature.unlimited ? 'Unlimited' : (callMinutesFeature.remaining || 0)) : 
+    (currentPlan.unlimited ? 'Unlimited' : (callMinutesFeature.remaining || 0)) : 
     'Loading...';
+
+  // Plan changing function
+  const handlePlanChange = async (planName: string) => {
+    if (!primaryWorkspace?.id) {
+      toast('No workspace selected');
+      return;
+    }
+
+    setChangingPlan(true);
+    
+    try {
+      console.log('🔄 Changing to plan:', planName);
+      
+      // Get the price ID based on plan name
+      let priceId = '';
+      switch (planName) {
+        case 'Start':
+          priceId = 'price_1QStbGLkdIwHu7ixUzPSJI4t'; // Start plan price ID
+          break;
+        case 'Pro':
+          priceId = 'price_1QStbnLkdIwHu7ixb8VKJMOH'; // Pro plan price ID
+          break;
+        default:
+          toast('Plan switching not available for this plan');
+          setChangingPlan(false);
+          return;
+      }
+      
+      const checkoutSession = await subscriptionService.createCheckoutSession({
+        workspace_id: primaryWorkspace.id,
+        price_id: priceId,
+      });
+      
+      console.log('✅ Checkout session created, redirecting to Stripe...');
+      
+      // Redirect to Stripe Checkout
+      window.location.href = checkoutSession.checkout_url;
+      
+    } catch (error) {
+      console.error('❌ Plan change failed:', error);
+      toast(error instanceof Error ? error.message : 'Plan change failed');
+      setChangingPlan(false);
+    }
+  };
+
+  // Open Stripe Customer Portal for subscription management
+  const handleManageSubscription = async () => {
+    if (!primaryWorkspace?.id) {
+      toast('No workspace selected');
+      return;
+    }
+
+    try {
+      console.log('🔗 Opening Stripe Customer Portal...');
+      
+      const result = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
+      
+      // Redirect to Stripe Customer Portal
+      window.location.href = result.url;
+      
+    } catch (error) {
+      console.error('❌ Failed to open customer portal:', error);
+      toast(error instanceof Error ? error.message : 'Unable to open subscription management');
+    }
+  };
 
   // Profile form data
   const [profileFormData, setProfileFormData] = useState({
@@ -613,10 +797,12 @@ export default function Settings() {
                           <span className="font-medium">
                             {feature.unlimited ? (
                               <span className="flex items-center gap-1">
-                                {feature.used} {feature.unit} <Infinity className="h-3 w-3" />
+                                {feature.used} {feature.unit === 'general_unit' ? '' : feature.unit} <Infinity className="h-3 w-3" />
                               </span>
                             ) : (
-                              `${feature.used} / ${feature.limit || 0} ${feature.unit}`
+                              feature.unit === 'general_unit' ? 
+                                `${feature.used} / ${feature.limit || 0}` :
+                                `${feature.used} / ${feature.limit || 0} ${feature.unit}`
                             )}
                           </span>
                         </div>
@@ -675,13 +861,32 @@ export default function Settings() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className={textStyles.sectionTitle}>Aktueller Plan</CardTitle>
-                  <button 
-                    className={buttonStyles.primary.default}
-                    onClick={() => window.location.href = '/dashboard/plans'}
-                  >
-                    <SettingsIcon className={iconSizes.small} />
-                    <span>{currentPlan.isTestPhase ? "Pläne vergleichen" : "Plan ändern"}</span>
-                  </button>
+                  <div className="flex gap-2">
+                    <Select onValueChange={handlePlanChange} disabled={changingPlan}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Plan ändern" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Start" disabled={currentPlan.name === "Start"}>
+                          Start - 199€
+                        </SelectItem>
+                        <SelectItem value="Pro" disabled={currentPlan.name === "Pro"}>
+                          Pro - 549€  
+                        </SelectItem>
+                        <SelectItem value="Enterprise" disabled={currentPlan.name === "Enterprise"}>
+                          Enterprise
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <button 
+                      className={buttonStyles.secondary.default}
+                      onClick={() => window.location.href = '/dashboard/plans'}
+                    >
+                      <SettingsIcon className={iconSizes.small} />
+                      <span>Vergleichen</span>
+                    </button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -689,10 +894,53 @@ export default function Settings() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className={textStyles.cardTitle}>{currentPlan.name} Plan</h3>
-                      <p className={textStyles.cardSubtitle}>{currentPlan.price} pro Monat</p>
+                      <p className={textStyles.cardSubtitle}>
+                        {currentPlan.price === 'Custom' ? 'Individuelle Preisgestaltung' : `${currentPlan.price} pro Monat`}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">{currentPlan.description}</p>
                     </div>
-                    <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
+                      {currentPlan.name === 'Enterprise' && (
+                        <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
+                          Premium Features
+                        </Badge>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Show Enterprise-specific features */}
+                  {currentPlan.name === 'Enterprise' && currentPlan.features && Object.keys(currentPlan.features).length > 0 && (
+                    <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                      <h4 className="text-sm font-semibold text-purple-800 mb-2">🚀 Enterprise Features</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {currentPlan.features.whitelabel_solution && (
+                          <div className="flex items-center gap-1 text-purple-700">
+                            <Check className="h-3 w-3" />
+                            <span>Whitelabel Solution</span>
+                          </div>
+                        )}
+                        {currentPlan.features.custom_voice_cloning && (
+                          <div className="flex items-center gap-1 text-purple-700">
+                            <Check className="h-3 w-3" />
+                            <span>Custom Voice Cloning</span>
+                          </div>
+                        )}
+                        {currentPlan.features.priority_support === 'enterprise' && (
+                          <div className="flex items-center gap-1 text-purple-700">
+                            <Check className="h-3 w-3" />
+                            <span>Enterprise Support</span>
+                          </div>
+                        )}
+                        {currentPlan.features.advanced_analytics && (
+                          <div className="flex items-center gap-1 text-purple-700">
+                            <Check className="h-3 w-3" />
+                            <span>Advanced Analytics</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
@@ -722,6 +970,20 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Subscription Management - Small button instead of big red card */}
+            {usage?.workspace?.plan && usage.workspace.plan !== 'Enterprise' && (
+              <div className="flex justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleManageSubscription}
+                  className="text-gray-600 hover:text-gray-800"
+                >
+                  Manage Subscription
+                </Button>
+              </div>
+            )}
 
             {/* Verfügbare Minuten */}
             <Card>
