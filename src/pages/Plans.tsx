@@ -179,7 +179,10 @@ export default function Plans() {
               <Button 
                 variant="outline" 
                 className="w-full h-12 text-[#FE5B25] border-[#FE5B25] hover:bg-[#FEF5F1]"
-                onClick={() => handlePlanChange({ name: "Start", stripe_price_id_monthly: "price_1QStbGLkdIwHu7ixUzPSJI4t", id: "start", price_monthly: 19900, is_active: true } as PlanInfo)}
+                onClick={() => {
+                  const startPlan = plans.find(p => p.plan_name === "Start");
+                  if (startPlan) handlePlanChange(startPlan);
+                }}
                 disabled={processingPlan === "start"}
               >
                 {isProcessing ? "Wechsle..." : "14 Tage kostenlos testen"}
