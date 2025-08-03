@@ -241,27 +241,6 @@ export default function Settings() {
     }
   };
 
-  // Open Stripe Customer Portal for subscription management
-  const handleManageSubscription = async () => {
-    if (!primaryWorkspace?.id) {
-      toast('No workspace selected');
-      return;
-    }
-
-    try {
-      console.log('🔗 Opening Stripe Customer Portal...');
-      
-      const result = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
-      
-      // Redirect to Stripe Customer Portal
-      window.location.href = result.url;
-      
-    } catch (error) {
-      console.error('❌ Failed to open customer portal:', error);
-      toast(error instanceof Error ? error.message : 'Unable to open subscription management');
-    }
-  };
-
   // Profile form data
   const [profileFormData, setProfileFormData] = useState({
     first_name: '',
