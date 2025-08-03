@@ -37,8 +37,16 @@ export default function LeadSources() {
       console.log('📡 Calling metaAPI.getIntegrations()...');
       const integrations = await metaAPI.getIntegrations();
       console.log('✅ Meta integrations response:', integrations);
-      setMetaIntegrations(integrations);
-      console.log(`✅ Loaded ${integrations.length} Meta integrations`);
+      console.log('✅ Is integrations an array?', Array.isArray(integrations));
+      
+      // Ensure we always set an array
+      if (Array.isArray(integrations)) {
+        setMetaIntegrations(integrations);
+      } else {
+        console.warn('⚠️ API returned non-array, using empty array:', integrations);
+        setMetaIntegrations([]);
+      }
+      console.log(`✅ Loaded ${Array.isArray(integrations) ? integrations.length : 0} Meta integrations`);
     } catch (error) {
       console.error('❌ Error loading Meta integrations:', error);
       console.error('❌ Full error object:', JSON.stringify(error, null, 2));
@@ -147,7 +155,7 @@ export default function LeadSources() {
       {/* Meta Integrations */}
       {!isLoading && (
         <div className={layoutStyles.cardGrid}>
-          {metaIntegrations.map((integration) => (
+          {Array.isArray(metaIntegrations) && metaIntegrations.map((integration) => (
             <Card key={integration.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -181,7 +189,7 @@ export default function LeadSources() {
           ))}
 
           {/* Empty state */}
-          {metaIntegrations.length === 0 && (
+          {Array.isArray(metaIntegrations) && metaIntegrations.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
                 <Facebook className="h-12 w-12 mx-auto mb-4 text-gray-400" />
