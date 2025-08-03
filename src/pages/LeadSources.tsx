@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Facebook, Globe, Linkedin, Webhook, Settings, Trash2, Play, Pause, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { metaAPI } from "@/lib/apiService";
@@ -30,19 +30,25 @@ export default function LeadSources() {
   const { toast } = useToast();
 
   // Load Meta integrations from backend
-  const loadMetaIntegrations = async () => {
+  const loadMetaIntegrations = useCallback(async () => {
+    console.log('🔍 Starting to load Meta integrations...');
     setIsLoading(true);
     try {
+      console.log('📡 Calling metaAPI.getIntegrations()...');
       const integrations = await metaAPI.getIntegrations();
+      console.log('✅ Meta integrations response:', integrations);
       setMetaIntegrations(integrations);
       console.log(`✅ Loaded ${integrations.length} Meta integrations`);
     } catch (error) {
       console.error('❌ Error loading Meta integrations:', error);
-      // Don't show error toast for empty results
+      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+      // Set empty array to prevent further errors
+      setMetaIntegrations([]);
     } finally {
       setIsLoading(false);
+      console.log('🏁 Meta integrations loading completed');
     }
-  };
+  }, []);
 
   const handleConfigure = (integrationId: string) => {
     navigate(`/dashboard/lead-sources/meta/config?integration=${integrationId}`);
@@ -75,8 +81,15 @@ export default function LeadSources() {
 
   // Load integrations on mount
   useEffect(() => {
-    loadMetaIntegrations();
-  }, []);
+    console.log('🚀 LeadSources component mounted, about to load integrations...');
+    console.log('📋 Workspace details:', workspaceDetails);
+    try {
+      loadMetaIntegrations();
+    } catch (error) {
+      console.error('💥 Error in useEffect:', error);
+      setIsLoading(false);
+    }
+  }, [loadMetaIntegrations]);
 
   return (
     <div className={layoutStyles.pageContainer}>
