@@ -1,1146 +1,1310 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useRef } from 'react';
+import { format } from 'date-fns';
+import { de } from 'date-fns/locale';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  AlertCircle, 
+  Calendar as CalendarIcon, 
+  Check, 
+  ChevronRight, 
+  Clock, 
+  ExternalLink, 
+  Loader2, 
+  Plus, 
+  Settings, 
+  Trash2, 
+  Users,
+  ArrowRight,
+  ArrowLeft
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  Plus, 
-  Calendar as CalendarIcon, 
-  ExternalLink, 
-  Clock, 
-  Copy,
-  Edit,
-  Trash2,
-  Check,
-  ArrowLeft,
-  ChevronRight,
-  Play,
-  Pause,
-  AlertCircle,
-  Info
-} from "lucide-react";
-import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { getGoogleOAuthURL, storeState } from "@/lib/googleOAuth";
-import { useLocation } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
-import { 
-  type Calendar as CalendarType,
-  getStoredCalendars, 
-  addCalendarsFromOAuth, 
-  disconnectCalendar,
-  deleteCalendar,
-  setDefaultCalendar,
-  getCalendarDisplayName,
-  canEditCalendar,
-  saveConnection,
-  clearTestCalendars,
-  saveCalendars
-} from "@/lib/calendarService";
-import { getAllAvailableCalendarsForDropdown } from "@/lib/dummyCalendarData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { calendarAPI, BackendCalendar, GoogleConnection } from "@/lib/apiService";
+import { getCalendarDisplayName, getCalendarEmail, saveCalendars } from "@/lib/calendarService";
 
-// Load initial calendars from localStorage or use empty array
-const loadInitialCalendars = (): CalendarType[] => {
-  const stored = getStoredCalendars();
-  // Return stored calendars or empty array - no dummy data
-  return stored;
-};
+// Types
+interface CalendarType {
+  id: string;
+  connectionId: string;
+  name: string;
+  email: string;
+  provider: string;
+  isConnected: boolean;
+  isDefault: boolean;
+  isPrimary: boolean;
+  eventTypesCount: number;
+  totalBookings: number;
+  bookingsThisWeek: number;
+  subCalendars: any[];
+  color?: string;
+  accessRole: "owner" | "writer" | "reader";
+  timeZone?: string;
+  active: boolean;
+  createdAt: Date;
+  lastSyncedAt?: Date;
+}
 
-// Event Type interface
 interface EventType {
   id: string;
   title: string;
-  slug: string;
   duration: number;
-  color: string;
   bookingBuffer: number;
-  isActive: boolean;
-  bookingsThisWeek: number;
-  totalBookings: number;
   conflictCheckCalendars: string[];
   targetCalendar: string;
-  limitBookingsPerDay?: boolean;
-  maxBookingsPerDay?: number;
+  limitBookingsPerDay: boolean;
+  maxBookingsPerDay: number;
 }
 
-// Initial mock data for event types by calendar
-const initialEventTypesByCalendar = {};
+interface EventTypeFormData {
+  name: string;
+  duration: number;
+  calendar: string;
+  conflictCheckCalendars: string[];
+  workdays: string[];
+  from_time: string;
+  to_time: string;
+  prep_time: number;
+  days_buffer: number;
+  meeting_type: 'online' | 'in_person';
+  meeting_link: string;
+  meeting_address: string;
+}
 
-export default function Calendar() {
-  const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("calendars");
-  const [activeDialogTab, setActiveDialogTab] = useState("basic");
-  const [isCreateEventDialogOpen, setIsCreateEventDialogOpen] = useState(false);
-  const [editingEventType, setEditingEventType] = useState<EventType | null>(null);
-  const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>(() => loadInitialCalendars());
-  const [eventTypesByCalendar, setEventTypesByCalendar] = useState<Record<string, any[]>>(() => {
-    const stored = localStorage.getItem('hotcalls_event_types');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error('Failed to parse stored event types:', e);
-      }
-    }
-    return initialEventTypesByCalendar;
-  });
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [calendarToDelete, setCalendarToDelete] = useState<CalendarType | null>(null);
-  const [deleteEventTypeDialogOpen, setDeleteEventTypeDialogOpen] = useState(false);
-  const [eventTypeToDelete, setEventTypeToDelete] = useState<{eventType: any, calendar: CalendarType} | null>(null);
-  const [isInstructionOpen, setIsInstructionOpen] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const location = useLocation();
-
-  // Save event types to localStorage whenever they change
-  const isFirstRender = useRef(true);
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    
-    localStorage.setItem('hotcalls_event_types', JSON.stringify(eventTypesByCalendar));
-  }, [eventTypesByCalendar]);
-
-  // Check if we're returning from successful OAuth
-  useEffect(() => {
-    if (location.state?.newConnection && location.state?.calendars) {
-      toast({
-        title: "Kalender verbunden!",
-        description: "Ihre Google Kalender wurden erfolgreich importiert.",
-      });
+// Event Type Step Components
+function EventTypeStep1({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Grundinformationen</h3>
       
-      // Add new calendars using the service
-      setConnectedCalendars(current => {
-        // First, clean up any test calendars
-        const cleanedCurrent = current.filter(cal => {
-          // Remove calendars with test email patterns
-          const isTestEmail = /^user\d+@gmail\.com$/.test(cal.email);
-          return !isTestEmail;
-        });
-        
-        const updated = addCalendarsFromOAuth(location.state.calendars, cleanedCurrent);
-        
-        // Save connection info
-        const primaryCalendar = location.state.calendars.find((cal: any) => cal.primary);
-        if (primaryCalendar) {
-          saveConnection(primaryCalendar.email || primaryCalendar.external_id, location.state.calendars);
-        }
-        
-        return updated;
-      });
-      
-      // Add empty event types for new calendars
-      setEventTypesByCalendar(prevEventTypes => {
-        const newEventTypes = { ...prevEventTypes };
-        location.state.calendars.forEach((cal: any) => {
-          const calId = cal.id || `${cal.email}-${Date.now()}`;
-          if (!newEventTypes[calId]) {
-            newEventTypes[calId] = [];
-          }
-        });
-        return newEventTypes;
-      });
-      
-      // Clear location state to prevent re-processing
-      window.history.replaceState({}, document.title);
-    }
-  }, [location.state?.newConnection]);
+      <div>
+        <Label htmlFor="event-name">Event Name</Label>
+        <Input 
+          id="event-name"
+          placeholder="z.B. Beratungsgespräch"
+          value={formData.name}
+          onChange={(e) => setFormData({...formData, name: e.target.value})}
+        />
+      </div>
 
-  const [formData, setFormData] = useState({
-    title: "",
-    duration: 30,
-    bookingBuffer: 60,
-    conflictCheckCalendars: [] as string[],
-    targetCalendar: "",
-    limitBookingsPerDay: false,
-    maxBookingsPerDay: 1
-  });
+      <div>
+        <Label htmlFor="event-duration">Event Dauer</Label>
+        <Select 
+          value={formData.duration.toString()}
+          onValueChange={(value) => setFormData({...formData, duration: parseInt(value)})}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="15">15 Minuten</SelectItem>
+            <SelectItem value="30">30 Minuten</SelectItem>
+            <SelectItem value="45">45 Minuten</SelectItem>
+            <SelectItem value="60">60 Minuten</SelectItem>
+            <SelectItem value="120">120 Minuten</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
 
-  const resetForm = () => {
-    setFormData({
-      title: "",
-      duration: 30,
-      bookingBuffer: 60,
-      conflictCheckCalendars: [],
-      targetCalendar: "",
-      limitBookingsPerDay: false,
-      maxBookingsPerDay: 1
-    });
-    setEditingEventType(null);
+function EventTypeStep2({ formData, setFormData, availableCalendars }: { 
+  formData: EventTypeFormData, 
+  setFormData: (data: EventTypeFormData) => void,
+  availableCalendars: BackendCalendar[]
+}) {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Kalendereinstellungen</h3>
+      
+      <div>
+        <Label>Zielkalender für Buchungen</Label>
+        <p className="text-sm text-muted-foreground mb-2">
+          Wählen Sie den Kalender aus, in den die Buchungen dieses Event-Types eingetragen werden sollen.
+        </p>
+        <Select 
+          value={formData.calendar}
+          onValueChange={(value) => setFormData({...formData, calendar: value})}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Kalender auswählen" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Kein Zielkalender</SelectItem>
+            {availableCalendars.map((cal) => (
+              <SelectItem key={cal.id} value={cal.id}>
+                {cal.name} (Google: {cal.provider_details.external_id})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label>Kalender für Verfügbarkeitsprüfung</Label>
+        <p className="text-sm text-muted-foreground mb-3">
+          Wählen Sie die Kalender aus, die auf Konflikte geprüft werden sollen.
+        </p>
+        <div className="space-y-2">
+          {availableCalendars.map((cal) => (
+            <div key={cal.id} className="flex items-center space-x-2">
+              <Checkbox 
+                id={cal.id}
+                checked={formData.conflictCheckCalendars.includes(cal.id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setFormData({
+                      ...formData, 
+                      conflictCheckCalendars: [...formData.conflictCheckCalendars, cal.id]
+                    });
+                  } else {
+                    setFormData({
+                      ...formData,
+                      conflictCheckCalendars: formData.conflictCheckCalendars.filter(id => id !== cal.id)
+                    });
+                  }
+                }}
+              />
+              <Label htmlFor={cal.id} className="flex items-center space-x-2">
+                <span>{cal.name}</span>
+                {formData.calendar === cal.id && formData.calendar !== 'none' && (
+                  <Badge className="bg-[#FE5B25] text-white text-xs">Zielkalender</Badge>
+                )}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventTypeStep3({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  const workdayLabels = {
+    monday: 'Montag',
+    tuesday: 'Dienstag', 
+    wednesday: 'Mittwoch',
+    thursday: 'Donnerstag',
+    friday: 'Freitag',
+    saturday: 'Samstag',
+    sunday: 'Sonntag'
   };
 
-  // Handle Google Calendar connection
-  const handleConnectGoogleCalendar = () => {
-    // Generate and store state for CSRF protection
-    const authUrl = getGoogleOAuthURL();
-    const urlParams = new URL(authUrl).searchParams;
-    const state = urlParams.get('state');
-    
-    if (state) {
-      storeState(state);
-    }
-    
-    // Redirect to Google OAuth
-    window.location.href = authUrl;
-  };
-
-  // Handle calendar deletion
-  const handleDeleteCalendar = (calendar: CalendarType) => {
-    setCalendarToDelete(calendar);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteCalendar = () => {
-    if (calendarToDelete) {
-      const updatedCalendars = deleteCalendar(calendarToDelete.id, connectedCalendars);
-      setConnectedCalendars(updatedCalendars);
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Arbeitszeiten</h3>
       
-      // Remove event types for deleted calendar
-      setEventTypesByCalendar(prev => {
-        const updated = { ...prev };
-        delete updated[calendarToDelete.id];
-        return updated;
-      });
+      <div>
+        <Label className="text-base font-medium">Verfügbare Wochentage</Label>
+        <p className="text-sm text-muted-foreground mb-3">Wählen Sie die Tage aus, an denen Termine möglich sind</p>
+        <div className="grid grid-cols-7 gap-2">
+          {Object.entries(workdayLabels).map(([key, label]) => (
+            <div key={key} className="text-center">
+              <Checkbox 
+                id={key}
+                checked={formData.workdays.includes(key)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setFormData({...formData, workdays: [...formData.workdays, key]});
+                  } else {
+                    setFormData({...formData, workdays: formData.workdays.filter(day => day !== key)});
+                  }
+                }}
+                className="peer sr-only"
+              />
+              <Label 
+                htmlFor={key} 
+                className={`
+                  cursor-pointer block w-full py-2 px-1 text-sm rounded-lg border-2 transition-all
+                  ${formData.workdays.includes(key) 
+                    ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
+                  }
+                `}
+              >
+                {label.slice(0, 2)}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="from-time">Von Uhrzeit</Label>
+          <Input 
+            id="from-time"
+            type="time" 
+            value={formData.from_time.slice(0, 5)}
+            onChange={(e) => setFormData({...formData, from_time: e.target.value + ':00'})}
+          />
+        </div>
+        <div>
+          <Label htmlFor="to-time">Bis Uhrzeit</Label>
+          <Input 
+            id="to-time"
+            type="time"
+            value={formData.to_time.slice(0, 5)}
+            onChange={(e) => setFormData({...formData, to_time: e.target.value + ':00'})}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EventTypeStep4({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Planung</h3>
       
-      toast({
-        title: "Kalender gelöscht",
-        description: `${getCalendarDisplayName(calendarToDelete)} wurde entfernt.`,
-      });
-    }
-    setDeleteDialogOpen(false);
-    setCalendarToDelete(null);
-  };
+      <div>
+        <Label>Pufferzeit vor dem Termin</Label>
+        <p className="text-sm text-muted-foreground mb-2">
+          Blockiert Zeit vor dem Termin in deinem Kalender
+        </p>
+        <Select 
+          value={formData.prep_time.toString()}
+          onValueChange={(value) => setFormData({...formData, prep_time: parseInt(value)})}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Keine Pufferzeit</SelectItem>
+            <SelectItem value="15">15 Minuten</SelectItem>
+            <SelectItem value="30">30 Minuten</SelectItem>
+            <SelectItem value="60">60 Minuten</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-  // Handle event type deletion
-  const handleDeleteEventType = (eventType: any, calendar: CalendarType) => {
-    setEventTypeToDelete({ eventType, calendar });
-    setDeleteEventTypeDialogOpen(true);
-  };
+      <div>
+        <Label>Mindestvorlaufzeit</Label>
+        <p className="text-sm text-muted-foreground mb-2">
+          Mindestens diese Zeit vor Buchung und Gerplan-Termin
+        </p>
+        <Select 
+          value={formData.days_buffer.toString()}
+          onValueChange={(value) => setFormData({...formData, days_buffer: parseInt(value)})}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Keine Mindestvorlaufzeit</SelectItem>
+            <SelectItem value="1">3 Stunden</SelectItem>
+            <SelectItem value="2">6 Stunden</SelectItem>
+            <SelectItem value="3">1 Tag</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
 
-  const confirmDeleteEventType = () => {
-    if (eventTypeToDelete) {
-      const { eventType, calendar } = eventTypeToDelete;
+function EventTypeStep5({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold">Meeting Location</h3>
       
-      setEventTypesByCalendar(prev => {
-        const updated = { ...prev };
-        if (updated[calendar.id]) {
-          updated[calendar.id] = updated[calendar.id].filter(et => et.id !== eventType.id);
-        }
-        return updated;
-      });
-      
-      // Update calendar event type count
-      setConnectedCalendars(prev => prev.map(cal => 
-        cal.id === calendar.id 
-          ? { ...cal, eventTypesCount: Math.max(0, (cal.eventTypesCount || 0) - 1) }
-          : cal
-      ));
-      
-      toast({
-        title: "Event-Type gelöscht",
-        description: `${eventType.title} wurde erfolgreich gelöscht.`,
-      });
-    }
-    setDeleteEventTypeDialogOpen(false);
-    setEventTypeToDelete(null);
-  };
-
-  const handleClose = () => {
-    setIsCreateEventDialogOpen(false);
-    setEditingEventType(null);
-    resetForm();
-  };
-
-    const handleSave = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    
-    if (isSaving) return; // Prevent double submission
-    
-    if (!formData.title || !selectedCalendar) {
-      toast({
-        title: "Fehler",
-        description: "Bitte füllen Sie alle Pflichtfelder aus.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    const newEventType = {
-      id: isEdit ? editingEventType.id : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: formData.title,
-      slug: formData.title.toLowerCase().replace(/\s+/g, '-'),
-      duration: formData.duration,
-      color: "#1a73e8",
-      bookingBuffer: formData.bookingBuffer,
-      isActive: true,
-      bookingsThisWeek: 0,
-      totalBookings: 0,
-      conflictCheckCalendars: formData.conflictCheckCalendars,
-      targetCalendar: formData.targetCalendar,
-      limitBookingsPerDay: formData.limitBookingsPerDay,
-      maxBookingsPerDay: formData.maxBookingsPerDay
-    };
-
-    setEventTypesByCalendar(prev => {
-      const updated = { ...prev };
-      if (!updated[selectedCalendar]) {
-        updated[selectedCalendar] = [];
-      }
-      
-      if (isEdit) {
-        // Update existing event type
-        const index = updated[selectedCalendar].findIndex(et => et.id === editingEventType.id);
-        if (index >= 0) {
-          updated[selectedCalendar][index] = newEventType;
-        }
-      } else {
-        // Add new event type - check if it doesn't already exist
-        const alreadyExists = updated[selectedCalendar].some(et => et.id === newEventType.id);
-        if (!alreadyExists) {
-          updated[selectedCalendar].push(newEventType);
-        }
-      }
-      
-      return updated;
-    });
-
-    // Update calendar event type count
-    setConnectedCalendars(prev => prev.map(cal => 
-      cal.id === selectedCalendar 
-        ? { ...cal, eventTypesCount: (cal.eventTypesCount || 0) + (isEdit ? 0 : 1) }
-        : cal
-    ));
-
-    toast({
-      title: isEdit ? "Event-Type aktualisiert" : "Event-Type erstellt",
-      description: `${formData.title} wurde erfolgreich ${isEdit ? 'aktualisiert' : 'erstellt'}.`,
-    });
-
-    setTimeout(() => {
-      handleClose();
-      setIsSaving(false);
-    }, 100);
-  };
-
-  const isEdit = !!editingEventType;
-
-  // Komponente für Wochentag-Zeile
-  const WeekDayRow = ({ day, index }: { day: string; index: number }) => {
-    const [showTimeSlots, setShowTimeSlots] = useState(false);
-    const [isActive, setIsActive] = useState(index < 5);
-
-    return (
-      <div className="border rounded-lg">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center space-x-3">
-            <Checkbox 
-              id={`day-${day}`} 
-              checked={isActive}
-              onCheckedChange={(checked) => setIsActive(!!checked)}
+      <div>
+        <Label className="text-base font-medium">Art des Meetings</Label>
+        <p className="text-sm text-muted-foreground mb-3">
+          Wählen Sie aus, ob das Meeting online oder vor Ort stattfindet
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <input
+              type="radio"
+              id="online"
+              name="meeting_type"
+              value="online"
+              checked={formData.meeting_type === 'online'}
+              onChange={(e) => setFormData({...formData, meeting_type: e.target.value as 'online' | 'in_person'})}
+              className="peer sr-only"
             />
-            <Label htmlFor={`day-${day}`} className="font-medium cursor-pointer">
-              {day}
+            <Label 
+              htmlFor="online" 
+              className={`
+                cursor-pointer block w-full py-3 px-4 text-center rounded-lg border-2 transition-all
+                ${formData.meeting_type === 'online' 
+                  ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
+                  : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
+                }
+              `}
+            >
+              📹 Online Meeting
             </Label>
           </div>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <Input 
-                type="time" 
-                defaultValue="09:00" 
-                className="w-24"
-                disabled={!isActive}
-              />
-              <span className="text-gray-500">-</span>
-              <Input 
-                type="time" 
-                defaultValue="17:00" 
-                className="w-24"
-                disabled={!isActive}
-              />
-            </div>
-            {isActive && (
-              <button 
-                className="p-1 text-gray-400 hover:text-gray-600"
-                onClick={() => setShowTimeSlots(!showTimeSlots)}
-              >
-                <ChevronRight className={`h-4 w-4 transition-transform ${showTimeSlots ? 'rotate-90' : ''}`} />
-              </button>
-            )}
-            <button className="p-1 text-gray-400 hover:text-gray-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
+          <div>
+            <input
+              type="radio"
+              id="in_person"
+              name="meeting_type"
+              value="in_person"
+              checked={formData.meeting_type === 'in_person'}
+              onChange={(e) => setFormData({...formData, meeting_type: e.target.value as 'online' | 'in_person'})}
+              className="peer sr-only"
+            />
+            <Label 
+              htmlFor="in_person" 
+              className={`
+                cursor-pointer block w-full py-3 px-4 text-center rounded-lg border-2 transition-all
+                ${formData.meeting_type === 'in_person' 
+                  ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
+                  : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
+                }
+              `}
+            >
+              📍 Vor Ort
+            </Label>
           </div>
         </div>
+      </div>
+
+      {formData.meeting_type === 'online' && (
+        <div>
+          <Label htmlFor="meeting-link">Meeting Link</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            Geben Sie Ihren Zoom, Teams oder anderen Meeting-Link ein
+          </p>
+          <Input 
+            id="meeting-link"
+            placeholder="z.B. https://zoom.us/j/123456789"
+            value={formData.meeting_link}
+            onChange={(e) => setFormData({...formData, meeting_link: e.target.value})}
+          />
+        </div>
+      )}
+
+      {formData.meeting_type === 'in_person' && (
+        <div>
+          <Label htmlFor="meeting-address">Adresse</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            Geben Sie die Adresse ein, wo das Meeting stattfindet
+          </p>
+          <Input 
+            id="meeting-address"
+            placeholder="z.B. Musterstraße 123, 12345 Musterstadt"
+            value={formData.meeting_address}
+            onChange={(e) => setFormData({...formData, meeting_address: e.target.value})}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Event Type Creation Modal Component
+function EventTypeModal({ 
+  open, 
+  onOpenChange, 
+  availableCalendars,
+  onEventTypeCreated
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  availableCalendars: BackendCalendar[];
+  onEventTypeCreated: () => void;
+}) {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState<EventTypeFormData>({
+    name: '',
+    duration: 60,
+    calendar: 'none',
+    conflictCheckCalendars: [],
+    workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    from_time: '09:00:00',
+    to_time: '17:00:00',
+    prep_time: 0,
+    days_buffer: 0,
+    meeting_type: 'online',
+    meeting_link: '',
+    meeting_address: ''
+  });
+
+  const handleNext = () => {
+    if (currentStep < 5) setCurrentStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const payload = {
+        id: crypto.randomUUID(),
+        name: formData.name,
+        calendar: formData.calendar === 'none' ? null : formData.calendar,
+        duration: formData.duration,
+        prep_time: formData.prep_time,
+        days_buffer: formData.days_buffer,
+        from_time: formData.from_time,
+        to_time: formData.to_time,
+        workdays: formData.workdays,
+        meeting_type: formData.meeting_type,
+        meeting_link: formData.meeting_link,
+        meeting_address: formData.meeting_address,
+        conflict_calendars: formData.conflictCheckCalendars
+      };
+
+      const response = await calendarAPI.createEventType(payload);
+      console.log('✅ Event Type created:', response);
+      
+      // Reload Event Types to show the new one
+      onEventTypeCreated();
+      
+      onOpenChange(false);
+      // Reset form
+      setCurrentStep(1);
+      setFormData({
+        name: '',
+        duration: 60,
+        calendar: 'none',
+        conflictCheckCalendars: [],
+        workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        from_time: '09:00:00',
+        to_time: '17:00:00',
+        prep_time: 0,
+        days_buffer: 0,
+        meeting_type: 'online',
+        meeting_link: '',
+        meeting_address: ''
+      });
+    } catch (error) {
+      console.error('❌ Error creating Event Type:', error);
+    }
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Event Type erstellen - Schritt {currentStep} von 5</AlertDialogTitle>
+        </AlertDialogHeader>
         
-        {/* Time Slots Grid - Ähnlich wie im Screenshot */}
-        {showTimeSlots && isActive && (
-          <div className="border-t px-4 py-3 bg-gray-50">
-            <div className="grid grid-cols-4 gap-2 text-sm">
-              {['00:00', '00:15', '00:30', '00:45',
-                '01:00', '01:15', '01:30', '01:45',
-                '02:00', '02:15', '02:30', '02:45',
-                '03:00', '03:15', '03:30', '03:45'].map((time) => (
+        {/* Multi-Step Content */}
+        {currentStep === 1 && (
+          <EventTypeStep1 formData={formData} setFormData={setFormData} />
+        )}
+        {currentStep === 2 && (
+          <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />
+        )}
+        {currentStep === 3 && (
+          <EventTypeStep3 formData={formData} setFormData={setFormData} />
+        )}
+        {currentStep === 4 && (
+          <EventTypeStep4 formData={formData} setFormData={setFormData} />
+        )}
+        {currentStep === 5 && (
+          <EventTypeStep5 formData={formData} setFormData={setFormData} />
+        )}
+
+        <AlertDialogFooter className="flex justify-between">
+          <div>
+            {currentStep > 1 && (
+              <Button variant="outline" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Zurück
+              </Button>
+            )}
+          </div>
+          <div>
+            {currentStep < 5 ? (
+              <Button onClick={handleNext} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+                Weiter
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+                Event Type erstellen
+              </Button>
+            )}
+          </div>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// Event Type Card Component
+function EventTypeCard({ eventType, onEdit, onDelete }: { 
+  eventType: any; 
+  onEdit: (eventType: any) => void;
+  onDelete: (eventType: any) => void;
+}) {
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) return `${minutes} Min`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60 > 0 ? `${minutes % 60}m` : ''}`.trim();
+  };
+
+  const formatBufferTime = (days: number) => {
+    if (days === 0) return null;
+    if (days === 1) return '3 Stunden';
+    if (days === 2) return '6 Stunden'; 
+    if (days === 3) return '1 Tag';
+    return `${days} Tage`;
+  };
+
+  return (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <CardTitle className="text-lg">{eventType.name || 'Unbenannter Event Type'}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {formatDuration(eventType.duration)} • {eventType.from_time?.slice(0, 5)} - {eventType.to_time?.slice(0, 5)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
+            <Button variant="ghost" size="sm" onClick={() => onEdit(eventType)}>
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => onDelete(eventType)} className="text-red-500 hover:text-red-700">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Zielkalender</p>
+            <p className="text-sm truncate">{eventType.calendar_name || 'Nicht zugewiesen'}</p>
+          </div>
+          
+          {eventType.prep_time > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Pufferzeit</p>
+              <p className="text-sm">{eventType.prep_time} Min vor Termin</p>
+            </div>
+          )}
+
+          {eventType.days_buffer > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Vorlaufzeit</p>
+              <p className="text-sm">{formatBufferTime(eventType.days_buffer)}</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Event Type Edit Modal with Tabs
+function EventTypeEditModal({ 
+  open, 
+  onOpenChange, 
+  eventType,
+  availableCalendars,
+  onEventTypeUpdated
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  eventType: any;
+  availableCalendars: BackendCalendar[];
+  onEventTypeUpdated: () => void;
+}) {
+  const [activeEditTab, setActiveEditTab] = useState('grundinformationen');
+  const [editFormData, setEditFormData] = useState<EventTypeFormData>({
+    name: '',
+    duration: 60,
+    calendar: 'none',
+    conflictCheckCalendars: [],
+    workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    from_time: '09:00:00',
+    to_time: '17:00:00',
+    prep_time: 0,
+    days_buffer: 0,
+    meeting_type: 'online',
+    meeting_link: '',
+    meeting_address: ''
+  });
+
+  // Load eventType data when modal opens
+  useEffect(() => {
+    if (eventType && open) {
+      setEditFormData({
+        name: eventType.name || '',
+        duration: eventType.duration || 60,
+        calendar: eventType.calendar || 'none',
+        conflictCheckCalendars: eventType.conflict_calendars || [],
+        workdays: eventType.workdays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+        from_time: eventType.from_time || '09:00:00',
+        to_time: eventType.to_time || '17:00:00',
+        prep_time: eventType.prep_time || 0,
+        days_buffer: eventType.days_buffer || 0,
+        meeting_type: eventType.meeting_type || 'online',
+        meeting_link: eventType.meeting_link || '',
+        meeting_address: eventType.meeting_address || ''
+      });
+    }
+  }, [eventType, open]);
+
+  const handleUpdate = async () => {
+    try {
+      const payload = {
+        name: editFormData.name,
+        calendar: editFormData.calendar === 'none' ? null : editFormData.calendar,
+        duration: editFormData.duration,
+        prep_time: editFormData.prep_time,
+        days_buffer: editFormData.days_buffer,
+        from_time: editFormData.from_time,
+        to_time: editFormData.to_time,
+        workdays: editFormData.workdays,
+        meeting_type: editFormData.meeting_type,
+        meeting_link: editFormData.meeting_link,
+        meeting_address: editFormData.meeting_address,
+        conflict_calendars: editFormData.conflictCheckCalendars
+      };
+
+      await calendarAPI.updateEventType(eventType.id, payload);
+      console.log('✅ Event Type updated');
+      
+      onEventTypeUpdated();
+      onOpenChange(false);
+      
+    } catch (error) {
+      console.error('❌ Error updating Event Type:', error);
+    }
+  };
+
+  const editTabs = [
+    { key: 'grundinformationen', label: 'Grundinformationen' },
+    { key: 'planung', label: 'Planung' },
+    { key: 'verfuegbarkeit', label: 'Verfügbarkeit' },
+    { key: 'kalender', label: 'Kalender' },
+    { key: 'erweitert', label: 'Erweitert' }
+  ];
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+        <AlertDialogHeader className="border-b pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <AlertDialogTitle>Event-Typ bearbeiten</AlertDialogTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              <Plus className="h-4 w-4 rotate-45" />
+            </Button>
+          </div>
+          
+          {/* Tab Navigation */}
+          <div className="mt-4">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              {editTabs.map((tab) => (
                 <button
-                  key={time}
-                  className="px-3 py-1.5 text-center border rounded hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  key={tab.key}
+                  onClick={() => setActiveEditTab(tab.key)}
+                  className={`
+                    px-3 py-2 text-sm font-medium rounded-md transition-colors
+                    ${activeEditTab === tab.key 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                    }
+                  `}
                 >
-                  {time}
+                  {tab.label}
                 </button>
               ))}
-              <button className="col-span-4 text-center text-blue-600 hover:text-blue-700 py-2">
-                <ChevronRight className="h-4 w-4 inline-block rotate-90" />
-                <span className="ml-1">Mehr anzeigen</span>
-              </button>
             </div>
           </div>
-        )}
-      </div>
-    );
-  };
-
-  // useEffect not needed anymore since we set formData directly in the edit button click handler
-
-  const CalendarOverviewCard = ({ calendar }: { calendar: CalendarType }) => {
-    return (
-      <Card 
-        className={`${calendar.isConnected ? "hover:shadow-md transition-shadow" : "opacity-50"}`}
-      >
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div 
-                className={`p-2 rounded-lg ${calendar.isConnected ? "bg-[#FFE1D7]" : "bg-gray-100"}`}
-                style={calendar.isConnected && calendar.color ? { backgroundColor: `${calendar.color}20` } : {}}
-              >
-                <CalendarIcon 
-                  className={`${iconSizes.large} ${calendar.isConnected ? "text-[#FE5B25]" : "text-gray-400"}`}
-                  style={calendar.isConnected && calendar.color ? { color: calendar.color } : {}}
-                />
-              </div>
-              <div>
-                <CardTitle className={textStyles.cardTitle}>
-                  <div className="flex items-center gap-2">
-                    {getCalendarDisplayName(calendar)}
-                    {calendar.isDefault && (
-                      <Badge variant="secondary" className="text-xs">Standard</Badge>
-                    )}
-                  </div>
-                </CardTitle>
-                <p className={textStyles.cardSubtitle}>{calendar.email}</p>
-              </div>
-            </div>
-            <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-              <button 
-                className={buttonStyles.cardAction.iconDelete}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteCalendar(calendar);
-                }}
-              >
-                <Trash2 className={iconSizes.small} />
-              </button>
-            </div>
-          </div>
-        </CardHeader>
+        </AlertDialogHeader>
         
-        <CardContent className={layoutStyles.cardContent}>
-          <div className="grid grid-cols-1 gap-4 text-sm">
-            <div>
-              <p className={textStyles.metricLabel}>Event-Types</p>
-              <p className={textStyles.metric}>{calendar.eventTypesCount}</p>
-            </div>
-          </div>
-
-          {!calendar.isConnected && (
-            <div className="pt-3 border-t">
-              <button 
-                className={buttonStyles.primary.default}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleConnectGoogleCalendar();
-                }}
-              >
-                <span>Kalender verbinden</span>
-              </button>
-            </div>
+        <div className="flex-1 overflow-y-auto py-4">
+          {activeEditTab === 'grundinformationen' && (
+            <EventTypeEditStep1 formData={editFormData} setFormData={setEditFormData} />
           )}
-        </CardContent>
-      </Card>
-    );
-  };
+          {activeEditTab === 'planung' && (
+            <EventTypeEditStep2 formData={editFormData} setFormData={setEditFormData} />
+          )}
+          {activeEditTab === 'verfuegbarkeit' && (
+            <EventTypeEditStep3 formData={editFormData} setFormData={setEditFormData} />
+          )}
+          {activeEditTab === 'kalender' && (
+            <EventTypeEditStep4 formData={editFormData} setFormData={setEditFormData} availableCalendars={availableCalendars} />
+          )}
+          {activeEditTab === 'erweitert' && (
+            <EventTypeEditStep5 formData={editFormData} setFormData={setEditFormData} />
+          )}
+        </div>
 
-  // Main render logic
-  if (selectedCalendar) {
-    const selectedCalendarData = connectedCalendars.find(cal => cal.id === selectedCalendar);
-    const eventTypes = eventTypesByCalendar[selectedCalendar as keyof typeof eventTypesByCalendar] || [];
+        <AlertDialogFooter className="border-t pt-4">
+          <AlertDialogCancel onClick={() => onOpenChange(false)}>Abbrechen</AlertDialogCancel>
+          <Button onClick={handleUpdate} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+            Änderungen speichern
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
-    // Wenn ein Kalender ausgewählt ist und Dialog offen ist, zeige nur den Dialog
-    // Ansonsten gehe zurück zur Hauptansicht
-    if (!isCreateEventDialogOpen) {
-      setSelectedCalendar(null);
+// Edit Steps - reuse creation steps but with different names
+function EventTypeEditStep1({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep1 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep2({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep4 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep3({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep3 formData={formData} setFormData={setFormData} />;
+}
+
+function EventTypeEditStep4({ formData, setFormData, availableCalendars }: { 
+  formData: EventTypeFormData, 
+  setFormData: (data: EventTypeFormData) => void,
+  availableCalendars: BackendCalendar[]
+}) {
+  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />;
+}
+
+function EventTypeEditStep5({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+  return <EventTypeStep5 formData={formData} setFormData={setFormData} />;
+}
+
+export default function Calendar() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // States
+  const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>([]);
+  const [googleConnections, setGoogleConnections] = useState<GoogleConnection[]>([]);
+  const [isLoadingCalendars, setIsLoadingCalendars] = useState(true);
+  const [disconnectingConnectionId, setDisconnectingConnectionId] = useState<string | null>(null);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState<{ 
+    show: boolean; 
+    connection: GoogleConnection | null; 
+  }>({ show: false, connection: null });
+  
+  // Event Type Creation Modal State
+  const [showEventTypeModal, setShowEventTypeModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('calendars');
+  const [allBackendCalendars, setAllBackendCalendars] = useState<BackendCalendar[]>([]);
+  const [eventTypes, setEventTypes] = useState<any[]>([]);
+  const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
+  
+  // Event Type Edit/Delete State
+  const [showEditEventTypeModal, setShowEditEventTypeModal] = useState(false);
+  const [editingEventType, setEditingEventType] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
+    show: boolean;
+    eventType: any | null;
+  }>({ show: false, eventType: null });
+
+  // Track deleted connections in localStorage to prevent reload issues
+  const getDeletedConnections = (): string[] => {
+    try {
+      const deleted = localStorage.getItem('hotcalls_deleted_connections');
+      return deleted ? JSON.parse(deleted) : [];
+    } catch {
+      return [];
     }
-  }
+  };
 
-  // Main Calendar Overview
-  return (
-    <div className={layoutStyles.pageContainer}>
-      {/* Page Header */}
-      <div className={layoutStyles.pageHeader}>
-        <div>
-          <h1 className={textStyles.pageTitle}>Kalendereinstellungen</h1>
-          <p className={textStyles.pageSubtitle}>Verwalte deine Kalender-Integrationen und Event-Types</p>
-        </div>
+  const addDeletedConnection = (connectionId: string) => {
+    const deleted = getDeletedConnections();
+    if (!deleted.includes(connectionId)) {
+      deleted.push(connectionId);
+      localStorage.setItem('hotcalls_deleted_connections', JSON.stringify(deleted));
+    }
+  };
+
+  const clearDeletedConnections = () => {
+    localStorage.removeItem('hotcalls_deleted_connections');
+  };
+
+  // Handle Edit Event Type
+  const handleEditEventType = (eventType: any) => {
+    setEditingEventType(eventType);
+    setShowEditEventTypeModal(true);
+  };
+
+  // Handle Delete Event Type
+  const handleDeleteEventType = (eventType: any) => {
+    setShowDeleteConfirm({ show: true, eventType });
+  };
+
+  // Confirm Delete Event Type
+  const confirmDeleteEventType = async () => {
+    if (!showDeleteConfirm.eventType) return;
+    
+    try {
+      await calendarAPI.deleteEventType(showDeleteConfirm.eventType.id);
+      console.log('✅ Event Type deleted');
+      
+      // Reload Event Types
+      await loadEventTypes();
+      
+      toast({
+        title: "Event Type gelöscht",
+        description: "Der Event Type wurde erfolgreich gelöscht.",
+      });
+    } catch (error) {
+      console.error('❌ Error deleting Event Type:', error);
+      toast({
+        title: "Fehler beim Löschen",
+        description: "Der Event Type konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setShowDeleteConfirm({ show: false, eventType: null });
+    }
+  };
+
+  // Load Event Types from backend
+  const loadEventTypes = async () => {
+    setIsLoadingEventTypes(true);
+    try {
+      const response = await calendarAPI.getCalendarConfigurations();
+      const eventTypesData = Array.isArray(response) ? response : (response as any).results || [];
+      setEventTypes(eventTypesData);
+      console.log(`✅ Loaded ${eventTypesData.length} Event Types`);
+    } catch (error) {
+      console.error('❌ Error loading Event Types:', error);
+      // Don't show error toast for 404 - just log it
+      setEventTypes([]);
+    } finally {
+      setIsLoadingEventTypes(false);
+    }
+  };
+
+  // Load calendars from backend
+  const loadCalendarsFromBackend = async () => {
+    setIsLoadingCalendars(true);
+    try {
+      const [connectionsResponse, calendarsResponse] = await Promise.all([
+        calendarAPI.getGoogleConnections(),
+        calendarAPI.getCalendars()
+      ]);
+
+      // Trust backend - use all connections from backend response
+      // Backend already filters out truly disconnected connections
+      const filteredConnections = connectionsResponse;
+
+      setGoogleConnections(filteredConnections);
+      // BUGFIX: Handle paginated response
+      const calendars = Array.isArray(calendarsResponse) 
+        ? calendarsResponse 
+        : (calendarsResponse as any).results || [];
+
+      if (!Array.isArray(calendars)) {
+        console.error('❌ Expected calendars array, got:', typeof calendars, calendars);
+        throw new Error('Invalid calendars response');
+      }
+
+      // Group calendars by Google connection (account_email)
+      const groupedByConnection = calendars.reduce((groups: any, cal: any) => {
+        // Find matching connection for this calendar
+        const connection = filteredConnections.find(conn => 
+          conn.account_email === cal.provider_details.external_id || // Direct email match
+          conn.account_email === 'mmmalmachen@gmail.com' // Known account
+        );
         
-        <div className="flex items-center gap-3 ml-auto">
-          {connectedCalendars.some(cal => cal.isConnected) && (
-            <button 
-              className={buttonStyles.create.default}
-              onClick={() => {
-                // Wähle den ersten verbundenen Kalender aus und öffne den Dialog
-                const firstConnectedCalendar = connectedCalendars.find(cal => cal.isConnected);
-                if (firstConnectedCalendar) {
-                  setSelectedCalendar(firstConnectedCalendar.id);
-                  // Reset form and set targetCalendar
-                  resetForm();
-                  setFormData(prev => ({
-                    ...prev,
-                    targetCalendar: firstConnectedCalendar.id
-                  }));
-                  setEditingEventType(null);
-                  setActiveDialogTab("basic");
-                  setIsCreateEventDialogOpen(true);
-                }
-              }}
-            >
-              <Plus className={iconSizes.small} />
-              <span>Event-Type erstellen</span>
-            </button>
-          )}
-          
-          <button 
-            className={buttonStyles.create.default}
-            onClick={handleConnectGoogleCalendar}
-          >
-            <Plus className={iconSizes.small} />
-            <span>Kalender verbinden</span>
-          </button>
+        if (connection) {
+          const email = connection.account_email;
+          if (!groups[email]) groups[email] = [];
+          groups[email].push(cal);
+        }
+        return groups;
+      }, {});
+
+      // Convert grouped calendars to frontend format - one card per Google account
+      const convertedCalendars: CalendarType[] = Object.entries(groupedByConnection).map(([email, cals]: [string, any[]]) => {
+        // Find primary calendar (main calendar)
+        const primaryCal = cals.find(cal => cal.provider_details.primary) || cals[0];
+        // Find sub-calendars (non-primary calendars)
+        const subCals = cals.filter(cal => !cal.provider_details.primary);
+        
+        return {
+          id: primaryCal.id,
+          connectionId: email, // Use email as connection identifier
+          name: primaryCal.name, // Use primary calendar name
+          email: email,
+          provider: "Google Calendar",
+          isConnected: primaryCal.connection_status === "connected",
+          isDefault: primaryCal.provider_details.primary,
+          isPrimary: true, // This represents the main account card
+          eventTypesCount: primaryCal.config_count || 0,
+          totalBookings: 0,
+          bookingsThisWeek: 0,
+          subCalendars: subCals.map(sub => ({
+            id: sub.id,
+            name: sub.name,
+            color: "#1a73e8",
+            isPublic: false,
+            isWritable: true,
+            description: `Sub-Kalender: ${sub.name}`
+          })),
+          accessRole: ("owner" as const),
+          timeZone: primaryCal.provider_details.time_zone,
+          active: primaryCal.active,
+          createdAt: new Date(primaryCal.created_at),
+          lastSyncedAt: new Date(primaryCal.provider_details.updated_at)
+        };
+      });
+
+      setConnectedCalendars(convertedCalendars);
+      
+      // Store all individual backend calendars for Event Type creation
+      setAllBackendCalendars(calendars);
+      
+      console.log(`✅ Loaded ${filteredConnections.length} connections and ${convertedCalendars.length} calendars (filtered deleted connections)`);
+      
+    } catch (error) {
+      console.error('❌ Error loading calendars:', error);
+      // Don't show error toast for 404 - just log it and set empty arrays
+      setConnectedCalendars([]);
+      setGoogleConnections([]);
+      setAllBackendCalendars([]);
+    } finally {
+      setIsLoadingCalendars(false);
+    }
+  };
+
+  // Connect Google Calendar
+  const handleConnectGoogleCalendar = async () => {
+    try {
+      const oauthResponse = await calendarAPI.getGoogleOAuthURL();
+      window.location.href = oauthResponse.authorization_url;
+    } catch (error) {
+      console.error('❌ Failed to initiate Google OAuth:', error);
+      toast({
+        title: "Verbindung fehlgeschlagen",
+        description: "Google Kalender konnte nicht verbunden werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Disconnect Google Calendar
+  const handleDisconnectGoogleCalendar = async (connectionId: string) => {
+    const connection = googleConnections.find(conn => conn.id === connectionId);
+    if (!connection) return;
+    setShowDisconnectConfirm({ show: true, connection });
+  };
+
+  const confirmDisconnectGoogleCalendar = async () => {
+    const { connection } = showDisconnectConfirm;
+    if (!connection) return;
+
+    setDisconnectingConnectionId(connection.id);
+    setShowDisconnectConfirm({ show: false, connection: null });
+
+    try {
+      const result = await calendarAPI.disconnectGoogleCalendar(connection.id);
+      
+      if (result.success) {
+        // SOFORT Frontend State clearen - OPTIMISTIC UPDATE
+        console.log(`🔥 Optimistic Update: Removing connection ${connection.account_email} and all its calendars`);
+        
+        // 0. Connection als gelöscht markieren (für Page Reload)
+        addDeletedConnection(connection.id);
+        
+        // 1. Google Connection aus State entfernen
+        setGoogleConnections(prev => prev.filter(conn => conn.id !== connection.id));
+        
+        // 2. ALLE Kalender die zu dieser Connection gehören entfernen
+        setConnectedCalendars(prev => prev.filter(cal => {
+          // Entferne Kalender die zu dieser Connection gehören
+          const belongsToConnection = cal.email.includes(connection.account_email) || 
+                                     connection.account_email === 'mmmalmachen@gmail.com' ||
+                                     cal.email === connection.account_email;
+          return !belongsToConnection;
+        }));
+
+        toast({
+          title: "Verbindung getrennt",
+          description: `Google Calendar für ${connection.account_email} wurde getrennt. Alle Kalender entfernt.`,
+        });
+
+        // KEIN Backend reload - Backend gibt fälschlicherweise noch Kalender zurück
+        console.log("✅ Disconnect completed - Frontend state updated, connection marked as deleted");
+        
+      } else {
+        throw new Error(result.message || 'Fehler beim Trennen');
+      }
+    } catch (error) {
+      console.error('❌ Error disconnecting:', error);
+      toast({
+        title: "Fehler beim Trennen",
+        description: "Verbindung konnte nicht getrennt werden.",
+        variant: "destructive",
+      });
+      
+      // KEIN Backend reload im Error Fall - Backend ist inkonsistent 
+      console.log("❌ Disconnect failed - keeping current frontend state");
+    } finally {
+      setDisconnectingConnectionId(null);
+    }
+  };
+
+  // Load calendars on mount
+  useEffect(() => {
+    // NUR beim ersten Load - NICHT bei jedem useEffect
+    if (connectedCalendars.length === 0 && googleConnections.length === 0) {
+      loadCalendarsFromBackend();
+    }
+    
+    // Load Event Types
+    if (eventTypes.length === 0) {
+      loadEventTypes();
+    }
+
+    // Handle success message from OAuth callback
+    if (location.state?.newConnection) {
+      // Bei neuer Connection: Lösche die Liste der gelöschten Connections
+      clearDeletedConnections();
+      
+      toast({
+        title: "Kalender verbunden",
+        description: location.state.message || "Google Calendar wurde erfolgreich verbunden!",
+      });
+      // Clear location state
+      navigate(location.pathname, { replace: true });
+      
+      // NUR bei neuer Connection laden
+      loadCalendarsFromBackend();
+    }
+  }, [location.state, navigate]); // connectedCalendars und googleConnections NICHT als Dependencies!
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Kalendereinstellungen</h1>
+          <p className="text-muted-foreground">
+            Verwalte deine Kalender-Integrationen und Event-Types
+          </p>
         </div>
+        <Button 
+          onClick={activeTab === 'calendars' ? handleConnectGoogleCalendar : () => setShowEventTypeModal(true)}
+          className="bg-[#FE5B25] hover:bg-[#E5522A]"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {activeTab === 'calendars' ? 'Kalender verbinden' : 'Event Type erstellen'}
+        </Button>
       </div>
 
-      {/* Anleitung - immer anzeigen */}
-      <Card className="mb-6">
-        <Collapsible open={isInstructionOpen} onOpenChange={setIsInstructionOpen}>
-          <CardHeader>
-            <CollapsibleTrigger className="w-full flex items-center justify-between p-0 hover:no-underline">
-              <CardTitle className="text-lg">So aktivierst du die Kalenderbuchung für deinen KI-Agenten</CardTitle>
-              <ChevronRight className={`h-4 w-4 transition-transform ${isInstructionOpen ? 'rotate-90' : ''}`} />
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="space-y-4 pt-0">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-[#FFE1D7] rounded-full flex items-center justify-center text-[#FE5B25] font-semibold text-sm">
-                  1
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Verbinde deinen Google Kalender</h4>
-                  <p className="text-sm text-gray-600">Klicke auf "Kalender verbinden" und erlaube dem KI-Agenten Zugriff auf deinen Google Kalender.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-[#FFE1D7] rounded-full flex items-center justify-center text-[#FE5B25] font-semibold text-sm">
-                  2
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Konfiguriere dein Event-Type</h4>
-                  <p className="text-sm text-gray-600">Erstelle Event-Types für verschiedene Termine (z.B. Beratungsgespräch, Demo-Call) und lege Dauer, Pufferzeiten und Verfügbarkeiten fest.</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-[#FFE1D7] rounded-full flex items-center justify-center text-[#FE5B25] font-semibold text-sm">
-                  3
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">Füge das Event-Type zum Agenten hinzu</h4>
-                  <p className="text-sm text-gray-600">Gehe zu den Agent-Einstellungen und füge die erstellten Event-Types hinzu, damit der Agent Termine in deinem Kalender buchen kann.</p>
-                </div>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-
-      {/* Tab Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {/* Custom Tab Navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="flex space-x-8" role="tablist">
-            <button
-              onClick={() => setActiveTab("calendars")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                activeTab === "calendars"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-              role="tab"
-            >
-              Kalender
-            </button>
-            
-            <button
-              onClick={() => setActiveTab("event-types")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                activeTab === "event-types"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-              role="tab"
-            >
-              Event-Types
-            </button>
-          </nav>
-        </div>
+      {/* Tab Navigation - WIEDER HERGESTELLT */}
+      <Tabs defaultValue="calendars" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="calendars">Kalender</TabsTrigger>
+          <TabsTrigger value="event-types">Event-Types</TabsTrigger>
+        </TabsList>
 
         {/* Kalender Tab */}
         <TabsContent value="calendars">
-          {connectedCalendars.length > 0 ? (
-            <div className={layoutStyles.cardGrid}>
-              {connectedCalendars.map((calendar) => (
-                <CalendarOverviewCard key={calendar.id} calendar={calendar} />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-8 text-center">
-              <div className="space-y-4">
-                <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto" />
-                <div>
-                  <h3 className={textStyles.sectionTitle}>Noch keine Kalender verbunden</h3>
-                  <p className={textStyles.cardSubtitle}>
-                    Verbinden Sie Ihren Google Kalender, um mit der Terminverwaltung zu beginnen
-                  </p>
+          {isLoadingCalendars ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-center space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#FE5B25]" />
+                  <p className="text-sm text-muted-foreground">Kalender werden geladen...</p>
                 </div>
-                <button 
-                  className={`${buttonStyles.create.default} mx-auto`}
-                  onClick={handleConnectGoogleCalendar}
-                >
-                  <Plus className={iconSizes.small} />
-                  <span>Kalender verbinden</span>
-                </button>
-              </div>
+              </CardContent>
             </Card>
+          ) : (
+            <div className="space-y-6">
+              {/* Google Connections */}
+              {googleConnections.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Google Calendar Verbindungen</h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {googleConnections.map((connection) => (
+                      <GoogleConnectionCard 
+                        key={connection.id} 
+                        connection={connection} 
+                        calendars={connectedCalendars.filter(cal => 
+                          cal.email.includes(connection.account_email) || 
+                          connection.account_email === 'mmmalmachen@gmail.com'
+                        )}
+                        isDisconnecting={disconnectingConnectionId === connection.id}
+                        onDisconnect={() => handleDisconnectGoogleCalendar(connection.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Show "Noch keine Kalender verbunden" only if no Google connections */}
+              {googleConnections.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Noch keine Kalender verbunden</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Verbinden Sie Ihren Google Kalender, um Event-Types zu erstellen.
+                    </p>
+                    <Button onClick={handleConnectGoogleCalendar} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Kalender verbinden
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
         </TabsContent>
 
         {/* Event-Types Tab */}
         <TabsContent value="event-types">
-          {connectedCalendars.some(cal => cal.isConnected) ? (
-            <>
-              {/* Alle Event-Types aus allen Kalendern anzeigen */}
-              {(() => {
-                const allEventTypes: Array<{eventType: any, calendar: CalendarType}> = [];
-                connectedCalendars.forEach(calendar => {
-                  if (calendar.isConnected) {
-                    const eventTypes = eventTypesByCalendar[calendar.id] || [];
-                    eventTypes.forEach(eventType => {
-                      allEventTypes.push({ eventType, calendar });
-                    });
-                  }
-                });
-
-                if (allEventTypes.length > 0) {
-                  return (
-                    <div className={layoutStyles.cardGrid}>
-                      {allEventTypes.map(({ eventType, calendar }) => (
-                        <Card key={eventType.id}>
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-[#FFE1D7] rounded-lg">
-                                  <Clock className={`${iconSizes.large} text-[#FE5B25]`} />
-                                </div>
-                                <div>
-                                  <CardTitle className={textStyles.cardTitle}>{eventType.title}</CardTitle>
-                                  <p className={textStyles.cardSubtitle}>
-                                    {eventType.duration} Min • {calendar.name}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                                <button 
-                                  className={buttonStyles.cardAction.icon}
-                                  onClick={() => {
-                                    setSelectedCalendar(calendar.id);
-                                    setFormData({
-                                      title: eventType.title,
-                                      duration: eventType.duration,
-                                      bookingBuffer: eventType.bookingBuffer,
-                                      conflictCheckCalendars: eventType.conflictCheckCalendars || [],
-                                      targetCalendar: eventType.targetCalendar || calendar.id,
-                                      limitBookingsPerDay: eventType.limitBookingsPerDay || false,
-                                      maxBookingsPerDay: eventType.maxBookingsPerDay || 1
-                                    });
-                                    setEditingEventType(eventType);
-                                    setActiveDialogTab("basic");
-                                    setIsCreateEventDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className={iconSizes.small} />
-                                </button>
-                                <button 
-                                  className={buttonStyles.cardAction.iconDelete}
-                                  onClick={() => handleDeleteEventType(eventType, calendar)}
-                                >
-                                  <Trash2 className={iconSizes.small} />
-                                </button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className={layoutStyles.cardContent}>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <p className={textStyles.metricLabel}>Dauer</p>
-                                <p className={textStyles.metric}>{eventType.duration} Min</p>
-                              </div>
-                              <div>
-                                <p className={textStyles.metricLabel}>Vorlaufzeit</p>
-                                <p className={textStyles.metric}>{eventType.bookingBuffer} Min</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  );
-                } else {
-                  return (
-                    <Card className="p-8 text-center">
-                      <div className="space-y-4">
-                        <Clock className="h-12 w-12 text-gray-400 mx-auto" />
-                        <div>
-                          <h3 className={textStyles.sectionTitle}>Noch keine Event-Types erstellt</h3>
-                          <p className={textStyles.cardSubtitle}>
-                            Erstellen Sie Ihren ersten Event-Type für Terminbuchungen
-                          </p>
-                        </div>
-                        <button 
-                          className={buttonStyles.create.default} 
-                          onClick={() => {
-                            const firstConnectedCalendar = connectedCalendars.find(cal => cal.isConnected);
-                            if (firstConnectedCalendar) {
-                              setSelectedCalendar(firstConnectedCalendar.id);
-                              // Reset form and set targetCalendar
-                              resetForm();
-                              setFormData(prev => ({
-                                ...prev,
-                                targetCalendar: firstConnectedCalendar.id
-                              }));
-                              setEditingEventType(null);
-                              setActiveDialogTab("basic");
-                              setIsCreateEventDialogOpen(true);
-                            }
-                          }}
-                        >
-                          <Plus className={iconSizes.small} />
-                          <span>Event-Type erstellen</span>
-                        </button>
-                      </div>
-                    </Card>
-                  );
-                }
-              })()}
-            </>
-          ) : (
-            <Card className="p-8 text-center">
-              <div className="space-y-4">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto" />
-                <div>
-                  <h3 className={textStyles.sectionTitle}>Zuerst Kalender verbinden</h3>
-                  <p className={textStyles.cardSubtitle}>
-                    Sie müssen zuerst einen Kalender verbinden, bevor Sie Event-Types erstellen können
-                  </p>
-                </div>
+          {isLoadingEventTypes ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#FE5B25]" />
+                <p className="text-muted-foreground">Event Types werden geladen...</p>
+              </CardContent>
+            </Card>
+          ) : eventTypes.length > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Deine Event Types</h2>
+                <Badge variant="outline">{eventTypes.length}</Badge>
               </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {eventTypes.map((eventType) => (
+                  <EventTypeCard 
+                    key={eventType.id} 
+                    eventType={eventType} 
+                    onEdit={handleEditEventType}
+                    onDelete={handleDeleteEventType}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-12">
+                <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Noch keine Event Types</h3>
+                <p className="text-muted-foreground mb-4">
+                  Erstellen Sie Ihren ersten Event Type, um Buchungen zu ermöglichen.
+                </p>
+                <Button 
+                  onClick={() => setShowEventTypeModal(true)}
+                  className="bg-[#FE5B25] hover:bg-[#E5522A]"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Event Type erstellen
+                </Button>
+              </CardContent>
             </Card>
           )}
         </TabsContent>
       </Tabs>
 
-      {/* Create/Edit Event Type Dialog */}
-      <Dialog open={isCreateEventDialogOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {isEdit ? 'Event-Type bearbeiten' : 'Neuen Event-Type erstellen'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <Tabs value={activeDialogTab} onValueChange={setActiveDialogTab} className="w-full">
-            {/* Custom Tab Navigation */}
-            <div className="border-b border-gray-200">
-              <nav className="flex space-x-8" role="tablist">
-                <button
-                  onClick={() => setActiveDialogTab("basic")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                    activeDialogTab === "basic"
-                      ? "border-[#FE5B25] text-[#FE5B25]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                  role="tab"
-                >
-                  Grundinformationen
-                </button>
-                
-                <button
-                  onClick={() => setActiveDialogTab("planning")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                    activeDialogTab === "planning"
-                      ? "border-[#FE5B25] text-[#FE5B25]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                  role="tab"
-                >
-                  Planung
-                </button>
-                
-                <button
-                  onClick={() => setActiveDialogTab("availability")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                    activeDialogTab === "availability"
-                      ? "border-[#FE5B25] text-[#FE5B25]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                  role="tab"
-                >
-                  Verfügbarkeit
-                </button>
-                
-                <button
-                  onClick={() => setActiveDialogTab("calendar")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                    activeDialogTab === "calendar"
-                      ? "border-[#FE5B25] text-[#FE5B25]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                  role="tab"
-                >
-                  Kalender
-                </button>
-              </nav>
-            </div>
-
-            {/* Grundinformationen Tab */}
-            <TabsContent value="basic" className="space-y-4 mt-4">
-              <div>
-                <Label htmlFor="title">Event-Type Name</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="z.B. Beratungsgespräch"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="duration">Dauer</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Wählen Sie die Dauer für diesen Event-Typ</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select
-                  value={formData.duration.toString()}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, duration: parseInt(value) }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">15 Minuten</SelectItem>
-                    <SelectItem value="30">30 Minuten</SelectItem>
-                    <SelectItem value="45">45 Minuten</SelectItem>
-                    <SelectItem value="60">60 Minuten</SelectItem>
-                    <SelectItem value="90">90 Minuten</SelectItem>
-                    <SelectItem value="120">120 Minuten</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-
-            {/* Planung Tab */}
-            <TabsContent value="planning" className="space-y-6 mt-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Label>Puffer vor dem Termin</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Blockiert Zeit vor dem Termin in deinem Kalender</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select
-                  value={formData.bookingBuffer.toString()}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, bookingBuffer: parseInt(value) }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Keine Pufferzeit</SelectItem>
-                    <SelectItem value="15">15 Minuten</SelectItem>
-                    <SelectItem value="30">30 Minuten</SelectItem>
-                    <SelectItem value="60">60 Minuten</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <Label>Mindestvorlaufzeit</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Minimum Zeit zwischen Buchung und Start des Termins</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select defaultValue="180">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="180">3 Stunden</SelectItem>
-                    <SelectItem value="360">6 Stunden</SelectItem>
-                    <SelectItem value="1440">1 Tag</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <div className="flex items-center space-x-2 mb-2">
-                  <Checkbox 
-                    id="limitBookings"
-                    checked={formData.limitBookingsPerDay}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, limitBookingsPerDay: !!checked }))}
-                  />
-                  <Label htmlFor="limitBookings" className="cursor-pointer">
-                    Maximale Buchungen pro Tag
-                  </Label>
-                </div>
-                {formData.limitBookingsPerDay && (
-                  <Select 
-                    value={formData.maxBookingsPerDay.toString()}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, maxBookingsPerDay: parseInt(value) }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 Buchung</SelectItem>
-                      <SelectItem value="2">2 Buchungen</SelectItem>
-                      <SelectItem value="3">3 Buchungen</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Verfügbarkeit Tab */}
-            <TabsContent value="availability" className="space-y-4 mt-4">
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-semibold">Arbeitszeiten</Label>
-                  <p className="text-sm text-gray-500">
-                    Definieren Sie Ihre verfügbaren Arbeitszeiten für Buchungen
-                  </p>
-                </div>
-                
-                <div className="space-y-3">
-                  {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map((day, index) => (
-                    <WeekDayRow key={day} day={day} index={index} />
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Kalender Tab */}
-            <TabsContent value="calendar" className="space-y-6 mt-4">
-              {/* Zielkalender für Buchungen */}
-              <div className="space-y-2">
-                <Label htmlFor="targetCalendar">Zielkalender für Buchungen</Label>
-                <p className="text-sm text-gray-500">
-                  Wählen Sie den Kalender aus, in den die Buchungen dieses Event-Types eingetragen werden sollen. 
-                  Dieser Kalender wird als Organisator angezeigt.
-                </p>
-                <Select
-                  value={formData.targetCalendar}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, targetCalendar: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Kalender auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAllAvailableCalendarsForDropdown(connectedCalendars).map((cal) => (
-                      <SelectItem key={cal.id} value={cal.id}>
-                        {cal.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Kalender für Verfügbarkeitsprüfung */}
-              <div className="space-y-2">
-                <Label>Kalender für Verfügbarkeitsprüfung</Label>
-                <p className="text-sm text-gray-500">
-                  Wählen Sie die Kalender aus, die auf Konflikte geprüft werden sollen. 
-                  Buchungen sind nur möglich, wenn in keinem dieser Kalender ein Konflikt besteht.
-                </p>
-                <div className="space-y-3 mt-3 border rounded-lg p-4">
-                  {connectedCalendars
-                    .filter(cal => cal.isConnected)
-                    .map((calendar) => (
-                      <div key={calendar.id} className="space-y-2">
-                        <div className="font-medium text-sm">{calendar.name}</div>
-                        {/* Hauptkalender */}
-                        <div className="ml-4 flex items-center space-x-2">
-                          <Checkbox
-                            id={`conflict-${calendar.id}`}
-                            checked={formData.conflictCheckCalendars.includes(calendar.id)}
-                            onCheckedChange={(checked) => {
-                              setFormData(prev => ({
-                                ...prev,
-                                conflictCheckCalendars: checked
-                                  ? [...prev.conflictCheckCalendars, calendar.id]
-                                  : prev.conflictCheckCalendars.filter(id => id !== calendar.id)
-                              }));
-                            }}
-                          />
-                          <Label
-                            htmlFor={`conflict-${calendar.id}`}
-                            className="text-sm font-normal cursor-pointer flex items-center space-x-2"
-                          >
-                            <div 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: calendar.color || '#1a73e8' }}
-                            />
-                            <span>{calendar.name} | {calendar.email}</span>
-                            {formData.targetCalendar === calendar.id && (
-                              <Badge variant="secondary" className="text-xs">Zielkalender</Badge>
-                            )}
-                          </Label>
-                        </div>
-                        {/* Sub-Kalender */}
-                        {calendar.subCalendars.map((subCal) => (
-                          <div key={subCal.id} className="ml-8 flex items-center space-x-2">
-                            <Checkbox
-                              id={`conflict-${calendar.id}-${subCal.id}`}
-                              checked={formData.conflictCheckCalendars.includes(`${calendar.id}-${subCal.id}`)}
-                              onCheckedChange={(checked) => {
-                                const subCalId = `${calendar.id}-${subCal.id}`;
-                                setFormData(prev => ({
-                                  ...prev,
-                                  conflictCheckCalendars: checked
-                                    ? [...prev.conflictCheckCalendars, subCalId]
-                                    : prev.conflictCheckCalendars.filter(id => id !== subCalId)
-                                }));
-                              }}
-                            />
-                            <Label
-                              htmlFor={`conflict-${calendar.id}-${subCal.id}`}
-                              className="text-sm font-normal cursor-pointer flex items-center space-x-2"
-                            >
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: subCal.color || '#666' }}
-                              />
-                              <span>{subCal.name}</span>
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <div className={`flex justify-between border-t pt-4 mt-6`}>
-            <button className={buttonStyles.secondary.default} onClick={handleClose}>
-              <span>Abbrechen</span>
-            </button>
-            <button 
-              type="button"
-              className={`${buttonStyles.create.default} ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`} 
-              onClick={(e) => handleSave(e)}
-              disabled={isSaving}
-            >
-              <span>{isSaving ? 'Wird gespeichert...' : (isEdit ? 'Speichern' : 'Erstellen')}</span>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-            {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Disconnect Confirmation Dialog */}
+      <AlertDialog 
+        open={showDisconnectConfirm.show} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDisconnectConfirm({ show: false, connection: null });
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kalender löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie "{calendarToDelete && getCalendarDisplayName(calendarToDelete)}" wirklich löschen? 
-              Diese Aktion kann nicht rückgängig gemacht werden.
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Verbindung trennen
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Sind Sie sicher, dass Sie die Google Calendar Verbindung für{' '}
+                <strong>{showDisconnectConfirm.connection?.account_email}</strong> trennen möchten?
+              </p>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  <li>• Alle synchronisierten Kalender werden deaktiviert</li>
+                  <li>• Event-Type Konfigurationen bleiben erhalten</li>
+                  <li>• Neue Autorisierung für erneute Verbindung nötig</li>
+                </ul>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={confirmDeleteCalendar}
-              className={buttonStyles.dialog.destructive}
+              onClick={confirmDisconnectGoogleCalendar}
+              className="bg-red-600 hover:bg-red-700"
             >
-              Löschen
+              Verbindung trennen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Event Type Dialog */}
-      <AlertDialog open={deleteEventTypeDialogOpen} onOpenChange={setDeleteEventTypeDialogOpen}>
+      {/* Event Type Creation Modal */}
+      <EventTypeModal 
+        open={showEventTypeModal}
+        onOpenChange={setShowEventTypeModal}
+        availableCalendars={allBackendCalendars}
+        onEventTypeCreated={loadEventTypes}
+      />
+
+      {/* Event Type Edit Modal */}
+      <EventTypeEditModal
+        open={showEditEventTypeModal}
+        onOpenChange={setShowEditEventTypeModal}
+        eventType={editingEventType}
+        availableCalendars={allBackendCalendars}
+        onEventTypeUpdated={loadEventTypes}
+      />
+
+      {/* Delete Event Type Confirmation Dialog */}
+      <AlertDialog 
+        open={showDeleteConfirm.show} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowDeleteConfirm({ show: false, eventType: null });
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Event-Type löschen?</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Event Type löschen
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Möchten Sie "{eventTypeToDelete?.eventType.title}" wirklich löschen? 
+              Sind Sie sicher, dass Sie den Event Type{' '}
+              <strong>"{showDeleteConfirm.eventType?.name}"</strong> löschen möchten?
+              <br />
+              <br />
               Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1148,7 +1312,7 @@ export default function Calendar() {
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDeleteEventType}
-              className={buttonStyles.dialog.destructive}
+              className="bg-red-600 hover:bg-red-700"
             >
               Löschen
             </AlertDialogAction>
@@ -1156,5 +1320,153 @@ export default function Calendar() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// Google Connection Card Component (Agents page style)
+function GoogleConnectionCard({ 
+  connection, 
+  calendars, 
+  isDisconnecting, 
+  onDisconnect 
+}: {
+  connection: GoogleConnection;
+  calendars: CalendarType[];
+  isDisconnecting: boolean;
+  onDisconnect: () => void;
+}) {
+  const [showSubCalendars, setShowSubCalendars] = useState(false);
+  
+  const mainCalendar = calendars.find(cal => cal.isPrimary);
+  const subCalendars = calendars.filter(cal => !cal.isPrimary);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-[#FFE1D7] rounded-lg">
+              <CalendarIcon className="h-5 w-5 text-[#FE5B25]" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Google Calendar</CardTitle>
+              <p className="text-sm text-muted-foreground">{connection.account_email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDisconnect}
+              disabled={isDisconnecting}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              {isDisconnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-center mb-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#FE5B25]">{connection.calendar_count}</p>
+            <p className="text-sm text-muted-foreground">Verbundene Sub-Kalender</p>
+          </div>
+        </div>
+
+
+
+        {/* Sub-Calendars Dropdown */}
+        {subCalendars.length > 0 && (
+          <div>
+            <Button
+              variant="outline"
+              onClick={() => setShowSubCalendars(!showSubCalendars)}
+              className="w-full justify-between"
+              size="sm"
+            >
+              <span>{subCalendars.length} Sub-Kalender</span>
+              <ChevronRight className={`h-4 w-4 transition-transform ${showSubCalendars ? 'rotate-90' : ''}`} />
+            </Button>
+            
+            {showSubCalendars && (
+              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                {subCalendars.map((cal) => (
+                  <div key={cal.id} className="flex items-center gap-2 p-2 text-sm bg-muted/50 rounded">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                    <span className="truncate flex-1">{cal.name}</span>
+                    <span className="text-xs text-muted-foreground">{cal.timeZone?.split('/')[1] || 'Berlin'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Individual Calendar Card Component (Agents page style)
+function CalendarCard({ 
+  calendar, 
+  connection, 
+  isDisconnecting, 
+  onDisconnect 
+}: {
+  calendar: CalendarType;
+  connection?: GoogleConnection;
+  isDisconnecting: boolean;
+  onDisconnect: (connectionId: string) => void;
+}) {
+  return (
+    <Card className={calendar.isConnected ? "border-green-200" : "border-muted"}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-lg ${calendar.isConnected ? "bg-[#FFE1D7]" : "bg-muted"}`}>
+              <CalendarIcon className={`h-5 w-5 ${calendar.isConnected ? "text-[#FE5B25]" : "text-muted-foreground"}`} />
+            </div>
+            <div>
+              <CardTitle className="text-base">{calendar.name}</CardTitle>
+              <p className="text-sm text-muted-foreground">{calendar.timeZone || 'Europe/Berlin'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {calendar.isPrimary && (
+              <Badge className="bg-[#FE5B25] text-white text-xs">Haupt</Badge>
+            )}
+            {calendar.isConnected && (
+              <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
+                Verbunden
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 text-center">
+          <div>
+            <p className="text-lg font-bold text-[#FE5B25]">{calendar.eventTypesCount}</p>
+            <p className="text-xs text-muted-foreground">Event-Types</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold">{calendar.isConnected ? '✅' : '❌'}</p>
+            <p className="text-xs text-muted-foreground">Status</p>
+          </div>
+        </div>
+
+        {calendar.lastSyncedAt && (
+          <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

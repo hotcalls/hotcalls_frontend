@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon, Clock, AlertTriangle, Calendar, Infinity } from "lucide-react";
+import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon, Clock, AlertTriangle, Calendar, Infinity, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -20,6 +20,7 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { subscriptionService } from "@/lib/subscriptionService";
+import { paymentAPI } from "@/lib/apiService";
 import { toast } from "sonner";
 
 // Mock data für Minuten-Pakete basierend auf Plan
@@ -51,6 +52,9 @@ export default function Settings() {
   
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
   
   // Load workspace and usage data
   const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
@@ -289,6 +293,88 @@ export default function Settings() {
       });
     }
   }, [workspaceDetails]);
+
+  // Load subscription status when workspace is available
+  useEffect(() => {
+    const loadSubscriptionStatus = async () => {
+      if (!primaryWorkspace?.id || isLoadingSubscription) return;
+      
+      setIsLoadingSubscription(true);
+      try {
+        console.log('📊 Loading subscription status for workspace:', primaryWorkspace.id);
+        const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
+        console.log('💳 Subscription status loaded:', subscriptionData);
+        setSubscriptionStatus(subscriptionData);
+      } catch (error) {
+        console.error('❌ Failed to load subscription status:', error);
+        toast.error('Fehler beim Laden des Abonnement-Status');
+      } finally {
+        setIsLoadingSubscription(false);
+      }
+    };
+
+    loadSubscriptionStatus();
+  }, [primaryWorkspace?.id]);
+
+  // Cancel subscription function
+  const handleCancelSubscription = async () => {
+    if (!primaryWorkspace?.id) {
+      toast.error('Workspace nicht gefunden');
+      return;
+    }
+
+    const confirmCancel = window.confirm(
+      'Möchtest du dein Abonnement wirklich kündigen? Es bleibt bis zum Ende der aktuellen Abrechnungsperiode aktiv.'
+    );
+    
+    if (!confirmCancel) return;
+
+    setIsCancellingSubscription(true);
+    try {
+      console.log('🚫 Cancelling subscription for workspace:', primaryWorkspace.id);
+      const result = await paymentAPI.cancelSubscription();
+      console.log('✅ Subscription cancelled:', result);
+      
+      toast.success('Abonnement erfolgreich gekündigt', {
+        description: 'Dein Plan bleibt bis zum Ende der Abrechnungsperiode aktiv.'
+      });
+      
+      // Reload subscription status
+      const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
+      setSubscriptionStatus(subscriptionData);
+      
+    } catch (error: any) {
+      console.error('❌ Failed to cancel subscription:', error);
+      toast.error('Fehler beim Kündigen des Abonnements', {
+        description: error.message || 'Bitte versuche es erneut oder kontaktiere den Support.'
+      });
+    } finally {
+      setIsCancellingSubscription(false);
+    }
+  };
+
+  // Open Stripe customer portal
+  const handleManageSubscription = async () => {
+    if (!primaryWorkspace?.id) {
+      toast.error('Workspace nicht gefunden');
+      return;
+    }
+
+    try {
+      console.log('🔗 Opening Stripe customer portal for workspace:', primaryWorkspace.id);
+      const portalSession = await paymentAPI.createPortalSession(primaryWorkspace.id);
+      console.log('✅ Portal session created:', portalSession);
+      
+      // Redirect to Stripe customer portal
+      window.open(portalSession.url, '_blank');
+      
+    } catch (error: any) {
+      console.error('❌ Failed to create portal session:', error);
+      toast.error('Fehler beim Öffnen der Abonnement-Verwaltung', {
+        description: error.message || 'Bitte versuche es erneut.'
+      });
+    }
+  };
 
   // Handle profile form changes
   const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -910,6 +996,14 @@ export default function Settings() {
                     
                     <button 
                       className={buttonStyles.secondary.default}
+                      onClick={handleManageSubscription}
+                      disabled={isLoadingSubscription || !subscriptionStatus?.has_subscription}
+                    >
+                      <ExternalLink className={iconSizes.small} />
+                      <span>Abonnement verwalten</span>
+                    </button>
+                    <button 
+                      className={buttonStyles.secondary.default}
                       onClick={() => window.location.href = '/dashboard/plans'}
                     >
                       <SettingsIcon className={iconSizes.small} />
@@ -922,18 +1016,38 @@ export default function Settings() {
                 <div className={buttonStyles.info.panel}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className={textStyles.cardTitle}>{currentPlan.name} Plan</h3>
+                      <h3 className={textStyles.cardTitle}>
+                        {isLoadingSubscription 
+                          ? "Wird geladen..." 
+                          : subscriptionStatus?.subscription?.plan || currentPlan.name
+                        } Plan
+                      </h3>
                       <p className={textStyles.cardSubtitle}>
-                        {currentPlan.price === 'Custom' ? 'Individuelle Preisgestaltung' : `${currentPlan.price} pro Monat`}
+                        {currentPlan.price === 'Custom' ? 'Individuelle Preisgestaltung' : `${isLoadingSubscription ? "..." : currentPlan.price} pro Monat`}
                       </p>
                       <p className="text-xs text-gray-600 mt-1">{currentPlan.description}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
+                      <Badge className={
+                        isLoadingSubscription ? "bg-gray-400" :
+                        subscriptionStatus?.has_subscription ? "bg-[#FE5B25] text-white" : "bg-red-500 text-white"
+                      }>
+                        {isLoadingSubscription 
+                          ? "Wird geladen..." 
+                          : subscriptionStatus?.has_subscription 
+                            ? (subscriptionStatus.subscription?.cancel_at_period_end ? "Läuft aus" : "Aktiv")
+                            : "Inaktiv"
+                        }
+                      </Badge>
                       {currentPlan.name === 'Enterprise' && (
                         <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
                           Premium Features
                         </Badge>
+                      )}
+                      {subscriptionStatus?.subscription?.cancel_at_period_end && (
+                        <p className="text-xs text-gray-500">
+                          Endet: {new Date(subscriptionStatus.subscription.current_period_end).toLocaleDateString('de-DE')}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -996,6 +1110,19 @@ export default function Settings() {
                       <div className="text-xs text-green-600 font-medium">Unlimited usage</div>
                     )}
                   </div>
+
+                  {/* Cancel Subscription Button */}
+                  {subscriptionStatus?.has_subscription && !subscriptionStatus.subscription?.cancel_at_period_end && (
+                    <div className="pt-4 mt-4 border-t border-gray-200">
+                      <button 
+                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                        onClick={handleCancelSubscription}
+                        disabled={isCancellingSubscription}
+                      >
+                        {isCancellingSubscription ? "Wird gekündigt..." : "Abonnement kündigen"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

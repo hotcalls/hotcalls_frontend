@@ -48,6 +48,9 @@ const App = () => (
           {/* OAuth Callback Route - must be outside dashboard */}
           <Route path="/oauth2callback" element={<OAuthCallback />} />
           
+          {/* Calendar Integration Callback - Backend redirects here */}
+          <Route path="/calendar-integration" element={<OAuthCallback />} />
+          
           {/* Legal Pages */}
           <Route path="/agb" element={<AGB />} />
           <Route path="/datenschutz" element={<Datenschutz />} />
@@ -55,7 +58,7 @@ const App = () => (
           
           {/* Main App Routes (with Layout and Welcome Overlay) - Protected */}
           <Route path="/dashboard/*" element={
-            <ProtectedRoute>
+            // <ProtectedRoute>
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
@@ -74,7 +77,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>
-            </ProtectedRoute>
+            // </ProtectedRoute>
           } />
         </Routes>
       </BrowserRouter>

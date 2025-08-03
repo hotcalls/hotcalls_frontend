@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Plus, Bot, Play, Pause, BarChart, Settings, Trash2, User, UserCircle, Sparkles, Loader2, Copy } from "lucide-react";
@@ -265,28 +266,17 @@ export default function Agents() {
                     </div>
                     
                     <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                      <button
-                        className={agent.status === "active" ? buttonStyles.cardAction.statusActive : buttonStyles.cardAction.statusPaused}
-                        onClick={() => toggleAgentStatus(agent.agent_id, agent.status)}
-                      >
-                        {agent.status === "active" ? (
-                          <>
-                            <Pause className={iconSizes.small} />
-                            <span>Aktiv</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className={iconSizes.small} />
-                            <span>Pausiert</span>
-                          </>
-                        )}
-                      </button>
+                      <Switch
+                        checked={agent.status === "active"}
+                        onCheckedChange={() => toggleAgentStatus(agent.agent_id, agent.status)}
+                        className="data-[state=checked]:bg-[#FE5B25] data-[state=unchecked]:bg-gray-200"
+                      />
                       <button 
-                        className="px-3 py-2 border-2 border-blue-200 bg-blue-50 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-2"
+                        className={buttonStyles.cardAction.icon}
                         onClick={() => navigate(`/dashboard/agents/analytics/${agent.agent_id}`)}
+                        title="Analyse"
                       >
                         <BarChart className={iconSizes.small} />
-                        <span>Analyse</span>
                       </button>
                       <button 
                         className={buttonStyles.cardAction.icon}
@@ -358,14 +348,20 @@ export default function Agents() {
                 </CardHeader>
                 
                 <CardContent className={layoutStyles.cardContent}>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <p className={textStyles.metricLabel}>Charakter</p>
-                      <p className={textStyles.metric}>{agent.character}</p>
+                      <p className="text-sm font-normal text-gray-600">{agent.character}</p>
                     </div>
                     <div>
                       <p className={textStyles.metricLabel}>Stimme</p>
-                      <p className={textStyles.metric}>{voiceName}</p>
+                      <p className="text-sm font-normal text-gray-600">{voiceName}</p>
+                    </div>
+                    <div>
+                      <p className={textStyles.metricLabel}>Arbeitszeiten</p>
+                      <p className="text-sm font-normal text-gray-600">
+                        {agent.call_from?.slice(0, 5) || '09:00'} - {agent.call_to?.slice(0, 5) || '17:00'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>

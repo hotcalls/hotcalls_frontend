@@ -14,18 +14,12 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
 
-// Mock data for available event types from Calendar config
-const availableEventTypes = [
-  { id: "1", name: "Beratungsgespräch", duration: 30, calendar: "Marcus Weber (Haupt)" },
-  { id: "2", name: "Demo Call", duration: 45, calendar: "Marcus Weber (Haupt)" },
-  { id: "3", name: "Follow-up Gespräch", duration: 20, calendar: "Marcus Weber (Haupt)" },
-  { id: "4", name: "Team Meeting", duration: 60, calendar: "Team Calendar" }
-];
+// Real Event Types will be loaded from API
 
 // Mock data for available lead forms from Meta/Webhook configs
 const availableLeadForms = [
@@ -72,6 +66,11 @@ export default function AgentConfig() {
     }
   }, []);
 
+  // Load Event Types when component mounts
+  useEffect(() => {
+    loadEventTypes();
+  }, []);
+
   // Log when voices are loaded
   useEffect(() => {
     if (voices.length > 0) {
@@ -114,6 +113,26 @@ export default function AgentConfig() {
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [isTestCalling, setIsTestCalling] = useState(false);
 
+  // Event Types state
+  const [availableEventTypes, setAvailableEventTypes] = useState<any[]>([]);
+  const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
+
+  // Load Event Types from Calendar API
+  const loadEventTypes = async () => {
+    setIsLoadingEventTypes(true);
+    try {
+      const response = await calendarAPI.getCalendarConfigurations();
+      const eventTypesData = Array.isArray(response) ? response : (response as any).results || [];
+      setAvailableEventTypes(eventTypesData);
+      console.log(`✅ Loaded ${eventTypesData.length} Event Types for Agent Config`);
+    } catch (error) {
+      console.error('❌ Error loading Event Types in Agent Config:', error);
+      setAvailableEventTypes([]);
+    } finally {
+      setIsLoadingEventTypes(false);
+    }
+  };
+
   // Helper function to map personality to character
   const mapPersonalityToCharacter = (personality: string): string => {
     switch (personality) {
@@ -151,15 +170,12 @@ export default function AgentConfig() {
         const agentData = await agentAPI.getAgent(id);
         console.log('✅ Agent data loaded:', agentData);
         
-        // Debug: Check if max_retries exists in the response
-        console.log('🔍 Checking max_retries:', {
-          has_max_retries: 'max_retries' in agentData,
-          max_retries_value: (agentData as any).max_retries,
-          retry_attempts: (agentData as any).retry_attempts,
-          max_attempts: (agentData as any).max_attempts,
-          retry_count: (agentData as any).retry_count,
-          max_retry: (agentData as any).max_retry,
-          all_fields: Object.keys(agentData).filter(key => key.includes('retry') || key.includes('attempt') || key.includes('max'))
+        // Debug: Check calendar configuration
+        console.log('📅 Checking calendar configuration:', {
+          calendar_configuration: agentData.calendar_configuration,
+          config_id: (agentData as any).config_id,
+          has_calendar_config: 'calendar_configuration' in agentData,
+          will_load_eventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : []
         });
 
         // Map character to personality options
@@ -245,7 +261,7 @@ export default function AgentConfig() {
           voiceExternalId: agentData.voice_external_id || "", // Load external voice ID
           script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
-          selectedEventTypes: [],
+          selectedEventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : [], // Load calendar config
           selectedLeadForms: [],
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
@@ -383,7 +399,7 @@ export default function AgentConfig() {
         character: mapPersonalityToCharacter(config.personality), // Map personality to character
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
-        calendar_configuration: null // Optional: Set if you have calendar config
+        calendar_configuration: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null // Save selected event type
       };
       
       console.log('💾 Saving agent...', { 
@@ -410,6 +426,11 @@ export default function AgentConfig() {
           retry_interval: agentData.retry_interval,
           maxAttempts: config.maxAttempts,
           max_retries: agentData.max_retries
+        },
+        calendarDebug: {
+          selectedEventTypes: config.selectedEventTypes,
+          calendar_configuration: agentData.calendar_configuration,
+          willSave: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null
         }
       });
       
@@ -1015,87 +1036,56 @@ export default function AgentConfig() {
         <TabsContent value="integrations" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className={textStyles.sectionTitle}>Kalender & Event-Types</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="text-sm">
-                        Verbinden Sie den Agenten mit:
-                        <br />
-                        • Kalender Event-Types für Terminbuchungen<br />
-                        • Lead-Quellen für automatische Kontaktaufnahme
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </CardTitle>
-                <button className={buttonStyles.primary.default}>
-                  <Plus className={iconSizes.small} />
-                  <span>Event-Type hinzufügen</span>
-                </button>
-              </div>
+              <CardTitle className={textStyles.sectionTitle}>Kalender & Event-Types</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label>Ausgewählte Event-Types</Label>
-                <div className="space-y-3 mt-2">
-                  {config.selectedEventTypes.map((eventTypeId) => {
-                    const eventType = availableEventTypes.find(et => et.id === eventTypeId);
-                    return eventType ? (
-                      <div key={eventType.id} className="flex items-center justify-between p-3 border border-[#FE5B25] bg-[#FEF5F1] rounded-lg">
-                        <div>
-                          <p className="font-medium">{eventType.name}</p>
-                          <p className="text-sm text-gray-500">{eventType.duration} Min - {eventType.calendar}</p>
-                        </div>
-                        <button 
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => setConfig(prev => ({
-                            ...prev,
-                            selectedEventTypes: prev.selectedEventTypes.filter(id => id !== eventType.id)
-                          }))}
-                        >
-                          Entfernen
-                        </button>
-                      </div>
-                    ) : null;
-                  })}
-                  
-                  {config.selectedEventTypes.length === 0 && (
-                    <p className="text-sm text-gray-500 italic">Noch keine Event-Types ausgewählt</p>
-                  )}
-                </div>
-                
-                <div className="mt-4">
-                  <Label htmlFor="eventType">Weitere Event-Types hinzufügen</Label>
-                  <Select onValueChange={(value) => {
-                    if (!config.selectedEventTypes.includes(value)) {
-                      setConfig(prev => ({ 
-                        ...prev, 
-                        selectedEventTypes: [...prev.selectedEventTypes, value] 
-                      }));
-                    }
-                  }}>
+                <Label htmlFor="eventType">Event-Type für Terminbuchungen</Label>
+                {isLoadingEventTypes ? (
+                  <Select disabled>
                     <SelectTrigger>
-                      <SelectValue placeholder="Event-Type auswählen" />
+                      <SelectValue placeholder="Event-Types werden geladen..." />
                     </SelectTrigger>
-                    <SelectContent>
-                      {availableEventTypes
-                        .filter(eventType => !config.selectedEventTypes.includes(eventType.id))
-                        .map((eventType) => (
-                          <SelectItem key={eventType.id} value={eventType.id}>
-                            {eventType.name} ({eventType.duration} Min) - {eventType.calendar}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
                   </Select>
-                </div>
-                
-                <p className="text-sm text-gray-500 mt-2">
-                  Event-Types können in der Kalender-Sektion verwaltet werden.
-                </p>
+                ) : availableEventTypes.length === 0 ? (
+                  <div className="space-y-2">
+                    <Select disabled>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Keine Event-Types verfügbar" />
+                      </SelectTrigger>
+                    </Select>
+                    <p className="text-xs text-gray-500">
+                      Event-Types können in der <button 
+                        onClick={() => navigate('/dashboard/calendar')}
+                        className="text-[#FE5B25] hover:underline"
+                      >
+                        Kalender-Sektion
+                      </button> verwaltet werden.
+                    </p>
+                  </div>
+                ) : (
+                                     <Select 
+                     value={config.selectedEventTypes[0] || "none"} 
+                     onValueChange={(value) => {
+                       setConfig(prev => ({ 
+                         ...prev, 
+                         selectedEventTypes: value === "none" ? [] : [value]
+                       }));
+                     }}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Event-Type auswählen (optional)" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="none">Kein Event-Type</SelectItem>
+                       {availableEventTypes.map((eventType) => (
+                         <SelectItem key={eventType.id} value={eventType.id}>
+                           {eventType.name} ({eventType.duration} Min)
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                )}
               </div>
             </CardContent>
           </Card>

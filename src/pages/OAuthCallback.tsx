@@ -14,12 +14,53 @@ export default function OAuthCallback() {
   useEffect(() => {
     const processCallback = async () => {
       try {
-        // Extract params from URL
-        const { code, state, error } = extractAuthCode(searchParams);
+        // Check for new Backend redirect parameters first
+        const success = searchParams.get('success');
+        const calendarsCount = searchParams.get('calendars');
+        const email = searchParams.get('email');
+        const error = searchParams.get('error');
+
+        // NEW: Handle Backend redirect format
+        if (success === 'true' && calendarsCount && email) {
+          console.log(`✅ Backend redirect: ${calendarsCount} calendars connected for ${email}`);
+          setStatus('success');
+          setMessage(`Google Kalender erfolgreich verbunden! ${calendarsCount} Kalender synchronisiert.`);
+          
+          // Redirect to calendar page after short delay
+          setTimeout(() => {
+            navigate('/dashboard/calendar', { 
+              state: { 
+                message: `Google Kalender für ${email} wurde erfolgreich verbunden! ${calendarsCount} Kalender synchronisiert.`,
+                type: 'success',
+                newConnection: true,
+                calendarsCount: parseInt(calendarsCount)
+              }
+            });
+          }, 1500);
+          return;
+        }
+
+        // Handle Backend error redirects
+        if (error) {
+          const errorMessages = {
+            'oauth_failed': 'Google OAuth Fehler',
+            'no_code': 'Kein Authorization Code erhalten',
+            'invalid_state': 'Ungültige Session',
+            'user_not_found': 'User existiert nicht',
+            'no_workspace': 'User gehört zu keinem Workspace',
+            'server_error': 'Server-Fehler'
+          };
+          
+          const errorMessage = errorMessages[error as keyof typeof errorMessages] || 'Unbekannter Fehler';
+          throw new Error(errorMessage);
+        }
+
+        // LEGACY: Extract params from URL (old OAuth flow)
+        const { code, state, error: oldError } = extractAuthCode(searchParams);
 
         // Check for errors from Google
-        if (error) {
-          throw new Error(`Google OAuth error: ${error}`);
+        if (oldError) {
+          throw new Error(`Google OAuth error: ${oldError}`);
         }
 
         // Validate state for CSRF protection
@@ -32,13 +73,12 @@ export default function OAuthCallback() {
           throw new Error('No authorization code received');
         }
 
-        // Extract email hint from URL if available
-        const hd = searchParams.get('hd'); // hosted domain
-        const authuser = searchParams.get('authuser');
+        console.log('✅ OAuth callback received - Backend handles token exchange automatically');
 
-        // Exchange code for tokens via backend
-        setMessage('Autorisierung wird verarbeitet...');
-        const result = await handleOAuthCallback(code);
+        // VEREINFACHT: Backend hat bereits alles verarbeitet
+        // Frontend lädt nur die neuen Kalender-Verbindungen
+        setMessage('Kalender werden synchronisiert...');
+        const result = await handleOAuthCallback(); // KEIN code Parameter - Backend macht alles
 
         if (result.success) {
           setStatus('success');
@@ -49,7 +89,9 @@ export default function OAuthCallback() {
             navigate('/dashboard/calendar', { 
               state: { 
                 message: 'Google Kalender wurde erfolgreich verbunden!',
-                type: 'success'
+                type: 'success',
+                newConnection: true,
+                calendars: result.calendars // Google Connections vom Backend
               }
             });
           }, 1500);
@@ -58,7 +100,7 @@ export default function OAuthCallback() {
         }
 
       } catch (err) {
-        console.error('OAuth callback error:', err);
+        console.error('❌ OAuth callback error:', err);
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         

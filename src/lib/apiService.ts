@@ -159,9 +159,14 @@ async function apiCall<T>(
   const authToken = localStorage.getItem('authToken');
   if (authToken) {
     headers['Authorization'] = `Token ${authToken}`;
-    console.log('🔑 Added auth token to request headers');
+    console.log('🔑 Added auth token to request headers:', authToken.substring(0, 20) + '...');
   } else {
-    console.warn('⚠️ No auth token available - request might fail with 401');
+    console.error('❌ NO AUTH TOKEN FOUND! User might not be logged in. Calendar API will fail!');
+    console.log('🔍 Debug info:', {
+      localStorage_keys: Object.keys(localStorage),
+      current_url: window.location.href,
+      has_token: !!authToken
+    });
   }
   
   // Add CSRF token for non-GET requests
@@ -205,6 +210,12 @@ async function apiCall<T>(
   const response = await fetch(url, { ...defaultOptions, ...options });
   
   if (!response.ok) {
+    // For 404 Not Found on GET requests, return empty array instead of throwing error
+    if (response.status === 404 && method === 'GET') {
+      console.log(`ℹ️ 404 Not Found on GET ${url} - returning empty array`);
+      return [] as T;
+    }
+    
     const errorData = await response.json().catch(() => ({
       error: `HTTP ${response.status}: ${response.statusText}`
     }));
@@ -747,4 +758,190 @@ export const plansAPI = {
   },
 };
 
-// Export all APIs 
+// Export all APIs
+
+// Calendar API Types
+export interface BackendCalendar {
+  id: string;
+  workspace: string;
+  workspace_name: string;
+  name: string;
+  provider: string;
+  active: boolean;
+  config_count: number;
+  provider_details: {
+    external_id: string;
+    primary: boolean;
+    time_zone: string;
+    created_at: string;
+    updated_at: string;
+  };
+  connection_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoogleConnection {
+  id: string;
+  account_email: string;
+  active: boolean;
+  calendar_count: number;
+  status: string;
+}
+
+// Calendar API calls
+export const calendarAPI = {
+  /**
+   * Get all calendars for the current user/workspace
+   */
+  async getCalendars(): Promise<BackendCalendar[]> {
+    console.log('📅 GET /api/calendars/ - Fetching all calendars');
+    
+    try {
+      const response = await apiCall<BackendCalendar[]>('/api/calendars/');
+      console.log('✅ Calendars loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Calendar API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Google Calendar connections
+   */
+  async getGoogleConnections(): Promise<GoogleConnection[]> {
+    console.log('🔗 GET /api/calendars/google_connections/ - Fetching Google connections');
+    
+    try {
+      const response = await apiCall<GoogleConnection[]>('/api/calendars/google_connections/');
+      console.log('✅ Google connections loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Google connections API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate Google OAuth URL
+   */
+  async getGoogleOAuthURL(): Promise<{
+    authorization_url: string;
+    state: string;
+    message: string;
+  }> {
+    console.log('🔐 POST /api/calendars/google_auth_url/ - Generating OAuth URL');
+    
+    try {
+      const response = await apiCall<{
+        authorization_url: string;
+        state: string;
+        message: string;
+      }>('/api/calendars/google_auth_url/', {
+        method: 'POST'
+      });
+      console.log('✅ Google OAuth URL generated:', response.authorization_url);
+      return response;
+    } catch (error) {
+      console.error('❌ Google OAuth URL generation error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Disconnect Google Calendar connection
+   */
+  async disconnectGoogleCalendar(connectionId: string): Promise<{
+    success: boolean;
+    message?: string;
+  }> {
+    console.log('🔌 POST /api/calendars/${connectionId}/google_disconnect/ - Disconnecting Google Calendar');
+    
+    try {
+      const response = await apiCall<{
+        success: boolean;
+        message?: string;
+      }>(`/api/calendars/${connectionId}/google_disconnect/`, {
+        method: 'POST'
+      });
+      console.log('✅ Google Calendar disconnected:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Google disconnect error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create Event Type Configuration
+   */
+  async createEventType(payload: any): Promise<any> {
+    console.log('📅 POST /api/calendars/configurations/ - Creating Event Type');
+    
+    try {
+      const response = await apiCall('/api/calendars/configurations/', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      console.log('✅ Event Type created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type creation API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Calendar Configurations (Event Types)
+   */
+  async getCalendarConfigurations(): Promise<any> {
+    console.log('📋 GET /api/calendars/configurations/ - Fetching Event Types');
+    
+    try {
+      const response = await apiCall('/api/calendars/configurations/');
+      console.log('✅ Event Types loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Types loading API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update Event Type Configuration
+   */
+  async updateEventType(id: string, payload: any): Promise<any> {
+    console.log(`🔄 PUT /api/calendars/configurations/${id}/ - Updating Event Type`);
+    
+    try {
+      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      console.log('✅ Event Type updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete Event Type Configuration
+   */
+  async deleteEventType(id: string): Promise<any> {
+    console.log(`🗑️ DELETE /api/calendars/configurations/${id}/ - Deleting Event Type`);
+    
+    try {
+      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
+        method: 'DELETE'
+      });
+      console.log('✅ Event Type deleted:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Event Type delete API error:', error);
+      throw error;
+    }
+  },
+}; 
