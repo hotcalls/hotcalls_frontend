@@ -983,9 +983,9 @@ export const metaAPI = {
     console.log('📱 GET /api/meta/integrations/ - Getting Meta integrations');
     
     try {
-      const response = await apiCall<any[]>('/api/meta/integrations/');
+      const response = await apiCall<any>('/api/meta/integrations/');
       console.log('✅ Meta integrations retrieved:', response);
-      return response;
+      return response.results || [];
     } catch (error) {
       console.error('❌ Meta integrations API error:', error);
       throw error;
