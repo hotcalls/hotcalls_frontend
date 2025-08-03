@@ -139,7 +139,7 @@ class SubscriptionService {
         cancel_url: request.cancel_url || `${currentUrl}/dashboard/settings?tab=billing&cancelled=true`,
       };
 
-      return await this.fetchWithAuth('/api/payments/checkout/', {
+      return await this.fetchWithAuth('/api/payments/stripe/create-checkout-session/', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
