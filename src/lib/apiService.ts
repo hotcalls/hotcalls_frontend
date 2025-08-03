@@ -944,4 +944,51 @@ export const calendarAPI = {
       throw error;
     }
   },
+};
+
+// Meta API calls
+export const metaAPI = {
+  /**
+   * Get OAuth URL for Meta integration
+   */
+  async getOAuthUrl(workspaceId: string): Promise<{
+    oauth_url: string;
+    workspace_id: string;
+    state: string;
+  }> {
+    console.log('📱 POST /api/meta/integrations/get-oauth-url/ - Getting Meta OAuth URL for workspace:', workspaceId);
+    
+    try {
+      const response = await apiCall<{
+        oauth_url: string;
+        workspace_id: string;
+        state: string;
+      }>('/api/meta/integrations/get-oauth-url/', {
+        method: 'POST',
+        body: JSON.stringify({ workspace_id: workspaceId }),
+      });
+      
+      console.log('✅ Meta OAuth URL retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Meta OAuth URL API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Meta integrations for user's workspaces
+   */
+  async getIntegrations(): Promise<any[]> {
+    console.log('📱 GET /api/meta/integrations/ - Getting Meta integrations');
+    
+    try {
+      const response = await apiCall<any[]>('/api/meta/integrations/');
+      console.log('✅ Meta integrations retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Meta integrations API error:', error);
+      throw error;
+    }
+  },
 }; 
