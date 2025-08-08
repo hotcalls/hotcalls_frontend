@@ -23,25 +23,7 @@ import { subscriptionService } from "@/lib/subscriptionService";
 import { paymentAPI } from "@/lib/apiService";
 import { toast } from "sonner";
 
-// Mock data für Minuten-Pakete basierend auf Plan
-const getMinutePackages = (plan: string) => {
-  if (plan === "Pro") {
-    return [
-      { id: "250", minutes: 250, price: "72€", pricePerMinute: "0,29€", popular: false },
-      { id: "500", minutes: 500, price: "135€", pricePerMinute: "0,27€", popular: false },
-      { id: "1000", minutes: 1000, price: "230€", pricePerMinute: "0,23€", popular: true },
-      { id: "2500", minutes: 2500, price: "475€", pricePerMinute: "0,19€", popular: false }
-    ];
-  } else {
-    // Start Plan  
-    return [
-      { id: "250", minutes: 250, price: "122€", pricePerMinute: "0,49€", popular: false },
-      { id: "500", minutes: 500, price: "195€", pricePerMinute: "0,39€", popular: true },
-      { id: "1000", minutes: 1000, price: "350€", pricePerMinute: "0,35€", popular: false },
-      { id: "2500", minutes: 2500, price: "750€", pricePerMinute: "0,30€", popular: false }
-    ];
-  }
-};
+// Minute packages will be loaded dynamically from database via @core module
 
 // Note: Plan and usage data are now loaded via API hooks
 
@@ -462,7 +444,7 @@ export default function Settings() {
     }, 1000);
   };
 
-  const minutePackages = getMinutePackages(currentPlan.name);
+  const minutePackages: any[] = []; // Will be loaded from API
 
   const MinutePackageCard = ({ pkg }: { pkg: typeof minutePackages[0] }) => (
     <Card className={pkg.popular ? "border-[#FE5B25]" : ""}>

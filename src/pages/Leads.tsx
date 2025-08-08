@@ -6,107 +6,117 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Search, Filter, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Plus, Search, Filter, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { format, isToday, isThisWeek, getDay } from "date-fns";
 import { de } from "date-fns/locale";
-
-// Mock Leads Data
-const mockLeads = [
-  {
-    id: "1",
-    firstName: "Max",
-    lastName: "Mustermann",
-    email: "max.mustermann@email.com",
-    phone: "+49 151 12345678",
-    company: "Mustermann GmbH",
-    position: "Geschäftsführer",
-    source: "Meta Lead Ads",
-    status: "Neu",
-    priority: "Hoch",
-    lastContact: new Date("2024-01-15"),
-    nextFollowUp: new Date("2024-01-17"),
-    notes: "Interessiert an Premium-Paket",
-    assignedAgent: "Sarah",
-    tags: ["Premium", "Entscheider"],
-    leadScore: 85,
-    createdAt: new Date("2024-01-15"),
-  },
-  {
-    id: "2",
-    firstName: "Anna",
-    lastName: "Schmidt",
-    email: "anna.schmidt@example.com",
-    phone: "+49 170 98765432",
-    company: "Schmidt & Partner",
-    position: "Marketing Leiterin",
-    source: "Website",
-    status: "Kontaktiert",
-    priority: "Mittel",
-    lastContact: new Date("2024-01-14"),
-    nextFollowUp: new Date("2024-01-18"),
-    notes: "Benötigt weitere Informationen",
-    assignedAgent: "Marcus",
-    tags: ["Marketing"],
-    leadScore: 72,
-    createdAt: new Date("2024-01-14"),
-  },
-  {
-    id: "3",
-    firstName: "Thomas",
-    lastName: "Weber",
-    email: "thomas.weber@firma.de",
-    phone: "+49 160 55566677",
-    company: "Weber Consulting",
-    position: "Berater",
-    source: "LinkedIn",
-    status: "Qualifiziert",
-    priority: "Hoch",
-    lastContact: new Date("2024-01-16"),
-    nextFollowUp: new Date("2024-01-19"),
-    notes: "Termin vereinbart",
-    assignedAgent: "Lisa",
-    tags: ["Consulting", "B2B"],
-    leadScore: 91,
-    createdAt: new Date("2024-01-13"),
-  }
-];
+import { leadAPI, Lead, LeadsListResponse } from "@/lib/apiService";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Leads() {
-  const [leads, setLeads] = useState(mockLeads);
-  const [selectedLead, setSelectedLead] = useState<typeof mockLeads[0] | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [filters, setFilters] = useState({
     status: "alle",
-    source: "alle",
-    agent: "alle"
+    source: "alle", 
+    agent: "alle",
+    integration_provider: "alle"
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    count: 0,
+    next: null as string | null,
+    previous: null as string | null,
+    currentPage: 1
+  });
+  
+  const { workspaceDetails } = useWorkspace();
+  const { toast } = useToast();
+
+  // Load leads from API
+  const loadLeads = useCallback(async (page: number = 1) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const params: any = {
+        page,
+        page_size: 20,
+        ordering: '-created_at', // Newest first
+      };
+      
+      // Add workspace filter - only current workspace leads
+      if (workspaceDetails?.id) {
+        params.workspace = workspaceDetails.id;
+      }
+      
+      // Add search filter
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+      
+      // Add integration provider filter
+      if (filters.integration_provider !== "alle") {
+        params.integration_provider = filters.integration_provider;
+      }
+      
+      console.log('🔍 Loading leads with params:', params);
+      const response: LeadsListResponse = await leadAPI.getLeads(params);
+      
+      setLeads(response.results || []);
+      setPagination({
+        count: response.count || 0,
+        next: response.next,
+        previous: response.previous,
+        currentPage: page
+      });
+      
+      console.log(`✅ Loaded ${response.results?.length || 0} leads`);
+    } catch (err) {
+      console.error('❌ Error loading leads:', err);
+      setError('Fehler beim Laden der Leads');
+      toast({
+        title: "Fehler",
+        description: "Leads konnten nicht geladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workspaceDetails?.id, searchTerm, filters.integration_provider, toast]);
+
+  // Load leads on component mount and when dependencies change
+  useEffect(() => {
+    if (workspaceDetails?.id) {
+      loadLeads(1);
+    }
+  }, [loadLeads]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (workspaceDetails?.id) {
+        loadLeads(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   const statusColors = {
-    "Neu": "bg-blue-100 text-blue-800",
-    "Kontaktiert": "bg-yellow-100 text-yellow-800", 
-    "Qualifiziert": "bg-green-100 text-green-800",
-    "Termin": "bg-purple-100 text-purple-800",
-    "Abgeschlossen": "bg-gray-100 text-gray-800",
-    "Verloren": "bg-red-100 text-red-800"
+    "meta": "bg-blue-100 text-blue-800",
+    "google": "bg-green-100 text-green-800", 
+    "manual": "bg-gray-100 text-gray-800",
   };
 
 
 
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = searchTerm === "" || 
-      lead.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.company.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = filters.status === "alle" || lead.status === filters.status;
-    const matchesSource = filters.source === "alle" || lead.source === filters.source;
-    const matchesAgent = filters.agent === "alle" || lead.assignedAgent === filters.agent;
-
-    return matchesSearch && matchesStatus && matchesSource && matchesAgent;
-  });
+  // Leads are already filtered by API, so we just use them directly
+  const filteredLeads = leads;
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -128,7 +138,16 @@ export default function Leads() {
         {/* Header mit Suche und Aktionen */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-semibold">
-            {filteredLeads.length} Lead{filteredLeads.length !== 1 ? 's' : ''} gefunden
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Lade Leads...</span>
+              </div>
+            ) : error ? (
+              <span className="text-red-600">Fehler beim Laden</span>
+            ) : (
+              `${pagination.count} Lead${pagination.count !== 1 ? 's' : ''} gefunden`
+            )}
           </h2>
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -168,65 +187,106 @@ export default function Leads() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Workspace</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quelle</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erstellt</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLeads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {lead.firstName} {lead.lastName}
-                      </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-[#FE5B25] mr-2" />
+                      <span className="text-gray-500">Lade Leads...</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{lead.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{lead.phone}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{lead.source}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[lead.status as keyof typeof statusColors]}`}>
-                      {lead.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{lead.assignedAgent}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Button
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="text-red-600">
+                      <p className="font-medium">Fehler beim Laden der Leads</p>
+                      <p className="text-sm mt-1">{error}</p>
+                      <Button 
+                        onClick={() => loadLeads(1)} 
+                        className="mt-3"
                         variant="outline"
-                        size="sm"
-                        onClick={() => {/* Handle call */}}
-                        className="h-8 w-8 p-0"
                       >
-                        <Phone className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedLead(lead)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Info className="h-3.5 w-3.5" />
+                        Erneut versuchen
                       </Button>
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
+              ) : filteredLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center">
+                    <div className="text-gray-500">
+                      <p className="font-medium">Keine Leads gefunden</p>
+                      <p className="text-sm mt-1">
+                        {searchTerm ? 'Versuche andere Suchbegriffe' : 'Erstelle Lead-Quellen um Leads zu erhalten'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {lead.full_name}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{lead.email}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{lead.phone}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{lead.workspace_name}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        lead.integration_provider 
+                          ? statusColors[lead.integration_provider as keyof typeof statusColors] || "bg-gray-100 text-gray-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {lead.integration_provider_display || lead.integration_provider || 'Manual'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {format(new Date(lead.created_at), 'dd.MM.yyyy', { locale: de })}
+                      </div>
+                    </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedLead(lead)}
+                            className="text-xs"
+                          >
+                            <Info className="h-3 w-3 mr-1" />
+                            Details
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-xs">
+                            <Phone className="h-3 w-3 mr-1" />
+                            Anrufen
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
           </table>
         </div>
       </div>
@@ -237,8 +297,8 @@ export default function Leads() {
           {selectedLead && (
             <>
               <SheetHeader>
-                <SheetTitle>{selectedLead.firstName} {selectedLead.lastName}</SheetTitle>
-                <p className="text-muted-foreground">{selectedLead.position} bei {selectedLead.company}</p>
+                <SheetTitle>{selectedLead.full_name}</SheetTitle>
+                <p className="text-muted-foreground">{selectedLead.workspace_name}</p>
               </SheetHeader>
 
               <ScrollArea className="h-full pr-6">
@@ -251,7 +311,7 @@ export default function Leads() {
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <Building className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{selectedLead.company}</span>
+                        <span className="text-sm">{selectedLead.workspace_name}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
@@ -269,36 +329,16 @@ export default function Leads() {
                   {/* Lead-Status */}
                   <div className="space-y-3">
                     <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      Lead-Status
+                      Lead-Details
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {/* Status */}
-                      <Card>
-                        <CardContent className="p-3">
-                          <div className="text-lg font-bold">
-                            {selectedLead.status}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Status</p>
-                        </CardContent>
-                      </Card>
-                      
                       {/* Quelle */}
                       <Card>
                         <CardContent className="p-3">
                           <div className="text-lg font-bold">
-                            {selectedLead.source}
+                            {selectedLead.integration_provider_display || selectedLead.integration_provider || 'Manual'}
                           </div>
                           <p className="text-xs text-muted-foreground">Quelle</p>
-                        </CardContent>
-                      </Card>
-                      
-                      {/* Agent */}
-                      <Card>
-                        <CardContent className="p-3">
-                          <div className="text-lg font-bold">
-                            {selectedLead.assignedAgent}
-                          </div>
-                          <p className="text-xs text-muted-foreground">Zugewiesener Agent</p>
                         </CardContent>
                       </Card>
                       
@@ -306,7 +346,7 @@ export default function Leads() {
                       <Card>
                         <CardContent className="p-3">
                           <div className="text-lg font-bold">
-                            {format(selectedLead.createdAt, 'dd.MM.yyyy', { locale: de })}
+                            {format(new Date(selectedLead.created_at), 'dd.MM.yyyy', { locale: de })}
                           </div>
                           <p className="text-xs text-muted-foreground">Erstellt am</p>
                         </CardContent>
@@ -316,19 +356,39 @@ export default function Leads() {
 
                   <Separator />
 
-                  {/* Notizen */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-medium mb-3">
-                      Notizen
-                    </h3>
-                    <div className="bg-muted/30 p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">
-                        {selectedLead.notes}
-                      </p>
+                  {/* Lead Variables */}
+                  {Object.keys(selectedLead.variables || {}).length > 0 && (
+                    <>
+                      <div className="space-y-3">
+                        <h3 className="text-lg font-medium mb-3">
+                          Lead Variables
+                        </h3>
+                        <div className="space-y-2">
+                          {Object.entries(selectedLead.variables || {}).map(([key, value]) => (
+                            <div key={key} className="flex justify-between">
+                              <span className="text-sm font-medium">{key}:</span>
+                              <span className="text-sm text-muted-foreground">{String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+
+                  {/* Meta Data */}
+                  {Object.keys(selectedLead.meta_data || {}).length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium mb-3">
+                        Zusätzliche Daten
+                      </h3>
+                      <div className="bg-muted/30 p-4 rounded-lg">
+                        <pre className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {JSON.stringify(selectedLead.meta_data, null, 2)}
+                        </pre>
+                      </div>
                     </div>
-                  </div>
-
-
+                  )}
                 </div>
               </ScrollArea>
             </>

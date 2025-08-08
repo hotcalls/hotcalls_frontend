@@ -14,20 +14,12 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI, calendarAPI } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
 
-// Real Event Types will be loaded from API
-
-// Mock data for available lead forms from Meta/Webhook configs
-const availableLeadForms = [
-  { id: "1", name: "Hauptformular - Beratung", source: "Meta Lead Ads", fields: ["Name", "Email", "Telefon", "Interesse"] },
-  { id: "2", name: "Demo Anfrage", source: "Meta Lead Ads", fields: ["Name", "Email", "Unternehmen"] },
-  { id: "3", name: "Kontaktformular Website", source: "Website Webhook", fields: ["Name", "Email", "Nachricht"] },
-  { id: "4", name: "Newsletter Anmeldung", source: "Website Webhook", fields: ["Email"] }
-];
+// Real Event Types and Lead Forms will be loaded from API
 
 export default function AgentConfig() {
   const navigate = useNavigate();
@@ -66,9 +58,10 @@ export default function AgentConfig() {
     }
   }, []);
 
-  // Load Event Types when component mounts
+  // Load Event Types and Lead Forms when component mounts
   useEffect(() => {
     loadEventTypes();
+    loadLeadForms();
   }, []);
 
   // Log when voices are loaded
@@ -116,6 +109,8 @@ export default function AgentConfig() {
   // Event Types state
   const [availableEventTypes, setAvailableEventTypes] = useState<any[]>([]);
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
+  const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
+  const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
 
   // Load Event Types from Calendar API
   const loadEventTypes = async () => {
@@ -130,6 +125,21 @@ export default function AgentConfig() {
       setAvailableEventTypes([]);
     } finally {
       setIsLoadingEventTypes(false);
+    }
+  };
+
+  // Load Lead Forms from Meta API  
+  const loadLeadForms = async () => {
+    setIsLoadingLeadForms(true);
+    try {
+      const leadFormsData = await metaAPI.getLeadForms();
+      setAvailableLeadForms(leadFormsData || []);
+      console.log(`✅ Loaded ${leadFormsData?.length || 0} Meta Lead Forms for Agent Config`);
+    } catch (error) {
+      console.error('❌ Error loading Lead Forms in Agent Config:', error);
+      setAvailableLeadForms([]);
+    } finally {
+      setIsLoadingLeadForms(false);
     }
   };
 
@@ -1124,8 +1134,8 @@ export default function AgentConfig() {
                     return leadForm ? (
                       <div key={leadForm.id} className="flex items-center justify-between p-3 border border-[#FE5B25] bg-[#FEF5F1] rounded-lg">
                         <div>
-                          <p className="font-medium">{leadForm.name}</p>
-                          <p className="text-sm text-gray-500">{leadForm.source}</p>
+                          <p className="font-medium">{leadForm.name || leadForm.meta_form_id || 'Unbekanntes Formular'}</p>
+                          <p className="text-sm text-gray-500">Meta Lead Ads - Form ID: {leadForm.meta_form_id}</p>
                         </div>
                         <button 
                           className="text-red-600 hover:text-red-700"
@@ -1147,27 +1157,51 @@ export default function AgentConfig() {
                 
                 <div className="mt-4">
                   <Label htmlFor="leadForm">Weitere Lead-Quellen hinzufügen</Label>
-                  <Select onValueChange={(value) => {
-                    if (!config.selectedLeadForms.includes(value)) {
-                      setConfig(prev => ({ 
-                        ...prev, 
-                        selectedLeadForms: [...prev.selectedLeadForms, value] 
-                      }));
-                    }
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Lead-Quelle auswählen" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableLeadForms
-                        .filter(form => !config.selectedLeadForms.includes(form.id))
-                        .map((form) => (
-                          <SelectItem key={form.id} value={form.id}>
-                            {form.name} - {form.source}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  {isLoadingLeadForms ? (
+                    <Select disabled>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Lead-Formulare werden geladen..." />
+                      </SelectTrigger>
+                    </Select>
+                  ) : availableLeadForms.length === 0 ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Keine Lead-Formulare verfügbar" />
+                        </SelectTrigger>
+                      </Select>
+                      <p className="text-xs text-gray-500">
+                        Lead-Formulare können in der <button 
+                          onClick={() => navigate('/dashboard/lead-sources')}
+                          className="text-[#FE5B25] hover:underline"
+                        >
+                          Lead-Quellen Sektion
+                        </button> verwaltet werden.
+                      </p>
+                    </div>
+                  ) : (
+                    <Select onValueChange={(value) => {
+                      if (!config.selectedLeadForms.includes(value)) {
+                        setConfig(prev => ({ 
+                          ...prev, 
+                          selectedLeadForms: [...prev.selectedLeadForms, value] 
+                        }));
+                      }
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Lead-Quelle auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableLeadForms
+                          .filter(form => !config.selectedLeadForms.includes(form.id))
+                          .map((form) => (
+                            <SelectItem key={form.id} value={form.id}>
+                              {form.name || form.meta_form_id} - Meta Lead Ads
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 
                 <p className="text-sm text-gray-500 mt-2">

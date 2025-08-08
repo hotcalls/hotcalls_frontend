@@ -1,64 +1,104 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Facebook, CheckCircle, Circle } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Facebook, CheckCircle, Circle, Loader2, Trash2, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { metaAPI } from "@/lib/apiService";
 
-// Mock Meta Account Data
-const metaAccount = {
-  id: "fb_acc_123456789",
-  name: "HotCalls GmbH",
-  email: "admin@hotcalls.de",
-  connectedDate: "15.12.2023",
-  status: "Verbunden",
-};
+// Interface for Meta Integration
+interface MetaIntegration {
+  id: string;
+  workspace: string;
+  workspace_name: string;
+  business_account_id: string;
+  page_id: string;
+  page_name: string;
+  page_picture_url: string;
+  access_token_expires_at: string;
+  scopes: string[];
+  status: string;
+  lead_forms_count: number;
+  created_at: string;
+  updated_at: string;
+}
 
-// Mock Lead Formulare
-const leadForms = [
-  {
-    id: "form_1",
-    name: "Premium Beratung Anfrage",
-    pageName: "HotCalls - Telemarketing Experten",
-    leads: 1247,
-    status: "Aktiv",
-    lastActivity: "vor 2 Std",
-    selected: true,
-  },
-  {
-    id: "form_2", 
-    name: "Kostenlose Erstberatung",
-    pageName: "HotCalls - Telemarketing Experten",
-    leads: 892,
-    status: "Aktiv", 
-    lastActivity: "vor 4 Std",
-    selected: true,
-  },
-  {
-    id: "form_3",
-    name: "Newsletter Anmeldung",
-    pageName: "HotCalls Blog",
-    leads: 543,
-    status: "Aktiv",
-    lastActivity: "vor 1 Tag",
-    selected: false,
-  },
-  {
-    id: "form_4",
-    name: "Webinar Registrierung",
-    pageName: "HotCalls Events",
-    leads: 234,
-    status: "Pausiert",
-    lastActivity: "vor 3 Tagen", 
-    selected: false,
-  },
-];
+// Interface for Meta Lead Form
+interface MetaLeadForm {
+  id: string;
+  meta_form_id: string;
+  name: string;
+  meta_integration: string;
+  is_active: boolean;
+  variables_scheme: any;
+  meta_lead_id?: string;
+  lead?: string;
+  created_at: string;
+  updated_at: string;
+  selected?: boolean;
+}
 
 export default function MetaConfig() {
   const navigate = useNavigate();
-  const [forms, setForms] = useState(leadForms);
+  const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const { workspaceDetails } = useWorkspace();
+  const [forms, setForms] = useState<MetaLeadForm[]>([]);
+  const [metaIntegration, setMetaIntegration] = useState<MetaIntegration | null>(null);
   const [activeTab, setActiveTab] = useState("account");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get integration ID from URL params
+  const integrationId = searchParams.get('integration');
+
+  // Load Meta integration and lead forms from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('📋 Loading Meta integration data...');
+        setIsLoading(true);
+        setError(null);
+        
+        // Load both integration details and lead forms in parallel
+        const [integrations, leadForms] = await Promise.all([
+          metaAPI.getIntegrations(),
+          metaAPI.getLeadForms()
+        ]);
+        
+        console.log('✅ Integrations loaded:', integrations);
+        console.log('✅ Lead forms loaded:', leadForms);
+        
+        // Find the current integration by ID or use the first one
+        const currentIntegration = integrationId 
+          ? integrations.find(integration => integration.id === integrationId)
+          : integrations[0];
+          
+        if (currentIntegration) {
+          setMetaIntegration(currentIntegration);
+        }
+        
+        // Add selected property to each form based on is_active
+        const formsWithSelection = leadForms.map(form => ({
+          ...form,
+          selected: form.is_active || false // Use is_active from backend
+        }));
+        
+        setForms(formsWithSelection);
+      } catch (err) {
+        console.error('❌ Error loading Meta data:', err);
+        setError('Fehler beim Laden der Meta Daten');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [integrationId]);
 
   const toggleFormSelection = (formId: string) => {
     setForms(forms.map(form => 
@@ -69,6 +109,139 @@ export default function MetaConfig() {
   };
 
   const selectedCount = forms.filter(form => form.selected).length;
+
+  // Handler for saving form selections
+  const handleSaveSelections = async () => {
+    if (isLoading) return; // Prevent double clicks
+    
+    try {
+      console.log('💾 Saving form selections...');
+      
+      // Convert forms selection to the format expected by the API
+      const formSelections: Record<string, boolean> = {};
+      forms.forEach(form => {
+        formSelections[form.meta_form_id] = form.selected || false;
+      });
+      
+      console.log('📋 Form selections to save:', formSelections);
+      console.log('📋 Forms array:', forms);
+      
+      if (Object.keys(formSelections).length === 0) {
+        toast({
+          title: "Keine Formulare vorhanden",
+          description: "Es wurden keine Formulare zum Speichern gefunden.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      const response = await metaAPI.updateFormSelections(formSelections);
+      
+      console.log('✅ Form selections saved:', response);
+      
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: `${response.total_updated} Formulare wurden aktualisiert.`,
+      });
+      
+      if (response.total_errors > 0) {
+        console.warn('⚠️ Some forms had errors:', response.errors);
+        toast({
+          title: "Teilweise Fehler",
+          description: `${response.total_errors} Formulare konnten nicht aktualisiert werden.`,
+          variant: "destructive",
+        });
+      }
+      
+      // Reload the forms to reflect the saved state
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (err: any) {
+      console.error('❌ Error saving form selections:', err);
+      
+      let errorMessage = "Die Formular-Auswahl konnte nicht gespeichert werden.";
+      
+      // Try to extract more specific error message
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error) {
+        errorMessage = err.error;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      toast({
+        title: "Fehler beim Speichern",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handler for "Account trennen" - Delete Integration
+  const handleDeleteIntegration = async () => {
+    if (!integrationId) {
+      toast({
+        title: "Fehler",
+        description: "Keine Integration ID gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('🗑️ Deleting Meta integration:', integrationId);
+      await metaAPI.deleteIntegration(integrationId);
+      
+      toast({
+        title: "Erfolgreich",
+        description: "Meta Integration wurde getrennt.",
+      });
+      
+      // Redirect back to Lead Sources
+      navigate('/dashboard/lead-sources');
+    } catch (error) {
+      console.error('❌ Error deleting Meta integration:', error);
+      toast({
+        title: "Fehler",
+        description: "Meta Integration konnte nicht getrennt werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler for "Account wechseln" - Start new OAuth flow
+  const handleSwitchAccount = async () => {
+    if (!workspaceDetails?.id) {
+      toast({
+        title: "Fehler",
+        description: "Keine Workspace ID verfügbar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('🔗 Starting Meta OAuth flow for account switch');
+      const { oauth_url } = await metaAPI.getOAuthUrl(workspaceDetails.id);
+      
+      // Open Facebook OAuth in same window
+      window.location.href = oauth_url;
+    } catch (error) {
+      console.error('❌ Error starting Meta OAuth:', error);
+      toast({
+        title: "Fehler",
+        description: "Account wechseln konnte nicht gestartet werden.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -88,9 +261,17 @@ export default function MetaConfig() {
           </div>
         </div>
         
-        <button className={buttonStyles.create.default}>
-          <span>Änderungen speichern</span>
-        </button>
+        {/* Funktionaler Save Button oben rechts - nur im Formulare Tab */}
+        {activeTab === "forms" && forms.length > 0 && (
+          <button 
+            className={buttonStyles.create.default}
+            onClick={handleSaveSelections}
+            disabled={isLoading}
+          >
+            <span>{isLoading ? 'Speichert...' : 'Änderungen speichern'}</span>
+          </button>
+        )}
+
       </div>
 
       {/* Custom Tab Navigation */}
@@ -136,14 +317,14 @@ export default function MetaConfig() {
                   <div>
                     <CardTitle className={textStyles.sectionTitle}>Verbundener Meta Account</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      Account ID: {metaAccount.id}
+                      {metaIntegration ? `Account ID: ${metaIntegration.business_account_id}` : 'Lädt...'}
                     </p>
                   </div>
                 </div>
                 
                 <Badge className="bg-green-50 border-green-600 text-green-700">
                   <CheckCircle className="h-3 w-3 mr-1" />
-                  {metaAccount.status}
+                  {metaIntegration?.status === 'active' ? 'Verbunden' : 'Getrennt'}
                 </Badge>
               </div>
             </CardHeader>
@@ -152,23 +333,60 @@ export default function MetaConfig() {
               <div className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Account Name</p>
-                  <p className="font-medium">{metaAccount.name}</p>
+                  <p className="font-medium">{metaIntegration?.page_name || 'Lädt...'}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">E-Mail</p>
-                  <p className="font-medium">{metaAccount.email}</p>
+                  <p className="text-muted-foreground">Page ID</p>
+                  <p className="font-medium">{metaIntegration?.page_id || 'Lädt...'}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Verbunden seit</p>
-                  <p className="font-medium">{metaAccount.connectedDate}</p>
+                  <p className="font-medium">
+                    {metaIntegration 
+                      ? new Date(metaIntegration.created_at).toLocaleDateString('de-DE', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric'
+                        })
+                      : 'Lädt...'
+                    }
+                  </p>
                 </div>
               </div>
               
               <div className={`flex items-center ${spacingStyles.buttonSpacing} pt-2 border-t`}>
-                <button className={buttonStyles.secondary.default}>
-                  <span>Account trennen</span>
-                </button>
-                <button className={buttonStyles.secondary.default}>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className={`${buttonStyles.secondary.default} flex items-center space-x-2`}>
+                      <Trash2 className={iconSizes.small} />
+                      <span>Account trennen</span>
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Meta Integration löschen</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Sind Sie sicher, dass Sie diese Meta Integration trennen möchten? 
+                        Alle Lead Formulare werden getrennt und Leads können nicht mehr empfangen werden.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteIntegration}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Integration löschen
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <button 
+                  className={`${buttonStyles.secondary.default} flex items-center space-x-2`}
+                  onClick={handleSwitchAccount}
+                >
+                  <ExternalLink className={iconSizes.small} />
                   <span>Account wechseln</span>
                 </button>
               </div>
@@ -213,45 +431,93 @@ export default function MetaConfig() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4">
-                {forms.map((form) => (
-                  <Card 
-                    key={form.id} 
-                    className={`cursor-pointer transition-all ${
-                      form.selected 
-                        ? "border-[#FE5B25] border-2" 
-                        : "hover:border-gray-300"
-                    }`}
-                    onClick={() => toggleFormSelection(form.id)}
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#FE5B25]" />
+                  <span className="ml-2 text-sm text-muted-foreground">Lade Lead Formulare...</span>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-600">{error}</p>
+                  <Button 
+                    onClick={() => window.location.reload()} 
+                    className="mt-2"
+                    variant="outline"
                   >
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {form.selected ? (
-                            <CheckCircle className={`${iconSizes.small} text-[#FE5B25]`} />
-                          ) : (
-                            <Circle className={`${iconSizes.small} text-gray-400`} />
-                          )}
-                          <div>
-                            <CardTitle className={textStyles.cardTitle}>{form.name}</CardTitle>
+                    Erneut versuchen
+                  </Button>
+                </div>
+              ) : forms.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Keine Lead Formulare gefunden</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Erstelle Lead Formulare in deinem Meta Business Manager
+                  </p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {forms.map((form) => (
+                    <Card 
+                      key={form.id} 
+                      className={`cursor-pointer transition-all ${
+                        form.selected 
+                          ? "border-[#FE5B25] border-2" 
+                          : "hover:border-gray-300"
+                      }`}
+                      onClick={() => toggleFormSelection(form.id)}
+                    >
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {form.selected ? (
+                              <CheckCircle className={`${iconSizes.small} text-[#FE5B25]`} />
+                            ) : (
+                              <Circle className={`${iconSizes.small} text-gray-400`} />
+                            )}
+                            <div>
+                              <CardTitle className={textStyles.cardTitle}>
+                                {form.name || form.meta_form_id}
+                              </CardTitle>
+                              <p className="text-sm text-muted-foreground">
+                                Form ID: {form.meta_form_id}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Integration: {form.meta_integration}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-right">
                             <p className="text-sm text-muted-foreground">
-                              {form.pageName}
+                              Erstellt: {new Date(form.created_at).toLocaleDateString('de-DE')}
                             </p>
+                            {form.updated_at && (
+                              <p className="text-xs text-muted-foreground">
+                                Aktualisiert: {new Date(form.updated_at).toLocaleDateString('de-DE')}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">
-                            Letzte Aktivität {form.lastActivity}
-                          </p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Save Button für Formulare */}
+          {forms.length > 0 && (
+            <div className="flex justify-end">
+              <button 
+                className={buttonStyles.create.default}
+                onClick={handleSaveSelections}
+                disabled={isLoading}
+              >
+                <span>{isLoading ? 'Speichert...' : 'Änderungen speichern'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Info Box for Forms Tab */}
           <Card className="border-[#FE5B25] bg-[#FEF5F1]">

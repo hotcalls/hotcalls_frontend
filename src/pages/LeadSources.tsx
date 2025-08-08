@@ -87,6 +87,30 @@ export default function LeadSources() {
     setIsAddDialogOpen(false);
   };
 
+  const handleDeleteIntegration = async (integrationId: string) => {
+    try {
+      console.log('🗑️ Deleting Meta integration:', integrationId);
+      await metaAPI.deleteIntegration(integrationId);
+      
+      // Remove from local state
+      setMetaIntegrations(prevIntegrations => 
+        prevIntegrations.filter(integration => integration.id !== integrationId)
+      );
+      
+      toast({
+        title: "Integration gelöscht",
+        description: "Meta Integration wurde erfolgreich entfernt.",
+      });
+    } catch (error) {
+      console.error('❌ Failed to delete Meta integration:', error);
+      toast({
+        title: "Fehler",
+        description: "Integration konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load integrations on mount
   useEffect(() => {
     console.log('🚀 LeadSources component mounted, about to load integrations...');
@@ -160,14 +184,24 @@ export default function LeadSources() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-[#FFE1D7]">
-                      <Facebook className={`${iconSizes.large} text-[#FE5B25]`} />
+                    <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
+                      {integration.page_picture_url ? (
+                        <img 
+                          src={integration.page_picture_url} 
+                          alt={integration.page_name || 'Meta Page'} 
+                          className="w-8 h-8 rounded object-cover"
+                        />
+                      ) : (
+                        <Facebook className={`${iconSizes.large} text-[#FE5B25]`} />
+                      )}
                     </div>
                     <div>
                       <CardTitle className={textStyles.cardTitle}>
-                        Meta Lead Ads
+                        {integration.page_name || 'Meta Lead Ads'}
                       </CardTitle>
-                      <p className={textStyles.cardSubtitle}>Page ID: {integration.page_id}</p>
+                      <p className={textStyles.cardSubtitle}>
+                        {integration.page_name ? `Page ID: ${integration.page_id}` : `Page ID: ${integration.page_id}`}
+                      </p>
                     </div>
                   </div>
                   
@@ -182,6 +216,31 @@ export default function LeadSources() {
                     >
                       <Settings className={iconSizes.small} />
                     </button>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button className={buttonStyles.cardAction.icon}>
+                          <Trash2 className={iconSizes.small} />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Integration löschen</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Möchten Sie diese Meta Integration wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => handleDeleteIntegration(integration.id)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Löschen
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </CardHeader>

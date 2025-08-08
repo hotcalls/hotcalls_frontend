@@ -946,6 +946,258 @@ export const calendarAPI = {
   },
 };
 
+// Lead Types
+export interface Lead {
+  id: string;
+  name: string;
+  surname?: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  workspace: string;
+  workspace_name: string;
+  integration_provider?: 'meta' | 'google' | 'manual';
+  integration_provider_display?: string;
+  variables: Record<string, any>;
+  meta_data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateLeadRequest {
+  name: string;
+  surname?: string;
+  email: string;
+  phone: string;
+  meta_data?: Record<string, any>;
+}
+
+export interface LeadsListResponse {
+  count: number;
+  next?: string;
+  previous?: string;
+  results: Lead[];
+}
+
+export interface LeadStatsResponse {
+  total_leads: number;
+  leads_with_calls: number;
+  leads_without_calls: number;
+  avg_calls_per_lead?: number;
+}
+
+// Lead API calls
+export const leadAPI = {
+  /**
+   * Get leads with optional filtering and pagination
+   */
+  async getLeads(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    workspace?: string;
+    integration_provider?: string;
+    created_after?: string;
+    created_before?: string;
+    ordering?: string;
+  }): Promise<LeadsListResponse> {
+    console.log('📞 GET /api/leads/ - Getting leads');
+    
+    try {
+      let url = '/api/leads/';
+      const searchParams = new URLSearchParams();
+      
+      if (params?.page) {
+        searchParams.append('page', params.page.toString());
+      }
+      if (params?.page_size) {
+        searchParams.append('page_size', params.page_size.toString());
+      }
+      if (params?.search) {
+        searchParams.append('search', params.search);
+      }
+      if (params?.workspace) {
+        searchParams.append('workspace', params.workspace);
+      }
+      if (params?.integration_provider) {
+        searchParams.append('integration_provider', params.integration_provider);
+      }
+      if (params?.created_after) {
+        searchParams.append('created_after', params.created_after);
+      }
+      if (params?.created_before) {
+        searchParams.append('created_before', params.created_before);
+      }
+      if (params?.ordering) {
+        searchParams.append('ordering', params.ordering);
+      }
+      
+      if (searchParams.toString()) {
+        url += '?' + searchParams.toString();
+      }
+      
+      const response = await apiCall<LeadsListResponse>(url);
+      console.log('✅ Leads retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Leads API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get single lead by ID
+   */
+  async getLead(leadId: string): Promise<Lead> {
+    console.log(`🔍 GET /api/leads/${leadId}/ - Getting lead details`);
+    
+    try {
+      const response = await apiCall<Lead>(`/api/leads/${leadId}/`);
+      console.log('✅ Lead retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead detail API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Create new lead
+   */
+  async createLead(leadData: CreateLeadRequest): Promise<Lead> {
+    console.log('➕ POST /api/leads/ - Creating lead:', leadData);
+    
+    try {
+      const response = await apiCall<Lead>('/api/leads/', {
+        method: 'POST',
+        body: JSON.stringify(leadData),
+      });
+      console.log('✅ Lead created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead creation API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update lead (staff only)
+   */
+  async updateLead(leadId: string, leadData: Partial<CreateLeadRequest>): Promise<Lead> {
+    console.log(`✏️ PUT /api/leads/${leadId}/ - Updating lead:`, leadData);
+    
+    try {
+      const response = await apiCall<Lead>(`/api/leads/${leadId}/`, {
+        method: 'PUT',
+        body: JSON.stringify(leadData),
+      });
+      console.log('✅ Lead updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete lead (staff only)
+   */
+  async deleteLead(leadId: string): Promise<void> {
+    console.log(`🗑️ DELETE /api/leads/${leadId}/ - Deleting lead`);
+    
+    try {
+      await apiCall<void>(`/api/leads/${leadId}/`, {
+        method: 'DELETE',
+      });
+      console.log('✅ Lead deleted successfully');
+    } catch (error) {
+      console.error('❌ Lead delete API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Bulk create leads
+   */
+  async bulkCreateLeads(leads: CreateLeadRequest[]): Promise<{
+    total_leads: number;
+    successful_creates: number;
+    failed_creates: number;
+    errors: Array<{ index: number; error: any }>;
+    created_lead_ids: string[];
+  }> {
+    console.log('📦 POST /api/leads/bulk_create/ - Bulk creating leads:', leads.length);
+    
+    try {
+      const response = await apiCall<any>('/api/leads/bulk_create/', {
+        method: 'POST',
+        body: JSON.stringify({ leads }),
+      });
+      console.log('✅ Bulk leads created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Bulk leads creation API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update lead metadata (staff only)
+   */
+  async updateLeadMetadata(leadId: string, metaData: Record<string, any>): Promise<Lead> {
+    console.log(`🏷️ PATCH /api/leads/${leadId}/update_metadata/ - Updating lead metadata:`, metaData);
+    
+    try {
+      const response = await apiCall<Lead>(`/api/leads/${leadId}/update_metadata/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ meta_data: metaData }),
+      });
+      console.log('✅ Lead metadata updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead metadata update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get lead call history
+   */
+  async getLeadCallHistory(leadId: string): Promise<{
+    lead_id: string;
+    lead_name: string;
+    total_calls: number;
+    call_logs: any[];
+  }> {
+    console.log(`📞 GET /api/leads/${leadId}/call_history/ - Getting call history`);
+    
+    try {
+      const response = await apiCall<any>(`/api/leads/${leadId}/call_history/`);
+      console.log('✅ Lead call history retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead call history API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get lead statistics
+   */
+  async getLeadStats(): Promise<LeadStatsResponse> {
+    console.log('📈 GET /api/leads/stats/ - Getting lead statistics');
+    
+    try {
+      const response = await apiCall<LeadStatsResponse>('/api/leads/stats/');
+      console.log('✅ Lead statistics retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Lead statistics API error:', error);
+      throw error;
+    }
+  },
+};
+
 // Meta API calls
 export const metaAPI = {
   /**
@@ -988,6 +1240,104 @@ export const metaAPI = {
       return response.results || [];
     } catch (error) {
       console.error('❌ Meta integrations API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete Meta integration by ID
+   */
+  async deleteIntegration(integrationId: string): Promise<void> {
+    console.log('🗑️ DELETE /api/meta/integrations/' + integrationId + '/ - Deleting Meta integration');
+    
+    try {
+      await apiCall<void>(`/api/meta/integrations/${integrationId}/`, {
+        method: 'DELETE',
+      });
+      console.log('✅ Meta integration deleted successfully');
+    } catch (error) {
+      console.error('❌ Meta integration delete API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get Meta lead forms for user's workspaces
+   */
+  async getLeadForms(params?: {
+    page?: number;
+    search?: string;
+    ordering?: string;
+  }): Promise<any[]> {
+    console.log('📋 GET /api/meta/lead-forms/ - Getting Meta lead forms');
+    
+    try {
+      let url = '/api/meta/lead-forms/';
+      const searchParams = new URLSearchParams();
+      
+      if (params?.page) {
+        searchParams.append('page', params.page.toString());
+      }
+      if (params?.search) {
+        searchParams.append('search', params.search);
+      }
+      if (params?.ordering) {
+        searchParams.append('ordering', params.ordering);
+      }
+      
+      if (searchParams.toString()) {
+        url += '?' + searchParams.toString();
+      }
+      
+      const response = await apiCall<any>(url);
+      console.log('✅ Meta lead forms retrieved:', response);
+      return response.results || [];
+    } catch (error) {
+      console.error('❌ Meta lead forms API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update Meta lead form selections (bulk update active status)
+   */
+  async updateFormSelections(formSelections: Record<string, boolean>): Promise<{
+    message: string;
+    updated_forms: Array<{
+      form_id: string;
+      is_active: boolean;
+      updated_count: number;
+    }>;
+    errors: Array<{
+      form_id: string;
+      error: string;
+    }>;
+    total_updated: number;
+    total_errors: number;
+  }> {
+    console.log('💾 POST /api/meta/lead-forms/update_selections/ - Updating form selections:', formSelections);
+    
+    try {
+      // Convert the formSelections object to the expected format
+      // Backend expects: { "form_selections": [{"form_id_1": true}, {"form_id_2": false}] }
+      const form_selections = Object.entries(formSelections).map(([form_id, is_active]) => ({
+        [form_id]: is_active
+      }));
+      
+      const requestBody = { form_selections };
+      
+      console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
+      
+      const response = await apiCall<any>('/api/meta/lead-forms/update_selections/', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log('✅ Meta form selections updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Meta form selections API error:', error);
+      console.error('❌ Full error details:', JSON.stringify(error, null, 2));
       throw error;
     }
   },
