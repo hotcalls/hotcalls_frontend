@@ -1119,10 +1119,7 @@ export default function AgentConfig() {
                     </TooltipContent>
                   </Tooltip>
                 </CardTitle>
-                <button className={buttonStyles.primary.default}>
-                  <Plus className={iconSizes.small} />
-                  <span>Lead-Quelle hinzufügen</span>
-                </button>
+
               </div>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
@@ -1204,9 +1201,7 @@ export default function AgentConfig() {
                   )}
                 </div>
                 
-                <p className="text-sm text-gray-500 mt-2">
-                  Lead-Formulare können in der Lead-Quellen Sektion konfiguriert werden.
-                </p>
+
               </div>
             </CardContent>
           </Card>
