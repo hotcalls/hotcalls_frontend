@@ -14,9 +14,10 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, MakeTestCallRequest } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
 
 // Real Event Types and Lead Forms will be loaded from API
@@ -35,9 +36,10 @@ export default function AgentConfig() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get workspace and voices
+  // Get workspace, voices, and user profile
   const { primaryWorkspace } = useWorkspace();
   const { voices, loading: voicesLoading, getVoiceName, getVoicePicture, refresh: refreshVoices } = useVoices();
+  const { profile: userProfile, loading: profileLoading } = useUserProfile();
 
   // Force load voices when component mounts
   useEffect(() => {
@@ -103,7 +105,6 @@ export default function AgentConfig() {
   
   // Test call states
   const [testPopoverOpen, setTestPopoverOpen] = useState(false);
-  const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [isTestCalling, setIsTestCalling] = useState(false);
 
   // Event Types state
@@ -617,62 +618,32 @@ export default function AgentConfig() {
   };
   
   const handleStartTestCall = async () => {
-    if (!testPhoneNumber.trim()) {
-      toast.error('Bitte geben Sie eine Telefonnummer ein');
-      return;
-    }
-    
-    // Basic phone number validation
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-    if (!phoneRegex.test(testPhoneNumber)) {
-      toast.error('Bitte geben Sie eine gültige Telefonnummer ein');
+    if (!userProfile?.phone) {
+      toast.error('Keine Telefonnummer in Ihrem Profil gefunden');
       return;
     }
     
     try {
       setIsTestCalling(true);
-      console.log('📞 Starting test call to:', testPhoneNumber);
+      console.log('🧪 Starting test call for agent:', id);
       
-      // Make the test call with current agent configuration
-      const callData = {
-        phone: testPhoneNumber,  // The phone number entered by the user
-        agent_id: id!,           // Agent ID from URL params
-        lead_id: null,           // null for test calls
-        
-        // Include current agent configuration to ensure test uses saved settings
-        agent_config: {
-          greeting_inbound: config.incomingGreeting,
-          greeting_outbound: config.outgoingGreeting,
-          voice: config.voiceExternalId, // Use external voice ID for test calls
-          language: config.language,
-          character: mapPersonalityToCharacter(config.personality),
-          prompt: config.script,
-          retry_interval: parseInt(config.callInterval) || 30,
-          max_retries: parseInt(config.maxAttempts) || 3,
-          // Convert workdays from object to array format
-          workdays: Object.entries(config.workingDays)
-            .filter(([_, active]) => active)
-            .map(([day]) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(day)]),
-          call_from: config.workingTimeStart + ":00",
-          call_to: config.workingTimeEnd + ":00"
-        }
+      // Make the test call with only agent ID - user phone is automatically used
+      const testData: MakeTestCallRequest = {
+        agent_id: id!
       };
       
-      console.log('📞 Calling API with data:', callData);
-      console.log('📞 Agent config for test:', callData.agent_config);
-      console.log('🎤 Using external voice ID:', callData.agent_config.voice);
-      await callAPI.makeOutboundCall(callData);
+      console.log('🧪 Calling test API with data:', testData);
+      await callAPI.makeTestCall(testData);
       
-      toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
+      toast.success('Test-Anruf wurde gestartet!');
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      console.log('✅ Call was initiated (ignoring backend error):', err);
-      toast.success(`Test-Anruf an ${testPhoneNumber} wurde gestartet!`);
+      console.log('✅ Test call was initiated (ignoring backend error):', err);
+      toast.success('Test-Anruf wurde gestartet!');
     } finally {
       setIsTestCalling(false);
       setTestPopoverOpen(false);
-      setTestPhoneNumber("");
     }
   };
 
@@ -741,28 +712,19 @@ export default function AgentConfig() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-base">Test-Anruf starten</h4>
                   <p className="text-sm text-gray-600">
-                    Geben Sie eine Telefonnummer ein, um den Agent zu testen.
+                    Test-Anruf an Ihre registrierte Nummer.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="test-phone">Telefonnummer</Label>
-                  <Input
-                    id="test-phone"
-                    type="tel"
-                    value={testPhoneNumber}
-                    onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="+49 123 4567890"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !isTestCalling) {
-                        handleStartTestCall();
-                      }
-                    }}
-                  />
+                  <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-700">
+                    {profileLoading ? "Lade..." : userProfile?.phone || "Keine Nummer gefunden"}
+                  </div>
                 </div>
                 <Button 
                   onClick={handleStartTestCall} 
                   className="w-full"
-                  disabled={isTestCalling || !testPhoneNumber.trim()}
+                  disabled={isTestCalling || !userProfile?.phone}
                 >
                   {isTestCalling ? (
                     <>
