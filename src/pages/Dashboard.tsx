@@ -441,7 +441,11 @@ export default function Dashboard() {
   
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
   const isSingleDay = useMemo(() => {
-    return format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
+    const fromDate = format(dateRange.from, 'yyyy-MM-dd');
+    const toDate = format(dateRange.to, 'yyyy-MM-dd');
+    const isSingle = fromDate === toDate;
+    console.log('🔍 isSingleDay check:', { fromDate, toDate, isSingle, dateRange });
+    return isSingle;
   }, [dateRange]);
   
   // Use Real Chart Data or Fallback to Dummy Data
