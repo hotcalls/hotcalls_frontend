@@ -41,7 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint } from '@/lib/apiService';
+import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint, AppointmentCallLog } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -303,6 +303,11 @@ export default function Dashboard() {
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
   const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
 
+  // API State für Real Appointment List
+  const [realAppointments, setRealAppointments] = useState<AppointmentCallLog[]>([]);
+  const [appointmentListLoading, setAppointmentListLoading] = useState(true);
+  const [appointmentListError, setAppointmentListError] = useState<string | null>(null);
+
   // API Call für Leads Count
   useEffect(() => {
     const fetchLeadsCount = async () => {
@@ -402,6 +407,56 @@ export default function Dashboard() {
     };
 
     fetchAppointmentStats();
+  }, []); // Run once on mount
+
+  // API Call für Real Appointment List  
+  useEffect(() => {
+    const fetchAppointmentList = async () => {
+      setAppointmentListLoading(true);
+      setAppointmentListError(null);
+      
+      try {
+        console.log('📅 Fetching real appointment list...');
+        
+        // Get next 5 upcoming appointments
+        const appointments = await callAPI.getAppointmentCallLogs({
+          page_size: 10, // Get more to filter for upcoming ones
+          ordering: 'appointment_datetime' // Order by appointment time (earliest first)
+        });
+        
+        // Filter only future appointments
+        const now = new Date();
+        const upcomingAppointments = appointments.filter(appointment => {
+          // Parse appointment date back to Date object for comparison
+          const appointmentParts = appointment.appointmentDate.split(' ');
+          const datePart = appointmentParts[0]; // "16.08.2025"
+          const timePart = appointmentParts[1]; // "12:00"
+          
+          const [day, month, year] = datePart.split('.');
+          const [hours, minutes] = timePart.split(':');
+          
+          const appointmentDate = new Date(
+            parseInt(year), 
+            parseInt(month) - 1, // Month is 0-indexed
+            parseInt(day),
+            parseInt(hours),
+            parseInt(minutes)
+          );
+          
+          return appointmentDate > now;
+        }).slice(0, 5); // Ensure only 5 appointments max
+        
+        setRealAppointments(upcomingAppointments);
+        console.log(`✅ Real appointment list loaded: ${upcomingAppointments.length} upcoming appointments`);
+      } catch (error) {
+        console.error('❌ Error fetching appointment list:', error);
+        setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
+      } finally {
+        setAppointmentListLoading(false);
+      }
+    };
+
+    fetchAppointmentList();
   }, []); // Run once on mount
 
   // Real Chart Data State
@@ -583,16 +638,32 @@ export default function Dashboard() {
     });
   }, [dateRange]);
 
-  // Gefilterte Termine basierend auf Zeitraum
-  const filteredAppointments = useMemo(() => {
-    return newAppointments.filter(appointment => {
+  // Enhanced Appointments Logic - Use Real Data or Fallback to Dummy
+  const enhancedAppointments = useMemo(() => {
+    // If we have real appointments and no error, use them
+    if (!appointmentListLoading && !appointmentListError && realAppointments.length > 0) {
+      console.log('✅ Using real appointment data');
+      return realAppointments;
+    }
+    
+    // If loading real appointments, return empty for now
+    if (appointmentListLoading) {
+      console.log('⏳ Loading real appointments...');
+      return [];
+    }
+    
+    // Fallback to filtered dummy data if real data is not available
+    console.log('📊 Using dummy appointment data fallback');
+    const filteredDummyAppointments = newAppointments.filter(appointment => {
       const appointmentDate = new Date(appointment.date);
       return isWithinInterval(appointmentDate, {
         start: startOfDay(dateRange.from),
         end: endOfDay(dateRange.to)
       });
     });
-  }, [dateRange]);
+    
+    return filteredDummyAppointments.slice(0, 5); // Ensure max 5 appointments
+  }, [realAppointments, appointmentListLoading, appointmentListError, dateRange, newAppointments]);
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -774,14 +845,25 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Neue Termine</h2>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">
-                    {filteredAppointments.length} Termine
+                    {enhancedAppointments.length} Termine
                   </span>
                 </div>
               </div>
               
-              {filteredAppointments.length > 0 ? (
+              {appointmentListLoading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <div className="text-sm">Termine werden geladen...</div>
+                </div>
+              ) : appointmentListError ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <div className="text-sm">Fehler beim Laden der Termine</div>
+                  <div className="text-xs">{appointmentListError}</div>
+                </div>
+              ) : enhancedAppointments.length > 0 ? (
                 <div className="space-y-2 h-[344px] overflow-y-auto">
-                    {filteredAppointments.slice(0, 5).map((appointment) => (
+                    {enhancedAppointments.slice(0, 5).map((appointment) => (
                       <Card
                         key={appointment.id}
                         className="hover:shadow-md transition-shadow min-h-[60px]"
@@ -817,10 +899,10 @@ export default function Dashboard() {
                       </Card>
                     ))}
                     
-                                        {filteredAppointments.length > 5 && (
+                                        {enhancedAppointments.length > 5 && (
                       <div className="text-center py-2">
                         <Button variant="outline" size="sm">
-                          <span>+{filteredAppointments.length - 5} weitere Termine</span>
+                          <span>+{enhancedAppointments.length - 5} weitere Termine</span>
                         </Button>
                       </div>
                     )}
@@ -1057,7 +1139,7 @@ export default function Dashboard() {
                           {(() => {
                             // Suche nach Follow-up in den ursprünglichen Anruf-Daten oder Terminen
                             const leadCall = filteredCalls.find(call => call.lead === selectedLead);
-                            const leadAppointment = filteredAppointments.find(appointment => appointment.lead === selectedLead);
+                            const leadAppointment = enhancedAppointments.find(appointment => appointment.lead === selectedLead);
                             
                             if (leadCall?.followUpDate) {
                               return (
