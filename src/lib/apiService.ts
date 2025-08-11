@@ -1342,3 +1342,91 @@ export const metaAPI = {
     }
   },
 }; 
+
+// Funnel API calls
+export const funnelAPI = {
+  /**
+   * Get all lead funnels for user's workspaces
+   */
+  async getLeadFunnels(params?: {
+    page?: number;
+    search?: string;
+    ordering?: string;
+    workspace?: string;
+    is_active?: boolean;
+    has_agent?: boolean;
+  }): Promise<any[]> {
+    console.log('📊 GET /api/funnels/lead-funnels/ - Getting lead funnels:', params);
+    
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.ordering) queryParams.append('ordering', params.ordering);
+      if (params?.workspace) queryParams.append('workspace', params.workspace);
+      if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+      if (params?.has_agent !== undefined) queryParams.append('has_agent', params.has_agent.toString());
+      
+      const endpoint = `/api/funnels/lead-funnels/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      
+      const response = await apiCall<any>(endpoint, {
+        method: 'GET',
+      });
+      
+      console.log('✅ Lead funnels loaded:', response);
+      
+      // Handle paginated response
+      if (response && typeof response === 'object' && 'results' in response) {
+        return response.results;
+      }
+      
+      // Handle direct array response
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('❌ Lead funnels API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Assign an agent to a funnel
+   */
+  async assignAgent(funnelId: string, agentId: string): Promise<any> {
+    console.log(`🔗 POST /api/funnels/lead-funnels/${funnelId}/assign_agent/ - Assigning agent:`, { funnelId, agentId });
+    
+    try {
+      const response = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/assign_agent/`, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          agent_id: agentId 
+        }),
+      });
+      
+      console.log('✅ Agent assigned to funnel successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Funnel assign agent API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Unassign agent from a funnel
+   */
+  async unassignAgent(funnelId: string): Promise<any> {
+    console.log(`🔓 POST /api/funnels/lead-funnels/${funnelId}/unassign_agent/ - Unassigning agent from funnel:`, { funnelId });
+    
+    try {
+      const response = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/unassign_agent/`, {
+        method: 'POST',
+        body: JSON.stringify({}), // Empty body as per backend implementation
+      });
+      
+      console.log('✅ Agent unassigned from funnel successfully:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Funnel unassign agent API error:', error);
+      throw error;
+    }
+  },
+}; 
