@@ -1692,58 +1692,142 @@ export const chartAPI = {
       const startDate = dateRange.from.toISOString();
       const endDate = dateRange.to.toISOString();
       
-      // Calculate number of days for the chart
-      const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // Check if this is a single day
+      const isSingleDay = dateRange.from.toDateString() === dateRange.to.toDateString();
       
-      // Get daily call statistics
-      const dailyStats = await callAPI.getDailyStats(totalDays);
-      
-      // Get appointment calls in date range
-      const appointmentCalls = await callAPI.getCallLogsInDateRange(
-        startDate, 
-        endDate, 
-        'appointment_scheduled'
-      );
-      
-      // Get all leads in date range (to calculate daily lead creation)
-      const leadsInRange = await leadAPI.getLeadsInDateRange(startDate, endDate);
-      
-      // Process daily stats into chart format
-      const chartData: ChartDataPoint[] = dailyStats.daily_stats.map(dayStat => {
-        // Count appointments for this specific day
-        const dayAppointments = appointmentCalls.results.filter(call => {
-          const callDate = new Date(call.timestamp).toISOString().split('T')[0];
-          const statDate = dayStat.date.split('T')[0];
-          return callDate === statDate;
-        }).length;
-        
-        // Count leads created on this specific day
-        const dayLeads = leadsInRange.results.filter(lead => {
-          const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
-          const statDate = dayStat.date.split('T')[0];
-          return leadDate === statDate;
-        }).length;
-        
-        // Calculate conversion rate for the day
-        const conversion = dayLeads > 0 ? ((dayAppointments / dayLeads) * 100) : 0;
-        
-        return {
-          date: dayStat.date,
-          leads: dayLeads,
-          calls: dayStat.calls,
-          appointments: dayAppointments,
-          conversion: Math.round(conversion * 10) / 10 // Round to 1 decimal
-        };
-      });
-      
-      console.log('✅ Real chart data generated:', chartData.length, 'data points');
-      return chartData;
-      
+      if (isSingleDay) {
+        console.log('📊 Single day detected - generating hourly real data');
+        return await this.generateSingleDayHourlyData(dateRange.from);
+      } else {
+        console.log('📊 Multi day detected - generating daily real data');
+        return await this.generateMultiDayData(dateRange);
+      }
     } catch (error) {
       console.error('❌ Error generating real chart data:', error);
       
       // Fallback to empty data on error
       return [];
     }
+  },
+
+  /**
+   * Generate hourly data for a single day using real call logs
+   */
+  async generateSingleDayHourlyData(date: Date): Promise<ChartDataPoint[]> {
+    try {
+      // Set start and end of the selected day
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Get all call logs for this specific day
+      const callLogs = await callAPI.getCallLogsInDateRange(
+        startOfDay.toISOString(),
+        endOfDay.toISOString()
+      );
+
+      // Get leads created on this day
+      const leadsInDay = await leadAPI.getLeadsInDateRange(
+        startOfDay.toISOString(),
+        endOfDay.toISOString()
+      );
+
+      // Group calls by hour
+      const hourlyData: ChartDataPoint[] = [];
+      
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStart = new Date(date);
+        hourStart.setHours(hour, 0, 0, 0);
+
+        // Count calls in this hour
+        const callsInHour = callLogs.results.filter(call => {
+          const callHour = new Date(call.timestamp).getHours();
+          return callHour === hour;
+        }).length;
+
+        // Count appointments in this hour
+        const appointmentsInHour = callLogs.results.filter(call => {
+          const callHour = new Date(call.timestamp).getHours();
+          return callHour === hour && call.status === 'appointment_scheduled';
+        }).length;
+
+        // Count leads created in this hour
+        const leadsInHour = leadsInDay.results.filter(lead => {
+          const leadHour = new Date(lead.created_at).getHours();
+          return leadHour === hour;
+        }).length;
+
+        // Calculate conversion rate
+        const conversion = leadsInHour > 0 ? ((appointmentsInHour / leadsInHour) * 100) : 0;
+
+        hourlyData.push({
+          date: hourStart.toISOString(),
+          leads: leadsInHour,
+          calls: callsInHour,
+          appointments: appointmentsInHour,
+          conversion: Math.round(conversion * 10) / 10
+        });
+      }
+
+      console.log('✅ Generated hourly real data for single day:', hourlyData.length, 'hours');
+      return hourlyData;
+
+    } catch (error) {
+      console.error('❌ Error generating single day hourly data:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Generate daily data for multi-day ranges (existing logic)
+   */
+  async generateMultiDayData(dateRange: {from: Date, to: Date}): Promise<ChartDataPoint[]> {
+    // Calculate number of days for the chart
+    const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Get daily call statistics
+    const dailyStats = await callAPI.getDailyStats(totalDays);
+    
+    // Get appointment calls in date range
+    const appointmentCalls = await callAPI.getCallLogsInDateRange(
+      dateRange.from.toISOString(), 
+      dateRange.to.toISOString(), 
+      'appointment_scheduled'
+    );
+    
+    // Get all leads in date range (to calculate daily lead creation)
+    const leadsInRange = await leadAPI.getLeadsInDateRange(dateRange.from.toISOString(), dateRange.to.toISOString());
+    
+    // Process daily stats into chart format
+    const chartData: ChartDataPoint[] = dailyStats.daily_stats.map(dayStat => {
+      // Count appointments for this specific day
+      const dayAppointments = appointmentCalls.results.filter(call => {
+        const callDate = new Date(call.timestamp).toISOString().split('T')[0];
+        const statDate = dayStat.date.split('T')[0];
+        return callDate === statDate;
+      }).length;
+      
+      // Count leads created on this specific day
+      const dayLeads = leadsInRange.results.filter(lead => {
+        const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
+        const statDate = dayStat.date.split('T')[0];
+        return leadDate === statDate;
+      }).length;
+      
+      // Calculate conversion rate for the day
+      const conversion = dayLeads > 0 ? ((dayAppointments / dayLeads) * 100) : 0;
+      
+      return {
+        date: dayStat.date,
+        leads: dayLeads,
+        calls: dayStat.calls,
+        appointments: dayAppointments,
+        conversion: Math.round(conversion * 10) / 10 // Round to 1 decimal
+      };
+    });
+    
+    console.log('✅ Generated multi-day real data:', chartData.length, 'data points');
+    return chartData;
   }
 }; 
