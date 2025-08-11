@@ -310,7 +310,7 @@ export default function Dashboard() {
         }
 
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiBaseUrl}/api/leads/stats/`, {
+        const response = await fetch(`${apiBaseUrl}/api/leads/leads/stats/`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
