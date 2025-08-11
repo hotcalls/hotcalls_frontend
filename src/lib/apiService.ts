@@ -601,6 +601,31 @@ export interface AppointmentStats {
   past_appointments: number;
 }
 
+export interface DailyStats {
+  period_days: number;
+  start_date: string;
+  end_date: string;
+  daily_stats: Array<{
+    date: string;
+    calls: number;
+    avg_duration: number;
+    total_duration: number;
+  }>;
+  totals: {
+    calls: number;
+    avg_duration: number;
+    total_duration: number;
+  };
+}
+
+export interface ChartDataPoint {
+  date: string;
+  leads: number;
+  calls: number;
+  appointments: number;
+  conversion: number;
+}
+
 // Call API calls
 export const callAPI = {
   /**
@@ -656,6 +681,8 @@ export const callAPI = {
     status?: string;
     direction?: string;
     ordering?: string;
+    timestamp_after?: string;
+    timestamp_before?: string;
   }): Promise<CallLogsListResponse> {
     console.log('📞 GET /api/calls/call-logs/ - Getting call logs');
     
@@ -683,6 +710,12 @@ export const callAPI = {
       }
       if (params?.ordering) {
         searchParams.append('ordering', params.ordering);
+      }
+      if (params?.timestamp_after) {
+        searchParams.append('timestamp_after', params.timestamp_after);
+      }
+      if (params?.timestamp_before) {
+        searchParams.append('timestamp_before', params.timestamp_before);
       }
       
       if (searchParams.toString()) {
@@ -743,6 +776,57 @@ export const callAPI = {
         upcoming_appointments: 0,
         past_appointments: 0
       };
+    }
+  },
+
+  /**
+   * Get daily call statistics for chart data
+   */
+  async getDailyStats(days: number = 30): Promise<DailyStats> {
+    console.log(`📊 GET /api/calls/call-logs/daily_stats/?days=${days} - Getting daily call statistics`);
+    
+    try {
+      const response = await apiCall<DailyStats>(`/api/calls/call-logs/daily_stats/?days=${days}`);
+      console.log('✅ Daily stats retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Daily stats API error:', error);
+      // Return empty data on error
+      return {
+        period_days: days,
+        start_date: '',
+        end_date: '',
+        daily_stats: [],
+        totals: {
+          calls: 0,
+          avg_duration: 0,
+          total_duration: 0
+        }
+      };
+    }
+  },
+
+  /**
+   * Get date-filtered call logs for appointments
+   */
+  async getCallLogsInDateRange(startDate: string, endDate: string, status?: string): Promise<CallLogsListResponse> {
+    console.log(`📅 GET /api/calls/call-logs/ (date range: ${startDate} to ${endDate}) - Getting calls in date range`);
+    
+    try {
+      const params: any = {
+        timestamp_after: startDate,
+        timestamp_before: endDate,
+        page_size: 1000 // Get enough data for aggregation
+      };
+      
+      if (status) {
+        params.status = status;
+      }
+      
+      return await this.getCallLogs(params);
+    } catch (error) {
+      console.error('❌ Date range call logs API error:', error);
+      throw error;
     }
   }
 };
@@ -1133,10 +1217,10 @@ export const leadAPI = {
     page?: number;
     page_size?: number;
     search?: string;
-    workspace?: string;
-    integration_provider?: string;
-    created_after?: string;
-    created_before?: string;
+    name?: string;
+    surname?: string;
+    email?: string;
+    phone?: string;
     ordering?: string;
   }): Promise<LeadsListResponse> {
     console.log('📞 GET /api/leads/ - Getting leads');
@@ -1154,17 +1238,17 @@ export const leadAPI = {
       if (params?.search) {
         searchParams.append('search', params.search);
       }
-      if (params?.workspace) {
-        searchParams.append('workspace', params.workspace);
+      if (params?.name) {
+        searchParams.append('name', params.name);
       }
-      if (params?.integration_provider) {
-        searchParams.append('integration_provider', params.integration_provider);
+      if (params?.surname) {
+        searchParams.append('surname', params.surname);
       }
-      if (params?.created_after) {
-        searchParams.append('created_after', params.created_after);
+      if (params?.email) {
+        searchParams.append('email', params.email);
       }
-      if (params?.created_before) {
-        searchParams.append('created_before', params.created_before);
+      if (params?.phone) {
+        searchParams.append('phone', params.phone);
       }
       if (params?.ordering) {
         searchParams.append('ordering', params.ordering);
@@ -1331,6 +1415,33 @@ export const leadAPI = {
       return response;
     } catch (error) {
       console.error('❌ Lead statistics API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get leads within a date range for chart data
+   */
+  async getLeadsInDateRange(startDate: string, endDate: string): Promise<LeadsListResponse> {
+    console.log(`📊 GET /api/leads/ (date range: ${startDate} to ${endDate}) - Getting leads in date range`);
+    
+    try {
+      let url = '/api/leads/';
+      const searchParams = new URLSearchParams();
+      
+      searchParams.append('created_after', startDate);
+      searchParams.append('created_before', endDate);
+      searchParams.append('page_size', '1000'); // Get enough data for aggregation
+      
+      if (searchParams.toString()) {
+        url += '?' + searchParams.toString();
+      }
+      
+      const response = await apiCall<LeadsListResponse>(url);
+      console.log(`✅ Leads in date range retrieved: ${response.count} leads`);
+      return response;
+    } catch (error) {
+      console.error('❌ Date range leads API error:', error);
       throw error;
     }
   },
@@ -1567,4 +1678,72 @@ export const funnelAPI = {
       throw error;
     }
   },
+}; 
+
+// Chart Data Generation using Real APIs
+export const chartAPI = {
+  /**
+   * Generate real chart data by combining multiple API sources
+   */
+  async generateRealChartData(dateRange: {from: Date, to: Date}): Promise<ChartDataPoint[]> {
+    console.log('📊 Generating real chart data for date range:', dateRange);
+    
+    try {
+      const startDate = dateRange.from.toISOString();
+      const endDate = dateRange.to.toISOString();
+      
+      // Calculate number of days for the chart
+      const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      // Get daily call statistics
+      const dailyStats = await callAPI.getDailyStats(totalDays);
+      
+      // Get appointment calls in date range
+      const appointmentCalls = await callAPI.getCallLogsInDateRange(
+        startDate, 
+        endDate, 
+        'appointment_scheduled'
+      );
+      
+      // Get all leads in date range (to calculate daily lead creation)
+      const leadsInRange = await leadAPI.getLeadsInDateRange(startDate, endDate);
+      
+      // Process daily stats into chart format
+      const chartData: ChartDataPoint[] = dailyStats.daily_stats.map(dayStat => {
+        // Count appointments for this specific day
+        const dayAppointments = appointmentCalls.results.filter(call => {
+          const callDate = new Date(call.timestamp).toISOString().split('T')[0];
+          const statDate = dayStat.date.split('T')[0];
+          return callDate === statDate;
+        }).length;
+        
+        // Count leads created on this specific day
+        const dayLeads = leadsInRange.results.filter(lead => {
+          const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
+          const statDate = dayStat.date.split('T')[0];
+          return leadDate === statDate;
+        }).length;
+        
+        // Calculate conversion rate for the day
+        const conversion = dayLeads > 0 ? ((dayAppointments / dayLeads) * 100) : 0;
+        
+        return {
+          date: dayStat.date,
+          leads: dayLeads,
+          calls: dayStat.calls,
+          appointments: dayAppointments,
+          conversion: Math.round(conversion * 10) / 10 // Round to 1 decimal
+        };
+      });
+      
+      console.log('✅ Real chart data generated:', chartData.length, 'data points');
+      return chartData;
+      
+    } catch (error) {
+      console.error('❌ Error generating real chart data:', error);
+      
+      // Fallback to empty data on error
+      return [];
+    }
+  }
 }; 

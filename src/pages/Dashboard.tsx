@@ -41,7 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI, callAPI, CallLog, AppointmentStats } from '@/lib/apiService';
+import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -404,16 +404,55 @@ export default function Dashboard() {
     fetchAppointmentStats();
   }, []); // Run once on mount
 
-  // Analytics-Daten generieren basierend auf aktuellem Zeitraum
+  // Real Chart Data State
+  const [realChartData, setRealChartData] = useState<ChartDataPoint[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState<string | null>(null);
+
+  // Fetch Real Chart Data
+  useEffect(() => {
+    const fetchRealChartData = async () => {
+      setChartLoading(true);
+      setChartError(null);
+      
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          // Fallback to dummy data if no token (user not logged in)
+          console.warn('No authentication token found, using dummy data for chart');
+          setRealChartData(generateAnalyticsData(dateRange));
+          setChartLoading(false);
+          return;
+        }
+
+        // Get real chart data from APIs
+        const chartData = await chartAPI.generateRealChartData(dateRange);
+        setRealChartData(chartData);
+      } catch (error) {
+        console.error('Error fetching real chart data:', error);
+        setChartError(error instanceof Error ? error.message : 'Failed to load chart data');
+        // Fallback to dummy data on error
+        setRealChartData(generateAnalyticsData(dateRange));
+      } finally {
+        setChartLoading(false);
+      }
+    };
+
+    fetchRealChartData();
+  }, [dateRange]); // Re-fetch when date range changes
+
+  // Analytics-Daten (fallback für Dummy-Daten)
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
   
-  // Erweiterte Analytics-Daten mit Conversion Rate
+  // Use Real Chart Data or Fallback to Dummy Data
   const enhancedAnalyticsData = useMemo(() => {
-    return analyticsData.map(item => ({
+    const dataToUse = realChartData.length > 0 ? realChartData : analyticsData.map(item => ({
       ...item,
       conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
     }));
-  }, [analyticsData]);
+    
+    return dataToUse;
+  }, [realChartData, analyticsData]);
   
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
   const isSingleDay = useMemo(() => {
