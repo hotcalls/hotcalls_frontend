@@ -414,6 +414,7 @@ export default function Dashboard() {
     const fetchRealChartData = async () => {
       setChartLoading(true);
       setChartError(null);
+      // DON'T clear realChartData immediately - keep previous data during loading
       
       try {
         console.log('🔍 Starting real chart data fetch...');
@@ -440,12 +441,16 @@ export default function Dashboard() {
   
   // Use Real Chart Data or Fallback to Dummy Data
   const enhancedAnalyticsData = useMemo(() => {
-    const dataToUse = realChartData.length > 0 ? realChartData : analyticsData.map(item => ({
+    // If we have real chart data, use it (it already includes conversion)
+    if (realChartData.length > 0) {
+      return realChartData;
+    }
+    
+    // Otherwise, use dummy data with calculated conversion rate
+    return analyticsData.map(item => ({
       ...item,
       conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
     }));
-    
-    return dataToUse;
   }, [realChartData, analyticsData]);
   
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
@@ -474,18 +479,10 @@ export default function Dashboard() {
     
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100) : 0;
 
-    // Vergleichszeitraum generieren (für Dummy-Daten)
-    const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const prevFromDate = subDays(dateRange.from, daysDiff);
-    const prevToDate = subDays(dateRange.to, daysDiff);
-    
-    const prevData = generateAnalyticsData({ from: prevFromDate, to: prevToDate });
-    
-    const prevTotalCalls = prevData.reduce((sum, item) => sum + item.calls, 0);
-    const prevTotalAppointments = prevData.reduce((sum, item) => sum + item.appointments, 0);
-    
-    // Für Leads: simuliere 5% Wachstum da wir keine historischen Daten haben
-    const prevTotalLeads = Math.floor(totalLeads * 0.95);
+    // Statische Vergleichswerte (nicht zeitraumabhängig für Cards)
+    const prevTotalCalls = Math.floor(totalCalls * 0.9); // 10% weniger als aktuell
+    const prevTotalAppointments = Math.floor(totalAppointments * 0.85); // 15% weniger
+    const prevTotalLeads = Math.floor(totalLeads * 0.95); // 5% weniger
     const prevConversionRate = prevTotalLeads > 0 ? ((prevTotalAppointments / prevTotalLeads) * 100) : 0;
     
     const calculateChange = (current: number, previous: number) => {
@@ -534,7 +531,7 @@ export default function Dashboard() {
         color: "text-primary",
       },
     ];
-  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError, appointmentStats, appointmentsLoading, appointmentsError]);
+  }, [leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError, appointmentStats, appointmentsLoading, appointmentsError]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {
