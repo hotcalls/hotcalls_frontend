@@ -41,7 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI, callAPI, CallLog } from '@/lib/apiService';
+import { leadAPI, callAPI, CallLog, AppointmentStats } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -298,6 +298,11 @@ export default function Dashboard() {
   const [callsLoading, setCallsLoading] = useState(true);
   const [callsError, setCallsError] = useState<string | null>(null);
 
+  // API State für Appointments
+  const [appointmentStats, setAppointmentStats] = useState<AppointmentStats | null>(null);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
+
   // API Call für Leads Count
   useEffect(() => {
     const fetchLeadsCount = async () => {
@@ -362,6 +367,44 @@ export default function Dashboard() {
     fetchReachedLeadsCount();
   }, []); // Run once on mount
 
+  // API Call für Appointment Stats
+  useEffect(() => {
+    const fetchAppointmentStats = async () => {
+      setAppointmentsLoading(true);
+      setAppointmentsError(null);
+      
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          // Fallback to default values if no token
+          console.warn('No authentication token found, using dummy data for appointments');
+          setAppointmentStats({
+            total_appointments: 0,
+            appointments_today: 0,
+            appointments_this_week: 0,
+            appointments_this_month: 0,
+            upcoming_appointments: 0,
+            past_appointments: 0
+          });
+          setAppointmentsLoading(false);
+          return;
+        }
+
+        // Get appointment statistics
+        const stats = await callAPI.getAppointmentStats();
+        setAppointmentStats(stats);
+      } catch (error) {
+        console.error('Error fetching appointment stats:', error);
+        setAppointmentsError(error instanceof Error ? error.message : 'Failed to load appointment data');
+        setAppointmentStats(null);
+      } finally {
+        setAppointmentsLoading(false);
+      }
+    };
+
+    fetchAppointmentStats();
+  }, []); // Run once on mount
+
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
   
@@ -391,8 +434,8 @@ export default function Dashboard() {
     // Real Reached Leads Data von Call API
     const totalCalls = reachedLeadsCount;
     
-    // Dummy data für andere Metriken (werden später auch ersetzt)
-    const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
+    // Real Appointments Data von Call API
+    const totalAppointments = appointmentStats?.total_appointments || 0;
     
     // Real Leads Data von API
     const totalLeads = leadsStats?.count || 0;
@@ -443,10 +486,12 @@ export default function Dashboard() {
       {
         id: 'appointments',
         title: "Vereinbarte Termine",
-        value: totalAppointments.toLocaleString('de-DE'),
-        change: calculateChange(totalAppointments, prevTotalAppointments),
+        value: appointmentsLoading ? "..." : appointmentsError ? "Error" : totalAppointments.toLocaleString('de-DE'),
+        change: appointmentsLoading ? "" : appointmentsError ? "" : calculateChange(totalAppointments, prevTotalAppointments),
         icon: CalendarIcon,
         color: "text-warning",
+        loading: appointmentsLoading,
+        error: appointmentsError,
       },
       {
         id: 'conversion',
@@ -457,7 +502,7 @@ export default function Dashboard() {
         color: "text-primary",
       },
     ];
-  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError]);
+  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError, appointmentStats, appointmentsLoading, appointmentsError]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {

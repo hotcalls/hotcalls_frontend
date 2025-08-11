@@ -592,6 +592,15 @@ export interface CallLogsListResponse {
   results: CallLog[];
 }
 
+export interface AppointmentStats {
+  total_appointments: number;
+  appointments_today: number;
+  appointments_this_week: number;
+  appointments_this_month: number;
+  upcoming_appointments: number;
+  past_appointments: number;
+}
+
 // Call API calls
 export const callAPI = {
   /**
@@ -710,6 +719,30 @@ export const callAPI = {
     } catch (error) {
       console.error('❌ Error calculating reached leads:', error);
       return 0; // Fallback to 0 on error
+    }
+  },
+
+  /**
+   * Get appointment statistics
+   */
+  async getAppointmentStats(): Promise<AppointmentStats> {
+    console.log('📅 GET /api/calls/call-logs/appointment_stats/ - Getting appointment statistics');
+    
+    try {
+      const response = await apiCall<AppointmentStats>('/api/calls/call-logs/appointment_stats/');
+      console.log('✅ Appointment statistics retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Appointment stats API error:', error);
+      // Return default values on error
+      return {
+        total_appointments: 0,
+        appointments_today: 0,
+        appointments_this_week: 0,
+        appointments_this_month: 0,
+        upcoming_appointments: 0,
+        past_appointments: 0
+      };
     }
   }
 };
