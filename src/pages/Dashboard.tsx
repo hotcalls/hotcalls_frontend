@@ -464,14 +464,33 @@ export default function Dashboard() {
       return realChartData;
     }
     
-    // Otherwise, ALWAYS use dummy data to prevent empty charts
-    console.log('📊 Using dummy data fallback');
-    const dummyData = analyticsData.map(item => ({
-      ...item,
-      conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
-    }));
-    console.log('📊 Dummy data generated:', dummyData.length, 'points');
-    return dummyData;
+    // For single day with insufficient real data, use minimal dummy structure
+    console.log('📊 Using minimal dummy data fallback (no fake numbers)');
+    if (isSingleDay) {
+      // Generate 24 hours of ZERO data for single day to maintain chart structure
+      const minimalData = [];
+      for (let hour = 0; hour < 24; hour++) {
+        const date = new Date(dateRange.from);
+        date.setHours(hour, 0, 0, 0);
+        minimalData.push({
+          date: date.toISOString(),
+          leads: 0,
+          calls: 0,
+          appointments: 0,
+          conversion: 0
+        });
+      }
+      console.log('📊 Generated 24 hours of zero data for chart structure');
+      return minimalData;
+    } else {
+      // For multi-day, use dummy data (this is acceptable for date ranges)
+      const dummyData = analyticsData.map(item => ({
+        ...item,
+        conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
+      }));
+      console.log('📊 Using dummy data for multi-day range');
+      return dummyData;
+    }
   }, [realChartData, analyticsData, isSingleDay, dateRange]);
 
   // Metriken-Definitionen
