@@ -145,29 +145,7 @@ const generateRecentCalls = () => {
   return calls;
 };
 
-// Neue Termine Daten
-const generateNewAppointments = () => {
-  const names = ["Sarah Fischer", "Tom Schneider", "Nina Bauer", "Kevin Hoffmann", "Laura Zimmermann", "Daniel Koch", "Sophie Richter", "Marco Lehmann", "Jana Werner", "Felix Neumann"];
-  
-  const appointments = [];
-  for (let i = 0; i < 12; i++) {
-    const appointmentDate = new Date(Date.now() + Math.random() * 14 * 24 * 60 * 60 * 1000); // Nächste 14 Tage
-    
-    // Uhrzeit zwischen 8:00 und 17:00 Uhr
-    const hour = Math.floor(Math.random() * 9) + 8; // 8-16 Uhr
-    const minute = Math.random() > 0.5 ? 0 : 30; // 00 oder 30 Minuten
-    appointmentDate.setHours(hour, minute, 0, 0);
-    
-    appointments.push({
-      id: i.toString(),
-      lead: names[Math.floor(Math.random() * names.length)],
-      appointmentDate: format(appointmentDate, 'dd.MM.yyyy HH:mm'),
-      date: format(subDays(new Date(), Math.floor(Math.random() * 3)), 'yyyy-MM-dd'), // Vereinbart in den letzten 3 Tagen
-    });
-  }
-  
-  return appointments;
-};
+
 
 // Lead-Details mit Gesprächshistorie
 const generateLeadDetails = () => {
@@ -275,7 +253,6 @@ const getStatusBadge = (status: string) => {
 };
 
 const recentCalls = generateRecentCalls();
-const newAppointments = generateNewAppointments();
 const leadDetails = generateLeadDetails();
 
 export default function Dashboard() {
