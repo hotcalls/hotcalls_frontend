@@ -626,6 +626,43 @@ export interface ChartDataPoint {
   conversion: number;
 }
 
+// Appointment-specific interfaces for Dashboard
+export interface AppointmentCallLog {
+  id: string;
+  lead: string;           // Name of the lead (from lead_name)
+  appointmentDate: string; // Formatted "dd.MM.yyyy HH:mm"
+  date: string;           // Formatted "yyyy-MM-dd" (call creation date)
+}
+
+// Utility functions for date formatting
+const formatAppointmentDate = (isoDateTime: string): string => {
+  try {
+    const date = new Date(isoDateTime);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${day}.${month}.${year} ${hours}:${minutes}`;
+  } catch (error) {
+    console.error('❌ Error formatting appointment date:', error);
+    return isoDateTime; // Fallback to original
+  }
+};
+
+const formatCallDate = (isoDateTime: string): string => {
+  try {
+    const date = new Date(isoDateTime);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (error) {
+    console.error('❌ Error formatting call date:', error);
+    return isoDateTime; // Fallback to original
+  }
+};
+
 // Call API calls
 export const callAPI = {
   /**
@@ -827,6 +864,57 @@ export const callAPI = {
     } catch (error) {
       console.error('❌ Date range call logs API error:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Get appointment call logs formatted for Dashboard display
+   */
+  async getAppointmentCallLogs(params?: {
+    page?: number;
+    page_size?: number;
+    ordering?: string;
+    appointment_datetime_after?: string;
+    appointment_datetime_before?: string;
+  }): Promise<AppointmentCallLog[]> {
+    console.log('📅 GET /api/calls/call-logs/ (appointments) - Getting appointment call logs');
+    
+    try {
+      // Prepare parameters for call logs API
+      const callParams: any = {
+        status: 'appointment_scheduled', // Only get appointments
+        ordering: params?.ordering || '-appointment_datetime', // Default: newest appointments first
+        page_size: params?.page_size || 10, // Default: 10 appointments for dashboard
+        page: params?.page || 1
+      };
+
+      // Add date filtering if provided
+      if (params?.appointment_datetime_after) {
+        callParams.appointment_datetime_after = params.appointment_datetime_after;
+      }
+      if (params?.appointment_datetime_before) {
+        callParams.appointment_datetime_before = params.appointment_datetime_before;
+      }
+
+      // Call the existing getCallLogs function with appointment filters
+      const response = await this.getCallLogs(callParams);
+      
+      // Transform CallLog[] to AppointmentCallLog[]
+      const appointments: AppointmentCallLog[] = response.results
+        .filter(callLog => callLog.appointment_datetime) // Ensure appointment_datetime exists
+        .map(callLog => ({
+          id: callLog.id,
+          lead: callLog.lead_name || 'Unknown Lead',
+          appointmentDate: formatAppointmentDate(callLog.appointment_datetime!),
+          date: formatCallDate(callLog.timestamp)
+        }));
+
+      console.log(`✅ Appointment call logs retrieved: ${appointments.length} appointments`);
+      return appointments;
+    } catch (error) {
+      console.error('❌ Appointment call logs API error:', error);
+      // Return empty array on error for graceful fallback
+      return [];
     }
   }
 };
