@@ -439,24 +439,28 @@ export default function Dashboard() {
   // Analytics-Daten (fallback für Dummy-Daten)
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
   
-  // Use Real Chart Data or Fallback to Dummy Data
-  const enhancedAnalyticsData = useMemo(() => {
-    // If we have real chart data, use it (it already includes conversion)
-    if (realChartData.length > 0) {
-      return realChartData;
-    }
-    
-    // Otherwise, use dummy data with calculated conversion rate
-    return analyticsData.map(item => ({
-      ...item,
-      conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
-    }));
-  }, [realChartData, analyticsData]);
-  
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
   const isSingleDay = useMemo(() => {
     return format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
   }, [dateRange]);
+  
+  // Use Real Chart Data or Fallback to Dummy Data
+  const enhancedAnalyticsData = useMemo(() => {
+    // For single day, we need at least 24 data points (hourly)
+    // For multi day, we need at least the number of days
+    const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // If we have sufficient real chart data, use it
+    if (realChartData.length >= expectedDataPoints) {
+      return realChartData;
+    }
+    
+    // Otherwise, ALWAYS use dummy data to prevent empty charts
+    return analyticsData.map(item => ({
+      ...item,
+      conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
+    }));
+  }, [realChartData, analyticsData, isSingleDay, dateRange]);
 
   // Metriken-Definitionen
   const metricConfig = {
