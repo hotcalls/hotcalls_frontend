@@ -614,9 +614,8 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Performance Chart + Neue Termine Grid - nur anzeigen wenn nicht Single-Day View */}
-      {!isSingleDay && (
-        <div className="grid gap-6 grid-cols-5">
+      {/* Performance Chart + Neue Termine Grid */}
+      <div className="grid gap-6 grid-cols-5">
           {/* Analytics Chart - 3/5 der Breite */}
           <div className="col-span-3">
             <div className="bg-white rounded-lg border p-6 h-[416px] flex flex-col">
@@ -799,11 +798,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      )}
 
       {/* Letzte Anrufe - moderne Tabelle */}
-      {!isSingleDay && (
-        <div className="bg-white rounded-lg border">
+      <div className="bg-white rounded-lg border">
           {/* Header mit Suche und Aktionen */}
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-2xl font-semibold">Letzte Anrufe</h2>
@@ -939,7 +936,6 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-      )}
 
       {/* Lead Details Slide-in Panel */}
       <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
