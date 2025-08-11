@@ -41,6 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
+import { leadAPI, LeadStatsResponse } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -288,12 +289,7 @@ export default function Dashboard() {
   const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null);
   
   // API State für Real Data
-  const [leadsStats, setLeadsStats] = useState<{
-    total_leads: number;
-    leads_with_calls: number;
-    leads_without_calls: number;
-    avg_calls_per_lead: number | null;
-  } | null>(null);
+  const [leadsStats, setLeadsStats] = useState<LeadStatsResponse | null>(null);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [leadsError, setLeadsError] = useState<string | null>(null);
 
@@ -311,39 +307,13 @@ export default function Dashboard() {
           setLeadsStats({
             total_leads: 0,
             leads_with_calls: 0,
-            leads_without_calls: 0,
-            avg_calls_per_lead: null
+            leads_without_calls: 0
           });
           setLeadsLoading(false);
           return;
         }
 
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiBaseUrl}/api/leads/leads/stats/`, {
-          headers: {
-            'Authorization': `Token ${authToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            // Token expired or invalid
-            console.warn('Authentication failed, token may be expired');
-            localStorage.removeItem('token'); // Clear invalid token
-            setLeadsStats({
-              total_leads: 0,
-              leads_with_calls: 0,
-              leads_without_calls: 0,
-              avg_calls_per_lead: null
-            });
-            setLeadsLoading(false);
-            return;
-          }
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await leadAPI.getLeadStats();
         setLeadsStats(data);
       } catch (error) {
         console.error('Error fetching leads stats:', error);
