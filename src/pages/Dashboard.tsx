@@ -450,16 +450,28 @@ export default function Dashboard() {
     // For multi day, we need at least the number of days
     const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
+    console.log('🔍 Chart data decision:', {
+      isSingleDay,
+      expectedDataPoints,
+      realDataLength: realChartData.length,
+      dummyDataLength: analyticsData.length,
+      willUseDummy: realChartData.length < expectedDataPoints
+    });
+    
     // If we have sufficient real chart data, use it
     if (realChartData.length >= expectedDataPoints) {
+      console.log('✅ Using real chart data');
       return realChartData;
     }
     
     // Otherwise, ALWAYS use dummy data to prevent empty charts
-    return analyticsData.map(item => ({
+    console.log('📊 Using dummy data fallback');
+    const dummyData = analyticsData.map(item => ({
       ...item,
       conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
     }));
+    console.log('📊 Dummy data generated:', dummyData.length, 'points');
+    return dummyData;
   }, [realChartData, analyticsData, isSingleDay, dateRange]);
 
   // Metriken-Definitionen
