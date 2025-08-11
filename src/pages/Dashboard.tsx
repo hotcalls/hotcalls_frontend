@@ -437,7 +437,10 @@ export default function Dashboard() {
 
   // API Call für Recent Calls (Letzte Anrufe)
   useEffect(() => {
+    console.log('🔥 RECENT CALLS useEffect TRIGGERED - dateRange:', dateRange, 'searchQuery:', searchQuery);
+    
     const fetchRecentCalls = async () => {
+      console.log('🔥 STARTING fetchRecentCalls function...');
       setRecentCallsLoading(true);
       setRecentCallsError(null);
       
@@ -986,12 +989,12 @@ export default function Dashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {leadDetails[call.lead] ? leadDetails[call.lead].email : `${call.lead.toLowerCase().replace(' ', '.')}@example.com`}
+                          {call.email}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {leadDetails[call.lead] ? leadDetails[call.lead].phone : `+49 ${Math.floor(Math.random() * 900 + 100)} ${Math.floor(Math.random() * 9000000 + 1000000)}`}
+                          {call.phone}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
