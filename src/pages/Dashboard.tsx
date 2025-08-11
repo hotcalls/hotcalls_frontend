@@ -376,8 +376,8 @@ export default function Dashboard() {
       try {
         const authToken = localStorage.getItem('authToken');
         if (!authToken) {
-          // Fallback to default values if no token
-          console.warn('No authentication token found, using dummy data for appointments');
+          // Fallback to dummy data if no token (user not logged in)
+          console.warn('No authentication token found, using dummy data');
           setAppointmentStats({
             total_appointments: 0,
             appointments_today: 0,
@@ -396,7 +396,6 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error fetching appointment stats:', error);
         setAppointmentsError(error instanceof Error ? error.message : 'Failed to load appointment data');
-        setAppointmentStats(null);
       } finally {
         setAppointmentsLoading(false);
       }
