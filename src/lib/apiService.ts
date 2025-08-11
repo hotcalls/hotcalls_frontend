@@ -916,7 +916,52 @@ export const callAPI = {
       // Return empty array on error for graceful fallback
       return [];
     }
-  }
+  },
+
+  /**
+   * Get recent call logs for "Letzte Anrufe" section
+   */
+  async getRecentCallLogs(params?: {
+    page_size?: number;
+    ordering?: string;
+    timestamp_after?: string;
+    timestamp_before?: string;
+    search?: string;
+  }): Promise<CallLog[]> {
+    console.log('📞 GET /api/calls/call-logs/ (recent) - Getting recent call logs');
+    
+    try {
+      // Prepare parameters for call logs API
+      const callParams: any = {
+        ordering: params?.ordering || '-timestamp', // Default: newest calls first
+        page_size: params?.page_size || 10, // Default: 10 calls
+        page: 1 // Always get first page for recent calls
+      };
+
+      // Add date filtering if provided
+      if (params?.timestamp_after) {
+        callParams.timestamp_after = params.timestamp_after;
+      }
+      if (params?.timestamp_before) {
+        callParams.timestamp_before = params.timestamp_before;
+      }
+
+      // Add search if provided
+      if (params?.search && params.search.trim()) {
+        callParams.search = params.search.trim();
+      }
+
+      // Call the existing getCallLogs function
+      const response = await this.getCallLogs(callParams);
+      
+      console.log(`✅ Recent call logs retrieved: ${response.results.length} calls`);
+      return response.results;
+    } catch (error) {
+      console.error('❌ Recent call logs API error:', error);
+      // Return empty array on error for graceful fallback
+      return [];
+    }
+  },
 };
 
 // Stripe/Payment API

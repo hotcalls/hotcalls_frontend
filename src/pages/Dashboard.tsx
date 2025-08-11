@@ -106,46 +106,6 @@ const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
   return data;
 };
 
-// Letzte Anrufe Daten
-const generateRecentCalls = () => {
-  const leadNames = ["Max Mustermann", "Anna Schmidt", "Thomas Weber", "Julia Müller", "Robert Klein", "Sarah Wagner", "Michael Brown", "Lisa Davis", "Peter Johnson", "Maria Garcia"];
-  const agentNames = ["Agent Max", "Agent Sarah", "Agent Tom", "Agent Lisa", "Agent Kevin"];
-  const leadSources = ["Google Ads", "Facebook", "LinkedIn", "Website", "Empfehlung", "Cold Call"];
-  const statuses = ["Termin vereinbart", "Kein Interesse", "Nicht erreicht"];
-  
-  const calls = [];
-  for (let i = 0; i < 15; i++) {
-    const date = subDays(new Date(), Math.floor(Math.random() * 7));
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    // Follow-up nur bei "Nicht erreicht" (nochmal versuchen) oder selten bei "Kein Interesse"
-    const hasFollowUp = (status === 'Nicht erreicht' && Math.random() > 0.4) || 
-                       (status === 'Kein Interesse' && Math.random() > 0.9);
-    
-    calls.push({
-      id: i.toString(),
-      lead: leadNames[Math.floor(Math.random() * leadNames.length)],
-      agent: agentNames[Math.floor(Math.random() * agentNames.length)],
-      leadSource: leadSources[Math.floor(Math.random() * leadSources.length)],
-      phone: `+49 ${Math.floor(Math.random() * 900 + 100)} ${Math.floor(Math.random() * 9000000 + 1000000)}`,
-      status,
-      followUpDate: hasFollowUp ? 
-        (() => {
-          // Follow-up zwischen heute und in 7 Tagen
-          const followUpTime = new Date(Date.now() + Math.random() * 7 * 24 * 60 * 60 * 1000);
-          // Arbeitszeiten: 8-17 Uhr
-          const hour = Math.floor(Math.random() * 9) + 8;
-          const minute = Math.random() > 0.5 ? 0 : 30;
-          followUpTime.setHours(hour, minute, 0, 0);
-          return followUpTime.toISOString();
-        })() : null,
-      date: format(date, 'yyyy-MM-dd'),
-    });
-  }
-  
-  return calls;
-};
-
-
 
 // Lead-Details mit Gesprächshistorie
 const generateLeadDetails = () => {
@@ -243,6 +203,12 @@ const getStatusBadge = (status: string) => {
         variant: 'outline' as const,
         className: 'bg-yellow-50 border-yellow-600 text-yellow-700 hover:bg-yellow-100'
       };
+    case 'Erreicht':
+      return {
+        icon: CheckCircle,
+        variant: 'outline' as const,
+        className: 'bg-blue-50 border-blue-600 text-blue-700 hover:bg-blue-100'
+      };
     default:
       return {
         icon: Clock,
@@ -252,7 +218,50 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const recentCalls = generateRecentCalls();
+// Status Mapping von API zu Frontend
+const mapApiStatusToDisplayStatus = (apiStatus: string | null): string => {
+  switch(apiStatus) {
+    case 'appointment_scheduled': return 'Termin vereinbart';
+    case 'not_reached': return 'Nicht erreicht';  
+    case 'reached': return 'Erreicht';
+    case 'no_interest': return 'Kein Interesse';
+    case null: return 'Offen';
+    default: return 'Unbekannt';
+  }
+};
+
+// Interface für Recent Call Data
+interface RecentCallData {
+  id: string;
+  lead: string;           // lead_name + lead_surname
+  email: string;          // lead_email  
+  phone: string;          // to_number (für Outbound) oder from_number
+  agent: string;          // agent_workspace_name
+  status: string;         // Gemappter Status
+  date: string;          // timestamp → 'yyyy-MM-dd'
+}
+
+// Transform API CallLog zu Frontend RecentCallData
+const transformCallLogToRecentCall = (callLog: CallLog): RecentCallData => {
+  const fullName = callLog.lead_surname 
+    ? `${callLog.lead_name} ${callLog.lead_surname}`
+    : callLog.lead_name;
+    
+  const displayPhone = callLog.direction === 'outbound' 
+    ? callLog.to_number 
+    : callLog.from_number;
+    
+  return {
+    id: callLog.id,
+    lead: fullName,
+    email: callLog.lead_email,
+    phone: displayPhone,
+    agent: callLog.agent_workspace_name,
+    status: mapApiStatusToDisplayStatus(callLog.status),
+    date: format(new Date(callLog.timestamp), 'yyyy-MM-dd')
+  };
+};
+
 const leadDetails = generateLeadDetails();
 
 export default function Dashboard() {
@@ -284,6 +293,12 @@ export default function Dashboard() {
   const [realAppointments, setRealAppointments] = useState<AppointmentCallLog[]>([]);
   const [appointmentListLoading, setAppointmentListLoading] = useState(true);
   const [appointmentListError, setAppointmentListError] = useState<string | null>(null);
+
+  // API State für Recent Calls (Letzte Anrufe)
+  const [realRecentCalls, setRealRecentCalls] = useState<RecentCallData[]>([]);
+  const [recentCallsLoading, setRecentCallsLoading] = useState(true);
+  const [recentCallsError, setRecentCallsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // API Call für Leads Count
   useEffect(() => {
@@ -419,6 +434,43 @@ export default function Dashboard() {
 
     fetchAppointmentList();
   }, []); // Run once on mount - STATIC, not dependent on dateRange
+
+  // API Call für Recent Calls (Letzte Anrufe)
+  useEffect(() => {
+    const fetchRecentCalls = async () => {
+      setRecentCallsLoading(true);
+      setRecentCallsError(null);
+      
+      try {
+        console.log('📞 Fetching recent calls...');
+        
+        // Zeitraum-Filter synchron mit Performance-Übersicht (dateRange)
+        const startDate = startOfDay(dateRange.from).toISOString();
+        const endDate = endOfDay(dateRange.to).toISOString();
+        
+        const apiCalls = await callAPI.getRecentCallLogs({
+          page_size: 10,                    // Standard: 10 Calls
+          ordering: '-timestamp',          // Neueste zuerst
+          timestamp_after: startDate,      // Gleicher Filter wie Chart
+          timestamp_before: endDate,       // Gleicher Filter wie Chart
+          search: searchQuery || undefined // Keyword Search
+        });
+        
+        // Transform API → Frontend
+        const transformedCalls = apiCalls.map(transformCallLogToRecentCall);
+        setRealRecentCalls(transformedCalls);
+        console.log(`✅ Recent calls loaded: ${transformedCalls.length} calls`);
+        
+      } catch (error) {
+        console.error('❌ Error fetching recent calls:', error);
+        setRecentCallsError('Fehler beim Laden der Anrufe');
+      } finally {
+        setRecentCallsLoading(false);
+      }
+    };
+    
+    fetchRecentCalls();
+  }, [dateRange, searchQuery]); // Abhängig von Datum UND Search
 
   // Real Chart Data State
   const [realChartData, setRealChartData] = useState<ChartDataPoint[]>([]);
@@ -588,16 +640,13 @@ export default function Dashboard() {
     ];
   }, [leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError, appointmentStats, appointmentsLoading, appointmentsError]);
 
-  // Gefilterte Anrufe basierend auf Zeitraum
+  // Recent Calls Logic - Use real API data
   const filteredCalls = useMemo(() => {
-    return recentCalls.filter(call => {
-      const callDate = new Date(call.date);
-      return isWithinInterval(callDate, {
-        start: startOfDay(dateRange.from),
-        end: endOfDay(dateRange.to)
-      });
-    });
-  }, [dateRange]);
+    // API macht bereits das Filtering - einfache Logic
+    if (recentCallsLoading) return [];
+    if (recentCallsError) return [];
+    return realRecentCalls; // Bereits gefiltert durch API
+  }, [realRecentCalls, recentCallsLoading, recentCallsError]);
 
   // Static Appointments Logic - Always show next 2 weeks from today
   const staticAppointments = useMemo(() => {
@@ -880,6 +929,8 @@ export default function Dashboard() {
                 <input
                   type="text"
                   placeholder="Suchen"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -918,7 +969,6 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead-Quelle</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
                   </tr>
@@ -952,36 +1002,19 @@ export default function Dashboard() {
                           const statusBadge = getStatusBadge(call.status);
                           const StatusIcon = statusBadge.icon;
                           
-                          // Vereinfachtes Follow-up: Wenn Follow-up geplant ist, "Nicht erreicht" durch Datum ersetzen
-                          let displayStatus = call.status;
-                          if (call.status === 'Nicht erreicht' && call.followUpDate) {
-                            displayStatus = `Follow-up ${formatFollowUpDate(call.followUpDate)}`;
-                          }
-                          
                           return (
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}>
                               <StatusIcon className="h-3 w-3" />
-                              {displayStatus}
+                              {call.status}
                             </span>
                           );
                         })()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{call.leadSource}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{call.date}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedLead(call.lead)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Phone className="h-3.5 w-3.5" />
-                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -997,13 +1030,25 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+          ) : recentCallsLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+              <div className="text-sm text-muted-foreground mt-2">Lade Anrufe...</div>
+            </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <Phone className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <div className="text-lg font-medium">Keine Anrufe</div>
-              <div className="text-sm">
-                Keine Anrufe im gewählten Zeitraum getätigt.
-              </div>
+              <PhoneCall className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <div className="text-base font-medium mb-1">Keine neuen Anrufe</div>
+              {searchQuery && (
+                <div className="text-sm opacity-70">
+                  Keine Ergebnisse für "{searchQuery}"
+                </div>
+              )}
+              {!searchQuery && (
+                <div className="text-sm opacity-70">
+                  Keine Anrufe im gewählten Zeitraum gefunden
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1091,16 +1136,7 @@ export default function Dashboard() {
                             const leadCall = filteredCalls.find(call => call.lead === selectedLead);
                             const leadAppointment = staticAppointments.find(appointment => appointment.lead === selectedLead);
                             
-                            if (leadCall?.followUpDate) {
-                              return (
-                                <>
-                                  <div className="text-lg font-bold">
-                                    {formatFullDateTime(leadCall.followUpDate)}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">Nächster Anruf</p>
-                                </>
-                              );
-                            } else if (leadAppointment) {
+                            if (leadAppointment) {
                               // Wenn es einen Termin gibt, ist das der "nächste Anruf"
                               return (
                                 <>
