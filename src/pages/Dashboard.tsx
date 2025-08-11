@@ -41,7 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI, LeadStatsResponse } from '@/lib/apiService';
+import { leadAPI } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -289,13 +289,13 @@ export default function Dashboard() {
   const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null);
   
   // API State für Real Data
-  const [leadsStats, setLeadsStats] = useState<LeadStatsResponse | null>(null);
+  const [leadsStats, setLeadsStats] = useState<{count: number} | null>(null);
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [leadsError, setLeadsError] = useState<string | null>(null);
 
-  // API Call für Leads Stats
+  // API Call für Leads Count
   useEffect(() => {
-    const fetchLeadsStats = async () => {
+    const fetchLeadsCount = async () => {
       setLeadsLoading(true);
       setLeadsError(null);
       
@@ -305,25 +305,24 @@ export default function Dashboard() {
           // Fallback to dummy data if no token (user not logged in)
           console.warn('No authentication token found, using dummy data');
           setLeadsStats({
-            total_leads: 0,
-            leads_with_calls: 0,
-            leads_without_calls: 0
+            count: 0
           });
           setLeadsLoading(false);
           return;
         }
 
-        const data = await leadAPI.getLeadStats();
-        setLeadsStats(data);
+        // Use normal leads endpoint to get count
+        const data = await leadAPI.getLeads({ page_size: 1 }); // Only need count, not the actual leads
+        setLeadsStats({ count: data.count || 0 });
       } catch (error) {
-        console.error('Error fetching leads stats:', error);
+        console.error('Error fetching leads count:', error);
         setLeadsError(error instanceof Error ? error.message : 'Failed to load leads data');
       } finally {
         setLeadsLoading(false);
       }
     };
 
-    fetchLeadsStats();
+    fetchLeadsCount();
   }, []); // Run once on mount
 
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
@@ -357,7 +356,7 @@ export default function Dashboard() {
     const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
     
     // Real Leads Data von API
-    const totalLeads = leadsStats?.total_leads || 0;
+    const totalLeads = leadsStats?.count || 0;
     
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100) : 0;
 
