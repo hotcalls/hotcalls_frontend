@@ -1737,25 +1737,35 @@ export const chartAPI = {
       const hourlyData: ChartDataPoint[] = [];
       
       for (let hour = 0; hour < 24; hour++) {
+        // Create hour timestamp in local timezone, not UTC
         const hourStart = new Date(date);
         hourStart.setHours(hour, 0, 0, 0);
 
-        // Count calls in this hour
+        // Count calls in this hour (using local time comparison)
         const callsInHour = callLogs.results.filter(call => {
-          const callHour = new Date(call.timestamp).getHours();
-          return callHour === hour;
+          const callTime = new Date(call.timestamp);
+          const callHour = callTime.getHours();
+          const callDate = callTime.toDateString();
+          const targetDate = date.toDateString();
+          return callDate === targetDate && callHour === hour;
         }).length;
 
-        // Count appointments in this hour
+        // Count appointments in this hour (using local time comparison)
         const appointmentsInHour = callLogs.results.filter(call => {
-          const callHour = new Date(call.timestamp).getHours();
-          return callHour === hour && call.status === 'appointment_scheduled';
+          const callTime = new Date(call.timestamp);
+          const callHour = callTime.getHours();
+          const callDate = callTime.toDateString();
+          const targetDate = date.toDateString();
+          return callDate === targetDate && callHour === hour && call.status === 'appointment_scheduled';
         }).length;
 
-        // Count leads created in this hour
+        // Count leads created in this hour (using local time comparison)
         const leadsInHour = leadsInDay.results.filter(lead => {
-          const leadHour = new Date(lead.created_at).getHours();
-          return leadHour === hour;
+          const leadTime = new Date(lead.created_at);
+          const leadHour = leadTime.getHours();
+          const leadDate = leadTime.toDateString();
+          const targetDate = date.toDateString();
+          return leadDate === targetDate && leadHour === hour;
         }).length;
 
         // Calculate conversion rate
@@ -1770,7 +1780,20 @@ export const chartAPI = {
         });
       }
 
+      // Debug: Log lead distribution
+      const totalLeadsInChart = hourlyData.reduce((sum, hour) => sum + hour.leads, 0);
+      const hoursWithLeads = hourlyData.filter(hour => hour.leads > 0);
       console.log('✅ Generated hourly real data for single day:', hourlyData.length, 'hours');
+      console.log('📊 Lead distribution debug:', {
+        totalLeadsFromAPI: leadsInDay.results.length,
+        totalLeadsInChart,
+        hoursWithLeads: hoursWithLeads.map(h => ({
+          hour: new Date(h.date).getHours(),
+          leads: h.leads,
+          calls: h.calls,
+          appointments: h.appointments
+        }))
+      });
       return hourlyData;
 
     } catch (error) {
@@ -1783,21 +1806,28 @@ export const chartAPI = {
    * Generate daily data for multi-day ranges (existing logic)
    */
   async generateMultiDayData(dateRange: {from: Date, to: Date}): Promise<ChartDataPoint[]> {
+    // Set proper start and end times for the date range
+    const startOfRange = new Date(dateRange.from);
+    startOfRange.setHours(0, 0, 0, 0);
+    const endOfRange = new Date(dateRange.to);
+    endOfRange.setHours(23, 59, 59, 999);
+    
     // Calculate number of days for the chart
-    const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = Math.ceil((endOfRange.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     // Get daily call statistics
     const dailyStats = await callAPI.getDailyStats(totalDays);
     
     // Get appointment calls in date range
     const appointmentCalls = await callAPI.getCallLogsInDateRange(
-      dateRange.from.toISOString(), 
-      dateRange.to.toISOString(), 
+      startOfRange.toISOString(), 
+      endOfRange.toISOString(), 
       'appointment_scheduled'
     );
     
-    // Get all leads in date range (to calculate daily lead creation)
-    const leadsInRange = await leadAPI.getLeadsInDateRange(dateRange.from.toISOString(), dateRange.to.toISOString());
+    // Get all leads in date range (to calculate daily lead creation)  
+    console.log('📊 Multi-day calling getLeadsInDateRange with:', startOfRange.toISOString(), 'to', endOfRange.toISOString());
+    const leadsInRange = await leadAPI.getLeadsInDateRange(startOfRange.toISOString(), endOfRange.toISOString());
     
     // Process daily stats into chart format
     const chartData: ChartDataPoint[] = dailyStats.daily_stats.map(dayStat => {
