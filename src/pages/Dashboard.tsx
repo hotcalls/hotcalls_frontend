@@ -416,17 +416,11 @@ export default function Dashboard() {
       setChartError(null);
       
       try {
-        const authToken = localStorage.getItem('authToken');
-        if (!authToken) {
-          // Fallback to dummy data if no token (user not logged in)
-          console.warn('No authentication token found, using dummy data for chart');
-          setRealChartData(generateAnalyticsData(dateRange));
-          setChartLoading(false);
-          return;
-        }
-
-        // Get real chart data from APIs
+        console.log('🔍 Starting real chart data fetch...');
+        
+        // Get real chart data from APIs (API will handle auth internally)
         const chartData = await chartAPI.generateRealChartData(dateRange);
+        console.log('✅ Chart data received:', chartData);
         setRealChartData(chartData);
       } catch (error) {
         console.error('Error fetching real chart data:', error);
