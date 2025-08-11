@@ -306,7 +306,15 @@ export default function Dashboard() {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          throw new Error('No authentication token found');
+          // Fallback to dummy data if no token (user not logged in)
+          console.warn('No authentication token found, using dummy data');
+          setLeadsStats({
+            total_leads: 0,
+            leads_with_calls: 0,
+            leads_without_calls: 0,
+            avg_calls_per_lead: null
+          });
+          return;
         }
 
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -318,6 +326,18 @@ export default function Dashboard() {
         });
 
         if (!response.ok) {
+          if (response.status === 401) {
+            // Token expired or invalid
+            console.warn('Authentication failed, token may be expired');
+            localStorage.removeItem('token'); // Clear invalid token
+            setLeadsStats({
+              total_leads: 0,
+              leads_with_calls: 0,
+              leads_without_calls: 0,
+              avg_calls_per_lead: null
+            });
+            return;
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
