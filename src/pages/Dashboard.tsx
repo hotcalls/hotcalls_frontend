@@ -409,45 +409,29 @@ export default function Dashboard() {
     fetchAppointmentStats();
   }, []); // Run once on mount
 
-  // API Call für Real Appointment List  
+  // API Call für Static Appointment List (nächste 2 Wochen ab heute)
   useEffect(() => {
     const fetchAppointmentList = async () => {
       setAppointmentListLoading(true);
       setAppointmentListError(null);
       
       try {
-        console.log('📅 Fetching real appointment list...');
+        console.log('📅 Fetching static appointment list (next 2 weeks)...');
         
-        // Get next 5 upcoming appointments
+        // Define static 2-week period from today
+        const now = new Date();
+        const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        
+        // Get appointments in next 2 weeks
         const appointments = await callAPI.getAppointmentCallLogs({
-          page_size: 10, // Get more to filter for upcoming ones
-          ordering: 'appointment_datetime' // Order by appointment time (earliest first)
+          page_size: 5, // Get exactly 5 appointments
+          ordering: 'appointment_datetime', // Order by appointment time (earliest first)
+          appointment_datetime_after: now.toISOString(),
+          appointment_datetime_before: twoWeeksLater.toISOString()
         });
         
-        // Filter only future appointments
-        const now = new Date();
-        const upcomingAppointments = appointments.filter(appointment => {
-          // Parse appointment date back to Date object for comparison
-          const appointmentParts = appointment.appointmentDate.split(' ');
-          const datePart = appointmentParts[0]; // "16.08.2025"
-          const timePart = appointmentParts[1]; // "12:00"
-          
-          const [day, month, year] = datePart.split('.');
-          const [hours, minutes] = timePart.split(':');
-          
-          const appointmentDate = new Date(
-            parseInt(year), 
-            parseInt(month) - 1, // Month is 0-indexed
-            parseInt(day),
-            parseInt(hours),
-            parseInt(minutes)
-          );
-          
-          return appointmentDate > now;
-        }).slice(0, 5); // Ensure only 5 appointments max
-        
-        setRealAppointments(upcomingAppointments);
-        console.log(`✅ Real appointment list loaded: ${upcomingAppointments.length} upcoming appointments`);
+        setRealAppointments(appointments);
+        console.log(`✅ Static appointment list loaded: ${appointments.length} upcoming appointments (next 2 weeks)`);
       } catch (error) {
         console.error('❌ Error fetching appointment list:', error);
         setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
@@ -457,7 +441,7 @@ export default function Dashboard() {
     };
 
     fetchAppointmentList();
-  }, []); // Run once on mount
+  }, []); // Run once on mount - STATIC, not dependent on dateRange
 
   // Real Chart Data State
   const [realChartData, setRealChartData] = useState<ChartDataPoint[]>([]);
@@ -638,32 +622,24 @@ export default function Dashboard() {
     });
   }, [dateRange]);
 
-  // Enhanced Appointments Logic - Use Real Data or Fallback to Dummy
-  const enhancedAppointments = useMemo(() => {
+  // Static Appointments Logic - Always show next 2 weeks from today
+  const staticAppointments = useMemo(() => {
     // If we have real appointments and no error, use them
     if (!appointmentListLoading && !appointmentListError && realAppointments.length > 0) {
-      console.log('✅ Using real appointment data');
+      console.log('✅ Using static appointment data (next 2 weeks)');
       return realAppointments;
     }
     
     // If loading real appointments, return empty for now
     if (appointmentListLoading) {
-      console.log('⏳ Loading real appointments...');
+      console.log('⏳ Loading static appointments...');
       return [];
     }
     
-    // Fallback to filtered dummy data if real data is not available
-    console.log('📊 Using dummy appointment data fallback');
-    const filteredDummyAppointments = newAppointments.filter(appointment => {
-      const appointmentDate = new Date(appointment.date);
-      return isWithinInterval(appointmentDate, {
-        start: startOfDay(dateRange.from),
-        end: endOfDay(dateRange.to)
-      });
-    });
-    
-    return filteredDummyAppointments.slice(0, 5); // Ensure max 5 appointments
-  }, [realAppointments, appointmentListLoading, appointmentListError, dateRange, newAppointments]);
+    // If API loaded but no appointments found, return empty (will show "Keine neuen Termine")
+    console.log('📋 No appointments found in next 2 weeks - showing empty state');
+    return [];
+  }, [realAppointments, appointmentListLoading, appointmentListError]);
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -845,7 +821,7 @@ export default function Dashboard() {
                 <h2 className="text-xl font-semibold">Neue Termine</h2>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">
-                    {enhancedAppointments.length} Termine
+                    {staticAppointments.length} Termine
                   </span>
                 </div>
               </div>
@@ -861,9 +837,9 @@ export default function Dashboard() {
                   <div className="text-sm">Fehler beim Laden der Termine</div>
                   <div className="text-xs">{appointmentListError}</div>
                 </div>
-              ) : enhancedAppointments.length > 0 ? (
+              ) : staticAppointments.length > 0 ? (
                 <div className="space-y-2 h-[344px] overflow-y-auto">
-                    {enhancedAppointments.slice(0, 5).map((appointment) => (
+                    {staticAppointments.slice(0, 5).map((appointment) => (
                       <Card
                         key={appointment.id}
                         className="hover:shadow-md transition-shadow min-h-[60px]"
@@ -899,21 +875,18 @@ export default function Dashboard() {
                       </Card>
                     ))}
                     
-                                        {enhancedAppointments.length > 5 && (
+                                        {staticAppointments.length > 5 && (
                       <div className="text-center py-2">
                         <Button variant="outline" size="sm">
-                          <span>+{enhancedAppointments.length - 5} weitere Termine</span>
+                          <span>+{staticAppointments.length - 5} weitere Termine</span>
                         </Button>
                       </div>
                     )}
                   </div>
                 ) : (
-                                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <div className="text-sm">Keine neuen Termine</div>
-                  <div className="text-xs">
-                    Keine Termine im gewählten Zeitraum vereinbart.
-                  </div>
                 </div>
               )}
             </div>
@@ -1139,7 +1112,7 @@ export default function Dashboard() {
                           {(() => {
                             // Suche nach Follow-up in den ursprünglichen Anruf-Daten oder Terminen
                             const leadCall = filteredCalls.find(call => call.lead === selectedLead);
-                            const leadAppointment = enhancedAppointments.find(appointment => appointment.lead === selectedLead);
+                            const leadAppointment = staticAppointments.find(appointment => appointment.lead === selectedLead);
                             
                             if (leadCall?.followUpDate) {
                               return (
