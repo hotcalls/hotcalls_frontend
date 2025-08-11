@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -286,6 +286,53 @@ export default function Dashboard() {
   const [selectedMetric, setSelectedMetric] = useState<'leads' | 'calls' | 'appointments' | 'conversion'>('leads');
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null);
+  
+  // API State für Real Data
+  const [leadsStats, setLeadsStats] = useState<{
+    total_leads: number;
+    leads_with_calls: number;
+    leads_without_calls: number;
+    avg_calls_per_lead: number | null;
+  } | null>(null);
+  const [leadsLoading, setLeadsLoading] = useState(true);
+  const [leadsError, setLeadsError] = useState<string | null>(null);
+
+  // API Call für Leads Stats
+  useEffect(() => {
+    const fetchLeadsStats = async () => {
+      setLeadsLoading(true);
+      setLeadsError(null);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiBaseUrl}/api/leads/stats/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setLeadsStats(data);
+      } catch (error) {
+        console.error('Error fetching leads stats:', error);
+        setLeadsError(error instanceof Error ? error.message : 'Failed to load leads data');
+      } finally {
+        setLeadsLoading(false);
+      }
+    };
+
+    fetchLeadsStats();
+  }, []); // Erstmal ohne dateRange dependency
 
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
@@ -311,23 +358,29 @@ export default function Dashboard() {
     conversion: { key: 'conversion', name: 'Conversion Rate', icon: TrendingUp, suffix: '%' }
   };
 
-  // Statistiken basierend auf generierten Daten berechnen
+  // Statistiken basierend auf echten API-Daten + Dummy-Daten berechnen
   const stats = useMemo(() => {
-    const totalLeads = analyticsData.reduce((sum, item) => sum + item.leads, 0);
+    // Dummy data für andere Metriken (werden später auch ersetzt)
     const totalCalls = analyticsData.reduce((sum, item) => sum + item.calls, 0);
     const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
+    
+    // Real Leads Data von API
+    const totalLeads = leadsStats?.total_leads || 0;
+    
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100) : 0;
 
-    // Vergleichszeitraum generieren
+    // Vergleichszeitraum generieren (für Dummy-Daten)
     const daysDiff = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     const prevFromDate = subDays(dateRange.from, daysDiff);
     const prevToDate = subDays(dateRange.to, daysDiff);
     
     const prevData = generateAnalyticsData({ from: prevFromDate, to: prevToDate });
     
-    const prevTotalLeads = prevData.reduce((sum, item) => sum + item.leads, 0);
     const prevTotalCalls = prevData.reduce((sum, item) => sum + item.calls, 0);
     const prevTotalAppointments = prevData.reduce((sum, item) => sum + item.appointments, 0);
+    
+    // Für Leads: simuliere 5% Wachstum da wir keine historischen Daten haben
+    const prevTotalLeads = Math.floor(totalLeads * 0.95);
     const prevConversionRate = prevTotalLeads > 0 ? ((prevTotalAppointments / prevTotalLeads) * 100) : 0;
     
     const calculateChange = (current: number, previous: number) => {
@@ -340,10 +393,12 @@ export default function Dashboard() {
       {
         id: 'leads',
         title: "Leads",
-        value: totalLeads.toLocaleString('de-DE'),
-        change: calculateChange(totalLeads, prevTotalLeads),
+        value: leadsLoading ? "..." : leadsError ? "Error" : totalLeads.toLocaleString('de-DE'),
+        change: leadsLoading ? "" : leadsError ? "" : calculateChange(totalLeads, prevTotalLeads),
         icon: Users,
         color: "text-info",
+        loading: leadsLoading,
+        error: leadsError,
       },
       {
         id: 'calls',
@@ -370,7 +425,7 @@ export default function Dashboard() {
         color: "text-primary",
       },
     ];
-  }, [analyticsData, dateRange]);
+  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {
