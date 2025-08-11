@@ -304,8 +304,8 @@ export default function Dashboard() {
       setLeadsError(null);
       
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
           // Fallback to dummy data if no token (user not logged in)
           console.warn('No authentication token found, using dummy data');
           setLeadsStats({
@@ -314,13 +314,14 @@ export default function Dashboard() {
             leads_without_calls: 0,
             avg_calls_per_lead: null
           });
+          setLeadsLoading(false);
           return;
         }
 
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
         const response = await fetch(`${apiBaseUrl}/api/leads/leads/stats/`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Token ${authToken}`,
             'Content-Type': 'application/json'
           }
         });
@@ -336,6 +337,7 @@ export default function Dashboard() {
               leads_without_calls: 0,
               avg_calls_per_lead: null
             });
+            setLeadsLoading(false);
             return;
           }
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -352,7 +354,7 @@ export default function Dashboard() {
     };
 
     fetchLeadsStats();
-  }, []); // Erstmal ohne dateRange dependency
+  }, []); // Run once on mount
 
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
