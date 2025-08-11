@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Search, Filter, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2, Loader2 } from "lucide-react";
+import { Search, Filter, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2, Loader2 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { format, isToday, isThisWeek, getDay } from "date-fns";
@@ -126,11 +126,6 @@ export default function Leads() {
           <h1 className={textStyles.pageTitle}>Leads</h1>
           <p className={textStyles.pageSubtitle}>Verwalte und verfolge deine potenziellen Kunden</p>
         </div>
-        
-        <button className={buttonStyles.create.default}>
-          <Plus className={iconSizes.small} />
-          <span>Lead importieren</span>
-        </button>
       </div>
 
       {/* Leads Table - Moderne Tabelle wie Dashboard */}
@@ -187,7 +182,6 @@ export default function Leads() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Workspace</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quelle</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erstellt</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
@@ -196,7 +190,7 @@ export default function Leads() {
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-[#FE5B25] mr-2" />
                       <span className="text-gray-500">Lade Leads...</span>
@@ -221,7 +215,7 @@ export default function Leads() {
                 </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="text-gray-500">
                       <p className="font-medium">Keine Leads gefunden</p>
                       <p className="text-sm mt-1">
@@ -250,9 +244,6 @@ export default function Leads() {
                       <div className="text-sm text-gray-900">{lead.phone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{lead.workspace_name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         lead.integration_provider 
                           ? statusColors[lead.integration_provider as keyof typeof statusColors] || "bg-gray-100 text-gray-800"
@@ -268,19 +259,7 @@ export default function Leads() {
                     </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setSelectedLead(lead)}
-                            className="text-xs"
-                          >
-                            <Info className="h-3 w-3 mr-1" />
-                            Details
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-xs">
-                            <Phone className="h-3 w-3 mr-1" />
-                            Anrufen
-                          </Button>
+                          {/* Aktionen entfernt */}
                         </div>
                       </td>
                     </tr>
