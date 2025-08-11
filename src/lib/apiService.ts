@@ -648,10 +648,10 @@ export const callAPI = {
     direction?: string;
     ordering?: string;
   }): Promise<CallLogsListResponse> {
-    console.log('📞 GET /api/call-logs/ - Getting call logs');
+    console.log('📞 GET /api/calls/call-logs/ - Getting call logs');
     
     try {
-      let url = '/api/call-logs/';
+      let url = '/api/calls/call-logs/';
       const searchParams = new URLSearchParams();
       
       if (params?.page) {
