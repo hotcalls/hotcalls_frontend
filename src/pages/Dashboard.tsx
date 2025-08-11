@@ -41,7 +41,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI } from '@/lib/apiService';
+import { leadAPI, callAPI, CallLog } from '@/lib/apiService';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -293,6 +293,11 @@ export default function Dashboard() {
   const [leadsLoading, setLeadsLoading] = useState(true);
   const [leadsError, setLeadsError] = useState<string | null>(null);
 
+  // API State für Reached Leads (Call Data)
+  const [reachedLeadsCount, setReachedLeadsCount] = useState<number>(0);
+  const [callsLoading, setCallsLoading] = useState(true);
+  const [callsError, setCallsError] = useState<string | null>(null);
+
   // API Call für Leads Count
   useEffect(() => {
     const fetchLeadsCount = async () => {
@@ -325,6 +330,38 @@ export default function Dashboard() {
     fetchLeadsCount();
   }, []); // Run once on mount
 
+  // API Call für Reached Leads Count
+  useEffect(() => {
+    const fetchReachedLeadsCount = async () => {
+      setCallsLoading(true);
+      setCallsError(null);
+      
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          // Fallback to 0 if no token (user not logged in)
+          console.warn('No authentication token found, using dummy data for calls');
+          setReachedLeadsCount(0);
+          setCallsLoading(false);
+          return;
+        }
+
+        // Get all call logs to calculate reached leads
+        const callLogsData = await callAPI.getCallLogs();
+        const reachedCount = callAPI.calculateReachedLeads(callLogsData.results);
+        setReachedLeadsCount(reachedCount);
+      } catch (error) {
+        console.error('Error fetching call logs for reached leads:', error);
+        setCallsError(error instanceof Error ? error.message : 'Failed to load call data');
+        setReachedLeadsCount(0); // Fallback to 0 on error
+      } finally {
+        setCallsLoading(false);
+      }
+    };
+
+    fetchReachedLeadsCount();
+  }, []); // Run once on mount
+
   // Analytics-Daten generieren basierend auf aktuellem Zeitraum
   const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
   
@@ -351,8 +388,10 @@ export default function Dashboard() {
 
   // Statistiken basierend auf echten API-Daten + Dummy-Daten berechnen
   const stats = useMemo(() => {
+    // Real Reached Leads Data von Call API
+    const totalCalls = reachedLeadsCount;
+    
     // Dummy data für andere Metriken (werden später auch ersetzt)
-    const totalCalls = analyticsData.reduce((sum, item) => sum + item.calls, 0);
     const totalAppointments = analyticsData.reduce((sum, item) => sum + item.appointments, 0);
     
     // Real Leads Data von API
@@ -394,10 +433,12 @@ export default function Dashboard() {
       {
         id: 'calls',
         title: "Erreichte Leads", 
-        value: totalCalls.toLocaleString('de-DE'),
-        change: calculateChange(totalCalls, prevTotalCalls),
+        value: callsLoading ? "..." : callsError ? "Error" : totalCalls.toLocaleString('de-DE'),
+        change: callsLoading ? "" : callsError ? "" : calculateChange(totalCalls, prevTotalCalls),
         icon: Phone,
         color: "text-success",
+        loading: callsLoading,
+        error: callsError,
       },
       {
         id: 'appointments',
@@ -416,7 +457,7 @@ export default function Dashboard() {
         color: "text-primary",
       },
     ];
-  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError]);
+  }, [analyticsData, dateRange, leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError]);
 
   // Gefilterte Anrufe basierend auf Zeitraum
   const filteredCalls = useMemo(() => {

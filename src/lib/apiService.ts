@@ -564,6 +564,34 @@ export interface MakeTestCallResponse {
   message?: string;
 }
 
+// Call Log Interfaces
+export interface CallLog {
+  id: string;
+  lead: string;
+  lead_name: string;
+  lead_surname: string;
+  lead_email: string;
+  agent: string;
+  agent_workspace_name: string;
+  timestamp: string;
+  from_number: string;
+  to_number: string;
+  duration: number;
+  duration_formatted: string;
+  disconnection_reason: string | null;
+  direction: 'inbound' | 'outbound';
+  status: 'appointment_scheduled' | 'not_reached' | 'no_interest' | 'reached' | null;
+  appointment_datetime: string | null;
+  updated_at: string;
+}
+
+export interface CallLogsListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: CallLog[];
+}
+
 // Call API calls
 export const callAPI = {
   /**
@@ -607,6 +635,83 @@ export const callAPI = {
       throw error;
     }
   },
+
+  /**
+   * Get call logs with optional filtering and pagination
+   */
+  async getCallLogs(params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    agent?: string;
+    status?: string;
+    direction?: string;
+    ordering?: string;
+  }): Promise<CallLogsListResponse> {
+    console.log('📞 GET /api/call-logs/ - Getting call logs');
+    
+    try {
+      let url = '/api/call-logs/';
+      const searchParams = new URLSearchParams();
+      
+      if (params?.page) {
+        searchParams.append('page', params.page.toString());
+      }
+      if (params?.page_size) {
+        searchParams.append('page_size', params.page_size.toString());
+      }
+      if (params?.search) {
+        searchParams.append('search', params.search);
+      }
+      if (params?.agent) {
+        searchParams.append('agent', params.agent);
+      }
+      if (params?.status) {
+        searchParams.append('status', params.status);
+      }
+      if (params?.direction) {
+        searchParams.append('direction', params.direction);
+      }
+      if (params?.ordering) {
+        searchParams.append('ordering', params.ordering);
+      }
+      
+      if (searchParams.toString()) {
+        url += '?' + searchParams.toString();
+      }
+      
+      const response = await apiCall<CallLogsListResponse>(url);
+      console.log('✅ Call logs retrieved:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Call logs API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Calculate reached leads from call logs
+   * Filters out 'not_reached' status and counts unique leads
+   */
+  calculateReachedLeads(callLogs: CallLog[]): number {
+    try {
+      // Filter successful calls (not 'not_reached' and not null)
+      const successfulCalls = callLogs.filter(log => 
+        log.status && log.status !== 'not_reached'
+      );
+      
+      // Count unique leads (Set eliminates duplicates)
+      const uniqueReachedLeads = new Set(
+        successfulCalls.map(log => log.lead)
+      ).size;
+      
+      console.log(`📊 Calculated reached leads: ${uniqueReachedLeads} from ${callLogs.length} total calls`);
+      return uniqueReachedLeads;
+    } catch (error) {
+      console.error('❌ Error calculating reached leads:', error);
+      return 0; // Fallback to 0 on error
+    }
+  }
 };
 
 // Stripe/Payment API
