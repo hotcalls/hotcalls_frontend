@@ -268,9 +268,13 @@ export default function AgentConfig() {
         // Load the funnel ID that's assigned to this agent
         let assignedFunnelId = "";
         if (agentData.lead_funnel) {
-          // Agent has a directly assigned funnel
-          assignedFunnelId = agentData.lead_funnel;
-          console.log('📋 Agent has assigned funnel:', assignedFunnelId);
+          // Agent has a directly assigned funnel (API returns object with id, name, is_active)
+          assignedFunnelId = agentData.lead_funnel.id;
+          console.log('📋 Agent has assigned funnel:', {
+            id: agentData.lead_funnel.id,
+            name: agentData.lead_funnel.name,
+            is_active: agentData.lead_funnel.is_active
+          });
         }
         
         setConfig({
