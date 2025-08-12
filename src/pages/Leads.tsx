@@ -1,15 +1,14 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Phone, Calendar, MessageSquare, Mail, Info, User, MapPin, Building, FileText, Clock, Check, X, Trash2, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Calendar, Building, Hash, Eye, Facebook } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
-import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { format, isToday, isThisWeek, getDay } from "date-fns";
+import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { leadAPI, Lead, LeadsListResponse } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -81,237 +80,276 @@ export default function Leads() {
       setError('Fehler beim Laden der Leads');
       toast({
         title: "Fehler",
-        description: "Leads konnten nicht geladen werden.",
+        description: "Leads konnten nicht geladen werden",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [workspaceDetails?.id, searchTerm, filters.integration_provider, toast]);
+  }, [workspaceDetails?.id, searchTerm, filters, toast]);
 
-  // Load leads on component mount and when dependencies change
+  // Load leads when component mounts or dependencies change
   useEffect(() => {
     if (workspaceDetails?.id) {
-      loadLeads(1);
+      loadLeads();
     }
-  }, [loadLeads]);
+  }, [loadLeads, workspaceDetails?.id]);
 
-  // Debounced search
+  // Handle search input changes with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (workspaceDetails?.id) {
-        loadLeads(1);
+        loadLeads(1); // Reset to first page when searching
       }
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, loadLeads, workspaceDetails?.id]);
 
-  const statusColors = {
-    "meta": "bg-blue-100 text-blue-800",
-    "google": "bg-green-100 text-green-800", 
-    "manual": "bg-gray-100 text-gray-800",
+  // Handle filter changes
+  const handleFilterChange = (filterType: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
   };
 
+  // Format integration provider display with icon
+  const formatIntegrationProvider = (lead: Lead) => {
+    if (lead.integration_provider === 'meta') {
+      return (
+        <div className="flex items-center space-x-2">
+          <Facebook className="w-4 h-4 text-[#1877F2]" />
+          <span>Facebook</span>
+        </div>
+      );
+    }
+    return lead.integration_provider_display || lead.integration_provider || 'Manual';
+  };
 
-
-  // Leads are already filtered by API, so we just use them directly
-  const filteredLeads = leads;
+  // Format date with time
+  const formatDateTime = (dateString: string) => {
+    return format(new Date(dateString), 'dd.MM.yyyy HH:mm', { locale: de });
+  };
 
   return (
-    <div className={layoutStyles.pageContainer}>
-      {/* Page Header - PIXEL-PERFECT EINHEITLICH */}
-      <div className={layoutStyles.pageHeader}>
-        <div>
-          <h1 className={textStyles.pageTitle}>Leads</h1>
-          <p className={textStyles.pageSubtitle}>Verwalte und verfolge deine potenziellen Kunden</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Leads</h1>
+        <p className="text-muted-foreground">
+          Verwalte und verfolge deine potenziellen Kunden
+        </p>
       </div>
 
-      {/* Leads Table - Moderne Tabelle wie Dashboard */}
-      <div className="bg-white rounded-lg border">
-        {/* Header mit Suche und Aktionen */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-2xl font-semibold">
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Lade Leads...</span>
-              </div>
-            ) : error ? (
-              <span className="text-red-600">Fehler beim Laden</span>
-            ) : (
-              `${pagination.count} Lead${pagination.count !== 1 ? 's' : ''} gefunden`
-            )}
-          </h2>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Suchen"
+      {/* Filters and Search */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Leads durchsuchen..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="max-w-sm"
               />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">⌘</kbd>
-                <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">F</kbd>
-              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <Select value={filters.integration_provider} onValueChange={(value) => handleFilterChange('integration_provider', value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Quelle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Quellen</SelectItem>
+                  <SelectItem value="meta">Facebook</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-                {/* Tabelle */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quelle</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Erstellt</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="flex items-center justify-center">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#FE5B25] mr-2" />
-                      <span className="text-gray-500">Lade Leads...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <div className="text-red-600">
-                      <p className="font-medium">Fehler beim Laden der Leads</p>
-                      <p className="text-sm mt-1">{error}</p>
-                      <Button 
-                        onClick={() => loadLeads(1)} 
-                        className="mt-3"
-                        variant="outline"
-                      >
-                        Erneut versuchen
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredLeads.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="text-gray-500">
-                      <p className="font-medium">Keine Leads gefunden</p>
-                      <p className="text-sm mt-1">
-                        {searchTerm ? 'Versuche andere Suchbegriffe' : 'Erstelle Lead-Quellen um Leads zu erhalten'}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
-                          <User className="h-4 w-4" />
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {lead.full_name}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{lead.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{lead.phone}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        lead.integration_provider 
-                          ? statusColors[lead.integration_provider as keyof typeof statusColors] || "bg-gray-100 text-gray-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}>
-                        {lead.integration_provider_display || lead.integration_provider || 'Manual'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {format(new Date(lead.created_at), 'dd.MM.yyyy', { locale: de })}
-                      </div>
-                    </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-          </table>
-        </div>
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gesamt Leads</CardTitle>
+            <User className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pagination.count}</div>
+            <p className="text-xs text-muted-foreground">gefunden</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Lead Detail Sheet */}
+      {/* Leads Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{pagination.count} Leads gefunden</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">Lade Leads...</div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">
+              {error}
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">Keine Leads gefunden</div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {/* Table Header */}
+              <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
+                <div className="col-span-3">LEAD NAME</div>
+                <div className="col-span-3">EMAIL</div>
+                <div className="col-span-2">TELEFON</div>
+                <div className="col-span-2">QUELLE</div>
+                <div className="col-span-2">ERSTELLT</div>
+              </div>
+              
+              {/* Table Rows */}
+              {leads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="grid grid-cols-12 gap-4 px-4 py-3 text-sm hover:bg-muted/50 cursor-pointer rounded-lg transition-colors"
+                  onClick={() => setSelectedLead(lead)}
+                >
+                  <div className="col-span-3 flex items-center space-x-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{lead.full_name}</span>
+                  </div>
+                  
+                  <div className="col-span-3 flex items-center space-x-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">{lead.email}</span>
+                  </div>
+                  
+                  <div className="col-span-2 flex items-center space-x-2">
+                    {lead.phone ? (
+                      <>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">{lead.phone}</span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {formatIntegrationProvider(lead)}
+                    </Badge>
+                  </div>
+                  
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground text-xs">
+                      {formatDateTime(lead.created_at)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Lead Details Modal */}
       <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-        <SheetContent side="right" className="w-[35vw] min-w-[500px] max-w-[40vw] focus:outline-none">
+        <SheetContent side="right" className="w-[600px] sm:w-[700px] focus:outline-none overflow-hidden">
           {selectedLead && (
             <>
-              <SheetHeader>
-                <SheetTitle>{selectedLead.full_name}</SheetTitle>
-                <p className="text-muted-foreground">{selectedLead.workspace_name}</p>
+              <SheetHeader className="pb-6">
+                <SheetTitle className="text-xl font-semibold flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Lead Details: {selectedLead.full_name}
+                </SheetTitle>
               </SheetHeader>
-
-              <ScrollArea className="h-full pr-6">
-                <div className="space-y-6 pb-6">
-                  {/* Kontaktinformationen */}
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-medium mb-3">
-                      Kontaktinformationen
-                    </h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Building className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{selectedLead.workspace_name}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{selectedLead.phone}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{selectedLead.email}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Lead-Status */}
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      Lead-Details
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Quelle */}
+              
+              <ScrollArea className="h-[calc(100vh-120px)]">
+                <div className="space-y-6 pr-4">
+                  
+                  {/* Contact Information */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Kontaktinformationen</h3>
+                    
+                    <div className="grid grid-cols-1 gap-4">
                       <Card>
-                        <CardContent className="p-3">
-                          <div className="text-lg font-bold">
-                            {selectedLead.integration_provider_display || selectedLead.integration_provider || 'Manual'}
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <User className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <div className="font-medium">{selectedLead.full_name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {selectedLead.name} {selectedLead.surname}
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">Quelle</p>
                         </CardContent>
                       </Card>
                       
-                      {/* Erstellt */}
                       <Card>
-                        <CardContent className="p-3">
-                          <div className="text-lg font-bold">
-                            {format(new Date(selectedLead.created_at), 'dd.MM.yyyy', { locale: de })}
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <div className="font-medium">{selectedLead.email}</div>
+                              <div className="text-sm text-muted-foreground">E-Mail Adresse</div>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">Erstellt am</p>
+                        </CardContent>
+                      </Card>
+                      
+                      {selectedLead.phone && (
+                        <Card>
+                          <CardContent className="p-4">
+                            <div className="flex items-center space-x-3">
+                              <Phone className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <div className="font-medium">{selectedLead.phone}</div>
+                                <div className="text-sm text-muted-foreground">Telefonnummer</div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Lead Details */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Lead-Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      
+                      {/* Source */}
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="space-y-2">
+                            <div className="text-lg font-bold">
+                              {formatIntegrationProvider(selectedLead)}
+                            </div>
+                            <p className="text-sm text-muted-foreground">Quelle</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Created Date */}
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="space-y-2">
+                            <div className="text-lg font-bold">
+                              {formatDateTime(selectedLead.created_at)}
+                            </div>
+                            <p className="text-sm text-muted-foreground">Erstellt am</p>
+                          </div>
                         </CardContent>
                       </Card>
                     </div>
@@ -319,19 +357,28 @@ export default function Leads() {
 
                   <Separator />
 
-                  {/* Lead Variables */}
+                  {/* Lead Variables (Meta Form Fields) */}
                   {Object.keys(selectedLead.variables || {}).length > 0 && (
                     <>
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-medium mb-3">
-                          Lead Variables
-                        </h3>
-                        <div className="space-y-2">
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg">Formular-Felder</h3>
+                        <div className="space-y-3">
                           {Object.entries(selectedLead.variables || {}).map(([key, value]) => (
-                            <div key={key} className="flex justify-between">
-                              <span className="text-sm font-medium">{key}:</span>
-                              <span className="text-sm text-muted-foreground">{String(value)}</span>
-                            </div>
+                            <Card key={key}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <Hash className="h-4 w-4 text-muted-foreground" />
+                                    <div>
+                                      <div className="font-medium capitalize">
+                                        {key.replace(/_/g, ' ')}
+                                      </div>
+                                      <div className="text-sm text-muted-foreground">{String(value)}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
                           ))}
                         </div>
                       </div>
@@ -339,19 +386,52 @@ export default function Leads() {
                     </>
                   )}
 
-                  {/* Meta Data */}
+                  {/* Meta Data (Additional Technical Information) */}
                   {Object.keys(selectedLead.meta_data || {}).length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-medium mb-3">
-                        Zusätzliche Daten
-                      </h3>
-                      <div className="bg-muted/30 p-4 rounded-lg">
-                        <pre className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {JSON.stringify(selectedLead.meta_data, null, 2)}
-                        </pre>
-                      </div>
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">Zusätzliche Daten</h3>
+                      <Card>
+                        <CardContent className="p-4">
+                          <pre className="text-sm text-muted-foreground whitespace-pre-wrap overflow-auto">
+                            {JSON.stringify(selectedLead.meta_data, null, 2)}
+                          </pre>
+                        </CardContent>
+                      </Card>
                     </div>
                   )}
+
+                  {/* Technical Information */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">Technische Informationen</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">Lead ID</div>
+                            <div className="text-sm text-muted-foreground font-mono">{selectedLead.id}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">Workspace</div>
+                            <div className="text-sm text-muted-foreground">{selectedLead.workspace_name}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">Zuletzt aktualisiert</div>
+                            <div className="text-sm text-muted-foreground">
+                              {formatDateTime(selectedLead.updated_at)}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
                 </div>
               </ScrollArea>
             </>
