@@ -265,6 +265,14 @@ export default function AgentConfig() {
           retry_interval: agentData.retry_interval
         });
         
+        // Load the funnel ID that's assigned to this agent
+        let assignedFunnelId = "";
+        if (agentData.lead_funnel) {
+          // Agent has a directly assigned funnel
+          assignedFunnelId = agentData.lead_funnel;
+          console.log('📋 Agent has assigned funnel:', assignedFunnelId);
+        }
+        
         setConfig({
           name: agentData.name || "",
           personality: mappedPersonality,
@@ -273,7 +281,7 @@ export default function AgentConfig() {
           script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
           selectedEventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : [], // Load calendar config
-          selectedLeadForm: "", // Load lead form ID
+          selectedLeadForm: assignedFunnelId, // Load the assigned funnel ID
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
           maxAttempts: (agentData.max_retries || 3).toString(), // Load max_retries from API
@@ -385,12 +393,13 @@ export default function AgentConfig() {
   };
 
   // Handle funnel assignment after successful agent save
-  const handleFunnelAssignment = async (selectedLeadForms: string[], agentId: string) => {
+  const handleFunnelAssignment = async (selectedFunnelIds: string[], agentId: string) => {
     try {
-      console.log('🔗 Starting funnel assignment for agent:', { selectedLeadForms, agentId });
+      console.log('🔗 Starting funnel assignment for agent:', { selectedFunnelIds, agentId });
       
-      // Map lead forms to funnel IDs
-      const funnelIds = await mapLeadFormsToFunnels(selectedLeadForms);
+      // selectedFunnelIds are already funnel IDs from the lead-funnels API
+      // No need to map them anymore
+      const funnelIds = selectedFunnelIds;
       
       if (funnelIds.length === 0) {
         console.log('ℹ️ No funnels to assign - skipping funnel assignment');
@@ -578,10 +587,11 @@ export default function AgentConfig() {
       // Handle funnel assignment after successful agent save (silent background operation)
       if (agentId && config.selectedLeadForm) {
         console.log('🔗 Agent saved successfully, starting funnel assignment...');
+        // The selectedLeadForm is actually a funnel ID from the lead-funnels API
         // This runs in background - no user error messages on failure
         handleFunnelAssignment([config.selectedLeadForm], agentId);
       } else {
-        console.log('ℹ️ No lead form selected, skipping funnel assignment');
+        console.log('ℹ️ No lead funnel selected, skipping funnel assignment');
       }
       
       // Stay on the current page - don't navigate away

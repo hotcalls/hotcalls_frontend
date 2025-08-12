@@ -113,6 +113,7 @@ export interface AgentResponse {
   phone_numbers?: any[];
   phone_number_count?: number;
   calendar_configuration?: string | null;
+  lead_funnel?: string | null; // The funnel ID assigned to this agent
   created_at: string;
   updated_at?: string;
 }
@@ -1801,7 +1802,9 @@ export const funnelAPI = {
     try {
       const response = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/unassign_agent/`, {
         method: 'POST',
-        body: JSON.stringify({}), // Empty body as per backend implementation
+        body: JSON.stringify({ 
+          confirm: true  // Backend requires confirmation
+        }),
       });
       
       console.log('✅ Agent unassigned from funnel successfully:', response);
