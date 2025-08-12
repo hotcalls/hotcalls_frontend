@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Facebook, Globe, Linkedin, Webhook, Settings, Trash2, Play, Pause, Loader2 } from "lucide-react";
+import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2, CheckCircle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -15,6 +15,8 @@ interface MetaIntegration {
   id: string;
   workspace: string;
   page_id: string;
+  page_name?: string;
+  page_picture_url?: string;
   business_account_id: string;
   status: 'active' | 'inactive' | 'error';
   created_at: string;
@@ -25,6 +27,7 @@ export default function LeadSources() {
   const [metaIntegrations, setMetaIntegrations] = useState<MetaIntegration[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const navigate = useNavigate();
   const { workspaceDetails } = useWorkspace();
   const { toast } = useToast();
@@ -57,10 +60,6 @@ export default function LeadSources() {
       console.log('🏁 Meta integrations loading completed');
     }
   }, []);
-
-  const handleConfigure = (integrationId: string) => {
-    navigate(`/dashboard/lead-sources/meta/config?integration=${integrationId}`);
-  };
 
   const handleAddLeadSource = async (type: string) => {
     if (type === "Meta") {
@@ -111,6 +110,27 @@ export default function LeadSources() {
     }
   };
 
+  // Check for successful integration after OAuth redirect
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    
+    if (success === 'true') {
+      setShowSuccessMessage(true);
+      toast({
+        title: "Lead-Quelle erfolgreich verbunden",
+        description: "Genaue Lead-Quelle in Agent-Einstellungen verbinden",
+        duration: 6000,
+      });
+      
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Hide message after 8 seconds
+      setTimeout(() => setShowSuccessMessage(false), 8000);
+    }
+  }, [toast]);
+
   // Load integrations on mount
   useEffect(() => {
     console.log('🚀 LeadSources component mounted, about to load integrations...');
@@ -125,6 +145,17 @@ export default function LeadSources() {
 
   return (
     <div className={layoutStyles.pageContainer}>
+      {/* Success Message */}
+      {showSuccessMessage && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3">
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          <div>
+            <p className="text-green-800 font-medium">Lead-Quelle erfolgreich verbunden</p>
+            <p className="text-green-700 text-sm">Genaue Lead-Quelle in Agent-Einstellungen verbinden</p>
+          </div>
+        </div>
+      )}
+
       {/* Page Header - EINHEITLICH */}
       <div className={layoutStyles.pageHeader}>
         <div>
@@ -209,17 +240,10 @@ export default function LeadSources() {
                     <Badge variant={integration.status === 'active' ? 'default' : 'secondary'}>
                       {integration.status === 'active' ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
-                    
-                    <button 
-                      className={buttonStyles.cardAction.icon}
-                      onClick={() => handleConfigure(integration.id)}
-                    >
-                      <Settings className={iconSizes.small} />
-                    </button>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <button className={buttonStyles.cardAction.icon}>
+                        <button className={buttonStyles.cardAction.iconDelete}>
                           <Trash2 className={iconSizes.small} />
                         </button>
                       </AlertDialogTrigger>
@@ -244,6 +268,12 @@ export default function LeadSources() {
                   </div>
                 </div>
               </CardHeader>
+              <CardContent>
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
+                  Lead-Quelle verbunden. Genaue Zuordnung in Agent-Einstellungen konfigurieren.
+                </div>
+              </CardContent>
             </Card>
           ))}
 

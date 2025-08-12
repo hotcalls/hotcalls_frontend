@@ -14,9 +14,10 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, MakeTestCallRequest } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
 
 // Real Event Types and Lead Forms will be loaded from API
@@ -35,9 +36,10 @@ export default function AgentConfig() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Get workspace and voices
+  // Get workspace, voices, and user profile
   const { primaryWorkspace } = useWorkspace();
   const { voices, loading: voicesLoading, getVoiceName, getVoicePicture, refresh: refreshVoices } = useVoices();
+  const { profile: userProfile, loading: profileLoading } = useUserProfile();
 
   // Force load voices when component mounts
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function AgentConfig() {
     script: "",
     callLogic: "standard", 
     selectedEventTypes: [] as string[],
-    selectedLeadForms: [] as string[],
+    selectedLeadForm: "" as string, // Geändert von selectedLeadForms Array zu single string
     outgoingGreeting: "",
     incomingGreeting: "",
     maxAttempts: "3",
@@ -103,7 +105,6 @@ export default function AgentConfig() {
   
   // Test call states
   const [testPopoverOpen, setTestPopoverOpen] = useState(false);
-  const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [isTestCalling, setIsTestCalling] = useState(false);
 
   // Event Types state
@@ -128,15 +129,15 @@ export default function AgentConfig() {
     }
   };
 
-  // Load Lead Forms from Meta API  
+  // Load Lead Funnels from Funnel API  
   const loadLeadForms = async () => {
     setIsLoadingLeadForms(true);
     try {
-      const leadFormsData = await metaAPI.getLeadForms();
-      setAvailableLeadForms(leadFormsData || []);
-      console.log(`✅ Loaded ${leadFormsData?.length || 0} Meta Lead Forms for Agent Config`);
+      const leadFunnelsData = await funnelAPI.getLeadFunnels();
+      setAvailableLeadForms(leadFunnelsData || []);
+      console.log(`✅ Loaded ${leadFunnelsData?.length || 0} Lead Funnels for Agent Config`);
     } catch (error) {
-      console.error('❌ Error loading Lead Forms in Agent Config:', error);
+      console.error('❌ Error loading Lead Funnels in Agent Config:', error);
       setAvailableLeadForms([]);
     } finally {
       setIsLoadingLeadForms(false);
@@ -264,6 +265,18 @@ export default function AgentConfig() {
           retry_interval: agentData.retry_interval
         });
         
+        // Load the funnel ID that's assigned to this agent
+        let assignedFunnelId = "";
+        if (agentData.lead_funnel) {
+          // Agent has a directly assigned funnel (API returns object with id, name, is_active)
+          assignedFunnelId = agentData.lead_funnel.id;
+          console.log('📋 Agent has assigned funnel:', {
+            id: agentData.lead_funnel.id,
+            name: agentData.lead_funnel.name,
+            is_active: agentData.lead_funnel.is_active
+          });
+        }
+        
         setConfig({
           name: agentData.name || "",
           personality: mappedPersonality,
@@ -272,7 +285,7 @@ export default function AgentConfig() {
           script: (agentData as any).prompt || "", // Get prompt from API
           callLogic: "standard",
           selectedEventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : [], // Load calendar config
-          selectedLeadForms: [],
+          selectedLeadForm: assignedFunnelId, // Load the assigned funnel ID
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
           maxAttempts: (agentData.max_retries || 3).toString(), // Load max_retries from API
@@ -339,6 +352,110 @@ export default function AgentConfig() {
       setPlayingVoice(null);
       toast.error('Audio konnte nicht abgespielt werden');
     });
+  };
+
+  // Map selected lead forms to funnel IDs for assignment
+  const mapLeadFormsToFunnels = async (selectedLeadForms: string[]): Promise<string[]> => {
+    if (!selectedLeadForms || selectedLeadForms.length === 0) {
+      console.log('🔍 No lead forms selected, skipping funnel mapping');
+      return [];
+    }
+
+    try {
+      console.log('🔍 Mapping lead forms to funnels:', selectedLeadForms);
+      
+      // Get all funnels for current workspace
+      const funnels = await funnelAPI.getLeadFunnels({
+        workspace: primaryWorkspace?.id,
+        is_active: true
+      });
+      
+      // Filter funnels that match selected lead forms
+      const matchingFunnels = funnels.filter(funnel => {
+        // Match by MetaLeadForm primary ID (not meta_form_id)
+        return funnel.meta_lead_form &&
+               selectedLeadForms.includes(funnel.meta_lead_form.id);
+      });
+      
+      const funnelIds = matchingFunnels.map(funnel => funnel.id);
+      
+      console.log('🎯 Mapped funnels:', {
+        selectedLeadForms,
+        matchingFunnels: matchingFunnels.map(f => ({
+          id: f.id,
+          name: f.name,
+          meta_form_id: f.meta_lead_form?.meta_form_id
+        })),
+        funnelIds
+      });
+      
+      return funnelIds;
+    } catch (error) {
+      console.error('❌ Failed to map lead forms to funnels:', error);
+      return []; // Return empty array on error - silent failure
+    }
+  };
+
+  // Handle funnel assignment after successful agent save
+  const handleFunnelAssignment = async (selectedFunnelIds: string[], agentId: string) => {
+    try {
+      console.log('🔗 Starting funnel assignment for agent:', { selectedFunnelIds, agentId });
+      
+      // selectedFunnelIds are already funnel IDs from the lead-funnels API
+      // No need to map them anymore
+      const funnelIds = selectedFunnelIds;
+      
+      if (funnelIds.length === 0) {
+        console.log('ℹ️ No funnels to assign - skipping funnel assignment');
+        return;
+      }
+      
+      // Get all current funnels for this workspace to unassign any existing assignments
+      const allFunnels = await funnelAPI.getLeadFunnels({
+        workspace: primaryWorkspace?.id,
+        has_agent: true
+      });
+      
+      // Find funnels currently assigned to this agent
+      const currentlyAssignedFunnels = allFunnels.filter(funnel => 
+        funnel.agent && funnel.agent.agent_id === agentId
+      );
+      
+      console.log('🔄 Current funnel assignments:', currentlyAssignedFunnels.map(f => f.id));
+      
+      // Unassign existing funnels that are not in the new selection
+      const funnelsToUnassign = currentlyAssignedFunnels.filter(funnel => 
+        !funnelIds.includes(funnel.id)
+      );
+      
+      for (const funnel of funnelsToUnassign) {
+        try {
+          await funnelAPI.unassignAgent(funnel.id);
+          console.log(`✅ Unassigned funnel ${funnel.id} from agent ${agentId}`);
+        } catch (error) {
+          console.error(`❌ Failed to unassign funnel ${funnel.id}:`, error);
+        }
+      }
+      
+      // Assign new funnels
+      const currentlyAssignedIds = currentlyAssignedFunnels.map(f => f.id);
+      const funnelsToAssign = funnelIds.filter(id => !currentlyAssignedIds.includes(id));
+      
+      for (const funnelId of funnelsToAssign) {
+        try {
+          await funnelAPI.assignAgent(funnelId, agentId);
+          console.log(`✅ Assigned funnel ${funnelId} to agent ${agentId}`);
+        } catch (error) {
+          console.error(`❌ Failed to assign funnel ${funnelId}:`, error);
+        }
+      }
+      
+      console.log('🎉 Funnel assignment completed successfully');
+      
+    } catch (error) {
+      console.error('❌ Funnel assignment failed:', error);
+      // Silent failure - no user error messages as requested
+    }
   };
 
   const handleSave = async () => {
@@ -409,7 +526,8 @@ export default function AgentConfig() {
         character: mapPersonalityToCharacter(config.personality), // Map personality to character
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
-        calendar_configuration: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null // Save selected event type
+        calendar_configuration: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null, // Save selected event type
+        lead_funnel: config.selectedLeadForm // Save selected lead funnel
       };
       
       console.log('💾 Saving agent...', { 
@@ -441,25 +559,43 @@ export default function AgentConfig() {
           selectedEventTypes: config.selectedEventTypes,
           calendar_configuration: agentData.calendar_configuration,
           willSave: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null
+        },
+        leadFormDebug: {
+          selectedLeadForm: config.selectedLeadForm,
+          willSave: agentData.lead_funnel
         }
       });
       
       // Log the exact JSON that will be sent
       console.log('📡 Exact API Request Body:', JSON.stringify(agentData, null, 2));
       
+      let agentId: string;
+      
       if (isEdit && id) {
         console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
         await agentAPI.updateAgent(id, agentData);
         toast.success('Agent erfolgreich aktualisiert!');
+        agentId = id;
       } else {
         console.log('🆕 Using POST /api/agents/agents/ for creation');
         const newAgent = await agentAPI.createAgent(agentData);
         toast.success('Agent erfolgreich erstellt!');
+        agentId = newAgent.agent_id;
         
         // After creating a new agent, navigate to edit mode with the new agent ID
         if (newAgent && newAgent.agent_id) {
           navigate(`/dashboard/agents/edit/${newAgent.agent_id}`, { replace: true });
         }
+      }
+      
+      // Handle funnel assignment after successful agent save (silent background operation)
+      if (agentId && config.selectedLeadForm) {
+        console.log('🔗 Agent saved successfully, starting funnel assignment...');
+        // The selectedLeadForm is actually a funnel ID from the lead-funnels API
+        // This runs in background - no user error messages on failure
+        handleFunnelAssignment([config.selectedLeadForm], agentId);
+      } else {
+        console.log('ℹ️ No lead funnel selected, skipping funnel assignment');
       }
       
       // Stay on the current page - don't navigate away
@@ -496,62 +632,32 @@ export default function AgentConfig() {
   };
   
   const handleStartTestCall = async () => {
-    if (!testPhoneNumber.trim()) {
-      toast.error('Bitte geben Sie eine Telefonnummer ein');
-      return;
-    }
-    
-    // Basic phone number validation
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-    if (!phoneRegex.test(testPhoneNumber)) {
-      toast.error('Bitte geben Sie eine gültige Telefonnummer ein');
+    if (!userProfile?.phone) {
+      toast.error('Keine Telefonnummer in Ihrem Profil gefunden');
       return;
     }
     
     try {
       setIsTestCalling(true);
-      console.log('📞 Starting test call to:', testPhoneNumber);
+      console.log('🧪 Starting test call for agent:', id);
       
-      // Make the test call with current agent configuration
-      const callData = {
-        phone: testPhoneNumber,  // The phone number entered by the user
-        agent_id: id!,           // Agent ID from URL params
-        lead_id: null,           // null for test calls
-        
-        // Include current agent configuration to ensure test uses saved settings
-        agent_config: {
-          greeting_inbound: config.incomingGreeting,
-          greeting_outbound: config.outgoingGreeting,
-          voice: config.voiceExternalId, // Use external voice ID for test calls
-          language: config.language,
-          character: mapPersonalityToCharacter(config.personality),
-          prompt: config.script,
-          retry_interval: parseInt(config.callInterval) || 30,
-          max_retries: parseInt(config.maxAttempts) || 3,
-          // Convert workdays from object to array format
-          workdays: Object.entries(config.workingDays)
-            .filter(([_, active]) => active)
-            .map(([day]) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseInt(day)]),
-          call_from: config.workingTimeStart + ":00",
-          call_to: config.workingTimeEnd + ":00"
-        }
+      // Make the test call with only agent ID - user phone is automatically used
+      const testData: MakeTestCallRequest = {
+        agent_id: id!
       };
       
-      console.log('📞 Calling API with data:', callData);
-      console.log('📞 Agent config for test:', callData.agent_config);
-      console.log('🎤 Using external voice ID:', callData.agent_config.voice);
-      await callAPI.makeOutboundCall(callData);
+      console.log('🧪 Calling test API with data:', testData);
+      await callAPI.makeTestCall(testData);
       
-      toast.success(`Test-Anruf wird gestartet an ${testPhoneNumber}`);
+      toast.success('Test-Anruf wurde gestartet!');
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      console.log('✅ Call was initiated (ignoring backend error):', err);
-      toast.success(`Test-Anruf an ${testPhoneNumber} wurde gestartet!`);
+      console.log('✅ Test call was initiated (ignoring backend error):', err);
+      toast.success('Test-Anruf wurde gestartet!');
     } finally {
       setIsTestCalling(false);
       setTestPopoverOpen(false);
-      setTestPhoneNumber("");
     }
   };
 
@@ -620,28 +726,19 @@ export default function AgentConfig() {
                 <div className="space-y-2">
                   <h4 className="font-medium text-base">Test-Anruf starten</h4>
                   <p className="text-sm text-gray-600">
-                    Geben Sie eine Telefonnummer ein, um den Agent zu testen.
+                    Test-Anruf an Ihre registrierte Nummer.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="test-phone">Telefonnummer</Label>
-                  <Input
-                    id="test-phone"
-                    type="tel"
-                    value={testPhoneNumber}
-                    onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="+49 123 4567890"
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !isTestCalling) {
-                        handleStartTestCall();
-                      }
-                    }}
-                  />
+                  <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-700">
+                    {profileLoading ? "Lade..." : userProfile?.phone || "Keine Nummer gefunden"}
+                  </div>
                 </div>
                 <Button 
                   onClick={handleStartTestCall} 
                   className="w-full"
-                  disabled={isTestCalling || !testPhoneNumber.trim()}
+                  disabled={isTestCalling || !userProfile?.phone}
                 >
                   {isTestCalling ? (
                     <>
@@ -1102,111 +1199,56 @@ export default function AgentConfig() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className={textStyles.sectionTitle}>Lead-Quellen</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-gray-400 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      <p className="text-sm">
-                        Verbinden Sie den Agenten mit:
-                        <br />
-                        • Kalender Event-Types für Terminbuchungen<br />
-                        • Lead-Quellen für automatische Kontaktaufnahme
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </CardTitle>
-                <button className={buttonStyles.primary.default}>
-                  <Plus className={iconSizes.small} />
-                  <span>Lead-Quelle hinzufügen</span>
-                </button>
-              </div>
+              <CardTitle className={textStyles.sectionTitle}>Lead-Quellen</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label>Ausgewählte Lead-Quellen</Label>
-                <div className="space-y-3 mt-2">
-                  {config.selectedLeadForms.map((leadFormId) => {
-                    const leadForm = availableLeadForms.find(lf => lf.id === leadFormId);
-                    return leadForm ? (
-                      <div key={leadForm.id} className="flex items-center justify-between p-3 border border-[#FE5B25] bg-[#FEF5F1] rounded-lg">
-                        <div>
-                          <p className="font-medium">{leadForm.name || leadForm.meta_form_id || 'Unbekanntes Formular'}</p>
-                          <p className="text-sm text-gray-500">Meta Lead Ads - Form ID: {leadForm.meta_form_id}</p>
-                        </div>
-                        <button 
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => setConfig(prev => ({
-                            ...prev,
-                            selectedLeadForms: prev.selectedLeadForms.filter(id => id !== leadForm.id)
-                          }))}
-                        >
-                          Entfernen
-                        </button>
-                      </div>
-                    ) : null;
-                  })}
-                  
-                  {config.selectedLeadForms.length === 0 && (
-                    <p className="text-sm text-gray-500 italic">Noch keine Lead-Quellen ausgewählt</p>
-                  )}
-                </div>
-                
-                <div className="mt-4">
-                  <Label htmlFor="leadForm">Weitere Lead-Quellen hinzufügen</Label>
-                  {isLoadingLeadForms ? (
+                <Label htmlFor="leadForm">Lead-Quelle für automatische Anrufe</Label>
+                {isLoadingLeadForms ? (
+                  <Select disabled>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Lead-Formulare werden geladen..." />
+                    </SelectTrigger>
+                  </Select>
+                ) : availableLeadForms.length === 0 ? (
+                  <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="Lead-Formulare werden geladen..." />
+                        <SelectValue placeholder="Keine Lead-Formulare verfügbar" />
                       </SelectTrigger>
                     </Select>
-                  ) : availableLeadForms.length === 0 ? (
-                    <div className="space-y-2">
-                      <Select disabled>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Keine Lead-Formulare verfügbar" />
-                        </SelectTrigger>
-                      </Select>
-                      <p className="text-xs text-gray-500">
-                        Lead-Formulare können in der <button 
-                          onClick={() => navigate('/dashboard/lead-sources')}
-                          className="text-[#FE5B25] hover:underline"
-                        >
-                          Lead-Quellen Sektion
-                        </button> verwaltet werden.
-                      </p>
-                    </div>
-                  ) : (
-                    <Select onValueChange={(value) => {
-                      if (!config.selectedLeadForms.includes(value)) {
-                        setConfig(prev => ({ 
-                          ...prev, 
-                          selectedLeadForms: [...prev.selectedLeadForms, value] 
-                        }));
-                      }
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Lead-Quelle auswählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableLeadForms
-                          .filter(form => !config.selectedLeadForms.includes(form.id))
-                          .map((form) => (
-                            <SelectItem key={form.id} value={form.id}>
-                              {form.name || form.meta_form_id} - Meta Lead Ads
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-                
-                <p className="text-sm text-gray-500 mt-2">
-                  Lead-Formulare können in der Lead-Quellen Sektion konfiguriert werden.
-                </p>
+                    <p className="text-xs text-gray-500">
+                      Lead-Formulare können in der <button 
+                        onClick={() => navigate('/dashboard/lead-sources')}
+                        className="text-[#FE5B25] hover:underline"
+                      >
+                        Lead-Quellen Sektion
+                      </button> verwaltet werden.
+                    </p>
+                  </div>
+                ) : (
+                  <Select 
+                    value={config.selectedLeadForm || "none"} 
+                    onValueChange={(value) => {
+                      setConfig(prev => ({ 
+                        ...prev, 
+                        selectedLeadForm: value === "none" ? "" : value
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Lead-Quelle auswählen (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Keine Lead-Quelle</SelectItem>
+                      {availableLeadForms.map((form) => (
+                        <SelectItem key={form.id} value={form.id}>
+                          {form.name || form.meta_form_id} - Meta Lead Ads
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </CardContent>
           </Card>

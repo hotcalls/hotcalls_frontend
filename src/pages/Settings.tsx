@@ -591,11 +591,14 @@ export default function Settings() {
                   <Input 
                     id="phone" 
                     name="phone"
-                    value={profileFormData.phone}
-                    onChange={handleProfileInputChange}
-                    disabled={profileLoading || isSavingProfile}
-                    placeholder={profileLoading ? "Wird geladen..." : "Telefonnummer"}
+                    value={profile?.phone || ""}
+                    disabled={true}
+                    placeholder="Telefonnummer kann nicht geändert werden"
+                    className="bg-gray-100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Telefonnummer kann aus Sicherheitsgründen nicht geändert werden
+                  </p>
                 </div>
               </div>
               
