@@ -279,9 +279,9 @@ export default function Leads() {
         </CardContent>
       </Card>
 
-      {/* Lead Details Modal */}
-      <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-        <SheetContent side="right" className="w-[600px] sm:w-[700px] focus:outline-none overflow-hidden">
+             {/* Lead Details Modal */}
+       <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+         <SheetContent side="bottom" className="h-[80vh] max-w-4xl mx-auto focus:outline-none overflow-hidden">
           {selectedLead && (
             <>
               <SheetHeader className="pb-6">
@@ -291,14 +291,14 @@ export default function Leads() {
                 </SheetTitle>
               </SheetHeader>
               
-              <ScrollArea className="h-[calc(100vh-120px)]">
-                <div className="space-y-6 pr-4">
-                  
-                  {/* Contact Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Kontaktinformationen</h3>
-                    
-                    <div className="grid grid-cols-1 gap-4">
+                                            <ScrollArea className="h-[calc(80vh-120px)]">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-2">
+                   
+                   {/* Left Column: Contact Information */}
+                   <div className="space-y-4">
+                     <h3 className="font-semibold text-lg">Kontaktinformationen</h3>
+                     
+                     <div className="space-y-4">
                       <Card>
                         <CardContent className="p-4">
                           <div className="flex items-center space-x-3">
@@ -338,15 +338,11 @@ export default function Leads() {
                           </CardContent>
                         </Card>
                       )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Lead Details */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Lead-Details</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                                         </div>
+                     
+                     {/* Lead Details in same column */}
+                     <h3 className="font-semibold text-lg mt-6">Lead-Details</h3>
+                     <div className="grid grid-cols-1 gap-4">
                       
                       {/* Source */}
                       <Card>
@@ -370,17 +366,15 @@ export default function Leads() {
                             <p className="text-sm text-muted-foreground">Erstellt am</p>
                           </div>
                         </CardContent>
-                      </Card>
-                    </div>
-                  </div>
+                                             </Card>
+                     </div>
+                   </div>
 
-                  <Separator />
-
-                  {/* Lead Variables (Meta Form Fields) */}
-                  {Object.keys(selectedLead.variables || {}).length > 0 && (
-                    <>
-                      <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Formular-Felder</h3>
+                   {/* Right Column: Form Fields & Meta Data */}
+                   <div className="space-y-4">
+                     {Object.keys(selectedLead.variables || {}).length > 0 && (
+                       <>
+                         <h3 className="font-semibold text-lg">Formular-Felder</h3>
                         <div className="space-y-3">
                           {Object.entries(selectedLead.variables || {}).map(([key, value]) => (
                             <Card key={key}>
@@ -400,58 +394,25 @@ export default function Leads() {
                             </Card>
                           ))}
                         </div>
-                      </div>
-                      <Separator />
-                    </>
-                  )}
+                        </>
+                      )}
 
-                  {/* Meta Data (Additional Technical Information) */}
-                  {Object.keys(selectedLead.meta_data || {}).length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-lg">Zusätzliche Daten</h3>
-                      <Card>
-                        <CardContent className="p-4">
-                          <pre className="text-sm text-muted-foreground whitespace-pre-wrap overflow-auto">
-                            {JSON.stringify(selectedLead.meta_data, null, 2)}
-                          </pre>
-                        </CardContent>
-                      </Card>
+                      {/* Meta Data (Additional Technical Information) */}
+                      {Object.keys(selectedLead.meta_data || {}).length > 0 && (
+                        <>
+                          <h3 className="font-semibold text-lg mt-6">Zusätzliche Daten</h3>
+                          <Card>
+                            <CardContent className="p-4">
+                              <pre className="text-sm text-muted-foreground whitespace-pre-wrap overflow-auto">
+                                {JSON.stringify(selectedLead.meta_data, null, 2)}
+                              </pre>
+                            </CardContent>
+                          </Card>
+                        </>
+                      )}
                     </div>
-                  )}
-
-                  {/* Technical Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-lg">Technische Informationen</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">Lead ID</div>
-                            <div className="text-sm text-muted-foreground font-mono">{selectedLead.id}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">Workspace</div>
-                            <div className="text-sm text-muted-foreground">{selectedLead.workspace_name}</div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">Zuletzt aktualisiert</div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatDateTime(selectedLead.updated_at)}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                  
                   </div>
-                </div>
               </ScrollArea>
             </>
           )}
