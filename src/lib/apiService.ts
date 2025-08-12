@@ -88,6 +88,7 @@ export interface CreateAgentRequest {
   prompt: string;
   config_id?: string | null;
   calendar_configuration?: string | null;
+  lead_funnel?: string | null; // Lead funnel assignment
 }
 
 export interface AgentResponse {

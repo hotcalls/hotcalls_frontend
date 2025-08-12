@@ -523,7 +523,7 @@ export default function AgentConfig() {
         prompt: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
         calendar_configuration: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null, // Save selected event type
-        lead_form: config.selectedLeadForm // Save selected lead form
+        lead_funnel: config.selectedLeadForm // Save selected lead funnel
       };
       
       console.log('💾 Saving agent...', { 
@@ -558,7 +558,7 @@ export default function AgentConfig() {
         },
         leadFormDebug: {
           selectedLeadForm: config.selectedLeadForm,
-          willSave: agentData.lead_form
+          willSave: agentData.lead_funnel
         }
       });
       
