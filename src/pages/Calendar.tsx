@@ -152,7 +152,7 @@ function EventTypeStep2({ formData, setFormData, availableCalendars }: {
             <SelectItem value="none">Kein Zielkalender</SelectItem>
             {availableCalendars.map((cal) => (
               <SelectItem key={cal.id} value={cal.id}>
-                {cal.name} (Google: {cal.provider_details.external_id})
+                {cal.name} {cal.provider_details?.external_id ? `(Google: ${cal.provider_details.external_id})` : '(Google Calendar)'}
               </SelectItem>
             ))}
           </SelectContent>
