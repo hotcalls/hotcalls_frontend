@@ -1243,7 +1243,7 @@ export default function AgentConfig() {
                       <SelectItem value="none">Keine Lead-Quelle</SelectItem>
                       {availableLeadForms.map((form) => (
                         <SelectItem key={form.id} value={form.id}>
-                          {form.name || form.meta_form_id} - Meta Lead Ads
+                          {form.name || form.meta_form_id} - {form.source_type_display || 'Meta Lead Ads'}
                         </SelectItem>
                       ))}
                     </SelectContent>
