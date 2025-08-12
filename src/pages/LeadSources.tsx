@@ -7,7 +7,7 @@ import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2,
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { metaAPI } from "@/lib/apiService";
+import { metaAPI, webhookAPI, funnelAPI } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +26,13 @@ interface MetaIntegration {
 export default function LeadSources() {
   const [metaIntegrations, setMetaIntegrations] = useState<MetaIntegration[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isWebhookNameStep, setIsWebhookNameStep] = useState(false);
+  const [webhookName, setWebhookName] = useState("");
+  const [isCreatingWebhook, setIsCreatingWebhook] = useState(false);
+  const [isCreatedDialogOpen, setIsCreatedDialogOpen] = useState(false);
+  const [createdWebhookUrl, setCreatedWebhookUrl] = useState<string>("");
+  const [createdWebhookToken, setCreatedWebhookToken] = useState<string>("");
+  const [createdFunnelId, setCreatedFunnelId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const navigate = useNavigate();
@@ -83,7 +90,47 @@ export default function LeadSources() {
         });
       }
     }
+    if (type === "Webhook") {
+      setIsWebhookNameStep(true);
+      return;
+    }
     setIsAddDialogOpen(false);
+  };
+
+  const handleCreateWebhook = async () => {
+    if (!workspaceDetails?.id) {
+      console.error('❌ No workspace ID available');
+      return;
+    }
+    if (!webhookName.trim()) {
+      toast({ title: 'Name erforderlich', description: 'Bitte einen Namen für die Webhook-Quelle eingeben.' });
+      return;
+    }
+    try {
+      setIsCreatingWebhook(true);
+      const res = await webhookAPI.createSource(workspaceDetails.id, webhookName.trim());
+      setCreatedWebhookUrl(res.url);
+      setCreatedWebhookToken(res.token);
+      setCreatedFunnelId(res.lead_funnel);
+      setIsWebhookNameStep(false);
+      setWebhookName("");
+      setIsAddDialogOpen(false);
+      setIsCreatedDialogOpen(true);
+    } catch (error) {
+      console.error('❌ Failed to create webhook source:', error);
+      toast({ title: 'Fehler', description: 'Webhook-Quelle konnte nicht erstellt werden.', variant: 'destructive' });
+    } finally {
+      setIsCreatingWebhook(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: 'Kopiert', description: 'In Zwischenablage kopiert.' });
+    } catch (e) {
+      toast({ title: 'Fehler', description: 'Konnte nicht kopieren.' });
+    }
   };
 
   const handleDeleteIntegration = async (integrationId: string) => {
@@ -177,24 +224,58 @@ export default function LeadSources() {
                 Wähle eine Lead Quelle aus, die du mit deinen Agenten verbinden möchtest.
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              {/* Meta */}
-              <button
-                onClick={() => handleAddLeadSource("Meta")}
-                className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
-              >
-                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-[#FFE1D7]">
-                  <Facebook className={`${iconSizes.large} text-blue-600 group-hover:text-[#FE5B25]`} />
+            {!isWebhookNameStep ? (
+              <div className="grid gap-4 py-4">
+                {/* Meta */}
+                <button
+                  onClick={() => handleAddLeadSource("Meta")}
+                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
+                >
+                  <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-[#FFE1D7]">
+                    <Facebook className={`${iconSizes.large} text-blue-600 group-hover:text-[#FE5B25]`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="font-medium">Meta Lead Ads</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Verbinde deine Facebook und Instagram Lead Formulare
+                    </p>
+                  </div>
+                </button>
+
+                {/* Webhook */}
+                <button
+                  onClick={() => handleAddLeadSource("Webhook")}
+                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
+                >
+                  <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#FFE1D7]">
+                    <Webhook className={`${iconSizes.large} text-gray-700 group-hover:text-[#FE5B25]`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="font-medium">Webhook</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Eigene Website oder Systeme per Webhook verbinden
+                    </p>
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4 py-4">
+                <label className="text-sm font-medium">Name der Webhook-Quelle</label>
+                <input
+                  value={webhookName}
+                  onChange={(e) => setWebhookName(e.target.value)}
+                  className="border rounded px-3 py-2"
+                  placeholder="z. B. Website Formular"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setIsWebhookNameStep(false); setWebhookName(""); }}>Zurück</Button>
+                  <Button onClick={handleCreateWebhook} disabled={isCreatingWebhook}>
+                    {isCreatingWebhook ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Erstellen
+                  </Button>
                 </div>
-                <div className="flex-1 text-left">
-                  <h3 className="font-medium">Meta Lead Ads</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Verbinde deine Facebook und Instagram Lead Formulare
-                  </p>
-                </div>
-              </button>
-            </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -295,6 +376,47 @@ export default function LeadSources() {
           )}
         </div>
       )}
+
+      {/* Created Webhook Modal (one-time token reveal) */}
+      <Dialog open={isCreatedDialogOpen} onOpenChange={setIsCreatedDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Webhook erstellt</DialogTitle>
+            <DialogDescription>
+              Diese Informationen werden nur einmal angezeigt. Bitte sicher speichern.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <div className="text-sm font-medium mb-1">POST URL</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-gray-50 rounded px-2 py-1 overflow-x-auto">{createdWebhookUrl}</code>
+                <Button variant="outline" onClick={() => copyToClipboard(createdWebhookUrl)}>Kopieren</Button>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium mb-1">Header</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-gray-50 rounded px-2 py-1 overflow-x-auto">{`Authorization: Bearer ${createdWebhookToken}`}</code>
+                <Button variant="outline" onClick={() => copyToClipboard(`Authorization: Bearer ${createdWebhookToken}`)}>Kopieren</Button>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-medium mb-1">Beispiel-Payload</div>
+              <pre className="bg-gray-50 rounded px-3 py-2 text-sm overflow-x-auto">{`{
+  "name": "Max Mustermann",
+  "email": "max@example.com",
+  "phone": "+4912345678",
+  "variables": { "utm_source": "landingpage" },
+  "external_id": "optional-unique-id"
+}`}</pre>
+            </div>
+            <div className="flex items-center justify-end">
+              <Button onClick={() => setIsCreatedDialogOpen(false)}>Fertig</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

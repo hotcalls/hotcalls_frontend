@@ -1788,6 +1788,24 @@ export const funnelAPI = {
   },
 
   /**
+   * Update funnel properties (e.g., is_active)
+   */
+  async updateFunnel(funnelId: string, data: Partial<{ name: string; is_active: boolean }>): Promise<any> {
+    console.log(`✏️ PATCH /api/funnels/lead-funnels/${funnelId}/ - Updating funnel:`, { funnelId, data });
+    try {
+      const response = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+      console.log('✅ Funnel updated:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Funnel update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Assign an agent to a funnel
    */
   async assignAgent(funnelId: string, agentId: string): Promise<any> {
@@ -1831,6 +1849,66 @@ export const funnelAPI = {
     }
   },
 }; 
+
+// Webhook Source API calls
+export const webhookAPI = {
+  /**
+   * Create a webhook source (auto-creates a LeadFunnel)
+   */
+  async createSource(workspace: string, name: string): Promise<{
+    id: string;
+    name: string;
+    lead_funnel: string;
+    url: string;
+    token: string; // one-time reveal
+  }> {
+    console.log('➕ POST /api/webhook-sources/ - Creating webhook source:', { workspace, name });
+    try {
+      const response = await apiCall<any>('/api/webhook-sources/', {
+        method: 'POST',
+        body: JSON.stringify({ workspace, name }),
+      });
+      console.log('✅ Webhook source created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Webhook source create API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * List webhook sources
+   */
+  async listSources(): Promise<Array<{ id: string; name: string; lead_funnel: string }>> {
+    console.log('📋 GET /api/webhook-sources/ - Listing webhook sources');
+    try {
+      const response = await apiCall<any>('/api/webhook-sources/');
+      const results = Array.isArray(response?.results) ? response.results : (Array.isArray(response) ? response : []);
+      console.log('✅ Webhook sources loaded:', results);
+      return results;
+    } catch (error) {
+      console.error('❌ Webhook source list API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Rotate token and return new token (one-time reveal)
+   */
+  async rotateToken(sourceId: string): Promise<{ token: string }> {
+    console.log(`🔐 POST /api/webhook-sources/${sourceId}/rotate_token/ - Rotating token`);
+    try {
+      const response = await apiCall<any>(`/api/webhook-sources/${sourceId}/rotate_token/`, {
+        method: 'POST',
+      });
+      console.log('✅ Token rotated');
+      return response;
+    } catch (error) {
+      console.error('❌ Webhook source rotate token API error:', error);
+      throw error;
+    }
+  },
+};
 
 // Chart Data Generation using Real APIs
 export const chartAPI = {
