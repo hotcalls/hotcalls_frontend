@@ -129,15 +129,15 @@ export default function AgentConfig() {
     }
   };
 
-  // Load Lead Forms from Meta API  
+  // Load Lead Funnels from Funnel API  
   const loadLeadForms = async () => {
     setIsLoadingLeadForms(true);
     try {
-      const leadFormsData = await metaAPI.getLeadForms();
-      setAvailableLeadForms(leadFormsData || []);
-      console.log(`✅ Loaded ${leadFormsData?.length || 0} Meta Lead Forms for Agent Config`);
+      const leadFunnelsData = await funnelAPI.getLeadFunnels();
+      setAvailableLeadForms(leadFunnelsData || []);
+      console.log(`✅ Loaded ${leadFunnelsData?.length || 0} Lead Funnels for Agent Config`);
     } catch (error) {
-      console.error('❌ Error loading Lead Forms in Agent Config:', error);
+      console.error('❌ Error loading Lead Funnels in Agent Config:', error);
       setAvailableLeadForms([]);
     } finally {
       setIsLoadingLeadForms(false);
