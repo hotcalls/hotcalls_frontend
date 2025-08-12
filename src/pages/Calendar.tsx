@@ -923,54 +923,40 @@ export default function Calendar() {
         throw new Error('Invalid calendars response');
       }
 
-      // Group calendars by Google connection (account_email)
-      const groupedByConnection = calendars.reduce((groups: any, cal: any) => {
-        // Find matching connection for this calendar
-        const connection = filteredConnections.find(conn => 
-          conn.account_email === cal.provider_details.external_id || // Direct email match
-          conn.account_email === 'mmmalmachen@gmail.com' // Known account
-        );
-        
-        if (connection) {
-          const email = connection.account_email;
-          if (!groups[email]) groups[email] = [];
-          groups[email].push(cal);
-        }
-        return groups;
-      }, {});
-
-      // Convert grouped calendars to frontend format - one card per Google account
-      const convertedCalendars: CalendarType[] = Object.entries(groupedByConnection).map(([email, cals]: [string, any[]]) => {
-        // Find primary calendar (main calendar)
-        const primaryCal = cals.find(cal => cal.provider_details.primary) || cals[0];
-        // Find sub-calendars (non-primary calendars)
-        const subCals = cals.filter(cal => !cal.provider_details.primary);
-        
+      // MINIMALISTIC: Use Google Connections directly - like Lead Sources
+      // Show only account_email and calendar_count as subCalendars
+      const convertedCalendars: CalendarType[] = filteredConnections.map((connection: any) => {
         return {
-          id: primaryCal.id,
-          connectionId: email, // Use email as connection identifier
-          name: primaryCal.name, // Use primary calendar name
-          email: email,
+          id: connection.id,
+          connectionId: connection.account_email,
+          name: connection.account_email, // Minimalistic: just the email
+          email: connection.account_email,
           provider: "Google Calendar",
-          isConnected: primaryCal.connection_status === "connected",
-          isDefault: primaryCal.provider_details.primary,
-          isPrimary: true, // This represents the main account card
-          eventTypesCount: primaryCal.config_count || 0,
+          isConnected: connection.status === "connected",
+          isDefault: true,
+          isPrimary: true,
+          eventTypesCount: 0,
           totalBookings: 0,
           bookingsThisWeek: 0,
-          subCalendars: subCals.map(sub => ({
-            id: sub.id,
-            name: sub.name,
+          subCalendars: [{
+            id: `${connection.id}-count`,
+            name: `${connection.calendar_count} Kalender`,
             color: "#1a73e8",
             isPublic: false,
             isWritable: true,
-            description: `Sub-Kalender: ${sub.name}`
-          })),
+            description: `${connection.calendar_count} Kalender verbunden`
+          }],
           accessRole: ("owner" as const),
-          timeZone: primaryCal.provider_details.time_zone,
-          active: primaryCal.active,
-          createdAt: new Date(primaryCal.created_at),
-          lastSyncedAt: new Date(primaryCal.provider_details.updated_at)
+          color: "#1a73e8",
+          isPublic: false,
+          isWritable: true,
+          description: `${connection.calendar_count} Kalender`,
+          lastSynced: null, // Remove last sync - not needed
+          nextAvailableTime: null,
+          timeZone: "Europe/Berlin",
+          active: connection.active,
+          createdAt: new Date(connection.created_at),
+          lastSyncedAt: null // Remove last sync - not needed
         };
       });
 
