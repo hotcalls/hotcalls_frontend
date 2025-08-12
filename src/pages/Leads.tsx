@@ -204,57 +204,76 @@ export default function Leads() {
             </div>
           ) : (
             <div className="space-y-1">
-              {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
-                <div className="col-span-3">LEAD NAME</div>
-                <div className="col-span-3">EMAIL</div>
-                <div className="col-span-2">TELEFON</div>
-                <div className="col-span-2">QUELLE</div>
-                <div className="col-span-2">ERSTELLT</div>
-              </div>
+                             {/* Table Header */}
+               <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
+                 <div className="col-span-3">LEAD NAME</div>
+                 <div className="col-span-2">EMAIL</div>
+                 <div className="col-span-2">TELEFON</div>
+                 <div className="col-span-2">QUELLE</div>
+                 <div className="col-span-2">ERSTELLT</div>
+                 <div className="col-span-1">INFO</div>
+               </div>
               
-              {/* Table Rows */}
-              {leads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="grid grid-cols-12 gap-4 px-4 py-3 text-sm hover:bg-muted/50 cursor-pointer rounded-lg transition-colors"
-                  onClick={() => setSelectedLead(lead)}
-                >
-                  <div className="col-span-3 flex items-center space-x-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{lead.full_name}</span>
-                  </div>
-                  
-                  <div className="col-span-3 flex items-center space-x-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">{lead.email}</span>
-                  </div>
-                  
-                  <div className="col-span-2 flex items-center space-x-2">
-                    {lead.phone ? (
-                      <>
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">{lead.phone}</span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <Badge variant="secondary" className="text-xs">
-                      {formatIntegrationProvider(lead)}
-                    </Badge>
-                  </div>
-                  
-                  <div className="col-span-2 flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground text-xs">
-                      {formatDateTime(lead.created_at)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                             {/* Table Rows */}
+               {leads.map((lead) => (
+                 <div
+                   key={lead.id}
+                   className="grid grid-cols-12 gap-4 px-4 py-3 text-sm hover:bg-muted/50 rounded-lg transition-colors"
+                 >
+                   <div className="col-span-3 flex items-center space-x-2">
+                     <User className="h-4 w-4 text-muted-foreground" />
+                     <span className="font-medium">{lead.full_name}</span>
+                   </div>
+                   
+                   <div className="col-span-2 flex items-center space-x-2">
+                     <Mail className="h-4 w-4 text-muted-foreground" />
+                     <span className="text-muted-foreground truncate" title={lead.email}>
+                       {lead.email}
+                     </span>
+                   </div>
+                   
+                   <div className="col-span-2 flex items-center space-x-2">
+                     {lead.phone ? (
+                       <>
+                         <Phone className="h-4 w-4 text-muted-foreground" />
+                         <span className="text-muted-foreground">{lead.phone}</span>
+                       </>
+                     ) : (
+                       <span className="text-muted-foreground">—</span>
+                     )}
+                   </div>
+                   
+                   <div className="col-span-2">
+                     <Badge variant="secondary" className="text-xs">
+                       {formatIntegrationProvider(lead)}
+                     </Badge>
+                   </div>
+                   
+                   <div className="col-span-2 flex items-center space-x-1">
+                     <Calendar className="h-3 w-3 text-muted-foreground" />
+                     <div className="text-xs text-muted-foreground">
+                       <div className="font-medium">
+                         {format(new Date(lead.created_at), 'dd.MM.yyyy', { locale: de })}
+                       </div>
+                       <div className="text-[10px] opacity-75">
+                         {format(new Date(lead.created_at), 'HH:mm', { locale: de })}
+                       </div>
+                     </div>
+                   </div>
+                   
+                   <div className="col-span-1 flex items-center justify-center">
+                     <Button
+                       variant="ghost"
+                       size="sm"
+                       onClick={() => setSelectedLead(lead)}
+                       className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary"
+                       title="Lead Details anzeigen"
+                     >
+                       <Eye className="h-4 w-4" />
+                     </Button>
+                   </div>
+                 </div>
+               ))}
             </div>
           )}
         </CardContent>
