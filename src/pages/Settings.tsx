@@ -20,8 +20,8 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { subscriptionService } from "@/lib/subscriptionService";
-import { paymentAPI } from "@/lib/apiService";
-import { toast } from "sonner";
+import { paymentAPI, workspaceAPI } from "@/lib/apiService";
+import { useToast } from "@/hooks/use-toast";
 
 // Minute packages will be loaded dynamically from database via @core module
 
@@ -38,10 +38,16 @@ export default function Settings() {
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false);
   
+  // Invite Modal State
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+  
   // Load workspace and usage data
   const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
   const { usage, features, loading: usageLoading, error: usageError, lastUpdated } = useAllFeaturesUsage(primaryWorkspace?.id || null);
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
+  const { toast } = useToast();
   
   // Generate current plan data from API
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
@@ -403,6 +409,64 @@ export default function Settings() {
     }
   };
 
+  // Handle user invitation
+  const handleInviteUser = async () => {
+    if (!primaryWorkspace?.id) {
+      toast({
+        title: "Fehler",
+        description: "Kein Workspace gefunden",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!inviteEmail.trim()) {
+      toast({
+        title: "Fehler", 
+        description: "Bitte geben Sie eine E-Mail-Adresse ein",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Simple email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail.trim())) {
+      toast({
+        title: "Fehler",
+        description: "Bitte geben Sie eine gültige E-Mail-Adresse ein",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsInviting(true);
+      console.log('📧 Inviting user:', { workspaceId: primaryWorkspace.id, email: inviteEmail });
+      
+      await workspaceAPI.inviteUserToWorkspace(primaryWorkspace.id, inviteEmail.trim());
+      
+      toast({
+        title: "Einladung versendet!",
+        description: `Einladung wurde an ${inviteEmail} gesendet`,
+      });
+      
+      // Reset form and close modal
+      setInviteEmail('');
+      setShowInviteModal(false);
+      
+    } catch (error: any) {
+      console.error('Failed to invite user:', error);
+      toast({
+        title: "Fehler beim Versenden",
+        description: error.message || "Bitte versuchen Sie es erneut",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   // Save profile changes
   const handleSaveProfile = async () => {
     try {
@@ -713,10 +777,10 @@ export default function Settings() {
                     {workspaceLoading ? "Wird geladen..." : `${teamMembers.length} / ${currentPlan.maxUsers} User verwendet`}
                   </p>
                 </div>
-                <button className={buttonStyles.create.default}>
+                <Button onClick={() => setShowInviteModal(true)} className="bg-[#FE5B25] hover:bg-[#E5501F] text-white">
                   <Plus className={iconSizes.small} />
                   <span>Mitglied einladen</span>
-                </button>
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1155,6 +1219,51 @@ export default function Settings() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Invite User Modal - Small & Centered */}
+      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Mitglied einladen</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">E-Mail-Adresse</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="colleague@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isInviting) {
+                    handleInviteUser();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowInviteModal(false);
+                setInviteEmail('');
+              }}
+              disabled={isInviting}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={handleInviteUser}
+              disabled={isInviting || !inviteEmail.trim()}
+              className="bg-[#FE5B25] hover:bg-[#E5501F] text-white"
+            >
+              {isInviting ? "Wird gesendet..." : "Einladen"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

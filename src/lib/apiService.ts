@@ -375,6 +375,21 @@ export const workspaceAPI = {
   },
 
   /**
+   * Invite a user to workspace via email
+   */
+  async inviteUserToWorkspace(workspaceId: string, email: string): Promise<any> {
+    console.log('📧 Inviting user to workspace:', { workspaceId, email });
+    
+    const response = await apiCall<any>(`/api/workspaces/workspaces/${workspaceId}/invite/`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    
+    console.log('✅ User invited to workspace:', response);
+    return response;
+  },
+
+  /**
    * Get team members for a workspace (deprecated - use getWorkspaceDetails instead)
    */
   async getWorkspaceMembers(workspaceId: string): Promise<any[]> {
