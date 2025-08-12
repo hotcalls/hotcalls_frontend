@@ -193,7 +193,11 @@ export default function Settings() {
   // Plan changing function
   const handlePlanChange = async (planName: string) => {
     if (!primaryWorkspace?.id) {
-      toast('No workspace selected');
+      toast({
+        title: "Fehler",
+        description: "Kein Workspace ausgewählt",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -205,7 +209,11 @@ export default function Settings() {
       // Get price ID from backend API (NO HARDCODED BULLSHIT!)
       const planDetails = await subscriptionService.getPlanDetailsByName(planName);
       if (!planDetails || !planDetails.stripe_price_id_monthly) {
-        toast(`Unable to get pricing details for ${planName} plan from backend`);
+        toast({
+          title: "Fehler",
+          description: `Preisdetails für ${planName} Plan konnten nicht geladen werden`,
+          variant: "destructive",
+        });
         setChangingPlan(false);
         return;
       }
@@ -224,7 +232,11 @@ export default function Settings() {
       
     } catch (error) {
       console.error('❌ Plan change failed:', error);
-      toast(error instanceof Error ? error.message : 'Plan change failed');
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : 'Plan-Änderung fehlgeschlagen',
+        variant: "destructive",
+      });
       setChangingPlan(false);
     }
   };
@@ -274,7 +286,11 @@ export default function Settings() {
         setSubscriptionStatus(subscriptionData);
       } catch (error) {
         console.error('❌ Failed to load subscription status:', error);
-        toast.error('Fehler beim Laden des Abonnement-Status');
+        toast({
+          title: "Fehler",
+          description: "Fehler beim Laden des Abonnement-Status",
+          variant: "destructive",
+        });
       } finally {
         setIsLoadingSubscription(false);
       }
@@ -286,7 +302,11 @@ export default function Settings() {
   // Cancel subscription function
   const handleCancelSubscription = async () => {
     if (!primaryWorkspace?.id) {
-      toast.error('Workspace nicht gefunden');
+      toast({
+        title: "Fehler",
+        description: "Workspace nicht gefunden",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -302,8 +322,9 @@ export default function Settings() {
       const result = await paymentAPI.cancelSubscription();
       console.log('✅ Subscription cancelled:', result);
       
-      toast.success('Abonnement erfolgreich gekündigt', {
-        description: 'Dein Plan bleibt bis zum Ende der Abrechnungsperiode aktiv.'
+      toast({
+        title: "Abonnement gekündigt",
+        description: "Dein Plan bleibt bis zum Ende der Abrechnungsperiode aktiv.",
       });
       
       // Reload subscription status
@@ -312,8 +333,10 @@ export default function Settings() {
       
     } catch (error: any) {
       console.error('❌ Failed to cancel subscription:', error);
-      toast.error('Fehler beim Kündigen des Abonnements', {
-        description: error.message || 'Bitte versuche es erneut oder kontaktiere den Support.'
+      toast({
+        title: "Fehler beim Kündigen",
+        description: error.message || 'Bitte versuche es erneut oder kontaktiere den Support.',
+        variant: "destructive",
       });
     } finally {
       setIsCancellingSubscription(false);
@@ -323,7 +346,11 @@ export default function Settings() {
   // Open Stripe customer portal
   const handleManageSubscription = async () => {
     if (!primaryWorkspace?.id) {
-      toast.error('Workspace nicht gefunden');
+      toast({
+        title: "Fehler",
+        description: "Workspace nicht gefunden",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -337,8 +364,10 @@ export default function Settings() {
       
     } catch (error: any) {
       console.error('❌ Failed to create portal session:', error);
-      toast.error('Fehler beim Öffnen der Abonnement-Verwaltung', {
-        description: error.message || 'Bitte versuche es erneut.'
+      toast({
+        title: "Fehler",
+        description: error.message || 'Fehler beim Öffnen der Abonnement-Verwaltung. Bitte versuche es erneut.',
+        variant: "destructive",
       });
     }
   };
@@ -382,7 +411,11 @@ export default function Settings() {
   // Save workspace changes
   const handleSaveWorkspace = async () => {
     if (!workspaceDetails?.id) {
-      toast.error('Workspace ID nicht gefunden');
+      toast({
+        title: "Fehler",
+        description: "Workspace ID nicht gefunden",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -400,11 +433,16 @@ export default function Settings() {
       
       await updateWorkspace(workspaceDetails.id, workspaceFormData);
       
-      toast.success('Workspace erfolgreich aktualisiert!');
+      toast({
+        title: "Erfolg",
+        description: "Workspace erfolgreich aktualisiert!",
+      });
     } catch (error: any) {
       console.error('Failed to update workspace:', error);
-      toast.error('Fehler beim Speichern des Workspace', {
-        description: error.message || 'Bitte versuchen Sie es erneut.'
+      toast({
+        title: "Fehler",
+        description: error.message || 'Fehler beim Speichern des Workspace. Bitte versuchen Sie es erneut.',
+        variant: "destructive",
       });
     }
   };
@@ -486,11 +524,16 @@ export default function Settings() {
       
       await updateProfile(profileFormData);
       
-      toast.success('Profil erfolgreich aktualisiert!');
+      toast({
+        title: "Erfolg",
+        description: "Profil erfolgreich aktualisiert!",
+      });
     } catch (error: any) {
       console.error('Failed to update profile:', error);
-      toast.error('Fehler beim Speichern des Profils', {
-        description: error.message || 'Bitte versuchen Sie es erneut.'
+      toast({
+        title: "Fehler",
+        description: error.message || 'Fehler beim Speichern des Profils. Bitte versuchen Sie es erneut.',
+        variant: "destructive",
       });
     }
   };
