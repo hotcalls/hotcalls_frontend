@@ -1096,7 +1096,8 @@ export default function Calendar() {
         </div>
         <Button 
           onClick={activeTab === 'calendars' ? handleConnectGoogleCalendar : () => setShowEventTypeModal(true)}
-          className="bg-[#FE5B25] hover:bg-[#E5522A]"
+          disabled={activeTab === 'event-types' && !(googleConnections.length > 0 && connectedCalendars.length > 0)}
+          className="bg-[#FE5B25] hover:bg-[#E5522A] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4 mr-2" />
           {activeTab === 'calendars' ? 'Kalender verbinden' : 'Event Type erstellen'}
@@ -1196,15 +1197,21 @@ export default function Calendar() {
                 <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Noch keine Event Types</h3>
                 <p className="text-muted-foreground mb-4">
-                  Erstellen Sie Ihren ersten Event Type, um Buchungen zu ermöglichen.
+                  {googleConnections.length > 0 && connectedCalendars.length > 0 
+                    ? "Erstellen Sie Ihren ersten Event Type, um Buchungen zu ermöglichen."
+                    : "Verbinden Sie zuerst einen Kalender, um Event Types zu erstellen."
+                  }
                 </p>
-                <Button 
-                  onClick={() => setShowEventTypeModal(true)}
-                  className="bg-[#FE5B25] hover:bg-[#E5522A]"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Event Type erstellen
-                </Button>
+                {/* Event Type Creation - Only if calendar connected (like WelcomeOverlay pattern) */}
+                {googleConnections.length > 0 && connectedCalendars.length > 0 && (
+                  <Button 
+                    onClick={() => setShowEventTypeModal(true)}
+                    className="bg-[#FE5B25] hover:bg-[#E5522A]"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Event Type erstellen
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
