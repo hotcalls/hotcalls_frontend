@@ -15,7 +15,8 @@ import {
   Trash2, 
   Users,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  X
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -444,7 +445,13 @@ function EventTypeModal({
   });
 
   const handleNext = () => {
-    if (currentStep < 5) setCurrentStep(currentStep + 1);
+    console.log('🔄 handleNext called - currentStep:', currentStep);
+    if (currentStep < 5) {
+      console.log('✅ Moving to next step:', currentStep + 1);
+      setCurrentStep(currentStep + 1);
+    } else {
+      console.log('❌ Already at last step:', currentStep);
+    }
   };
 
   const handleBack = () => {
@@ -499,7 +506,16 @@ function EventTypeModal({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto relative">
+        {/* Close Button - minimalistisches X rechts oben */}
+        <button
+          onClick={() => onOpenChange(false)}
+          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-10"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </button>
+        
         <AlertDialogHeader>
           <AlertDialogTitle>Event Type erstellen - Schritt {currentStep} von 5</AlertDialogTitle>
         </AlertDialogHeader>
