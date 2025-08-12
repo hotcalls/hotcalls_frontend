@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2, CheckCircle } from "lucide-react";
+import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2, CheckCircle, Copy, RefreshCw, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -23,8 +23,35 @@ interface MetaIntegration {
   access_token_expires_at?: string;
 }
 
+interface WebhookSource {
+  id: string;
+  workspace: string;
+  lead_funnel: string;
+  name: string;
+  public_key: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface LeadFunnel {
+  id: string;
+  workspace: string;
+  name: string;
+  is_active: boolean;
+  agent?: {
+    id: string;
+    name: string;
+    is_active: boolean;
+  };
+  meta_form?: any;
+  webhook_source?: string;
+}
+
 export default function LeadSources() {
   const [metaIntegrations, setMetaIntegrations] = useState<MetaIntegration[]>([]);
+  const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
+  const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isWebhookNameStep, setIsWebhookNameStep] = useState(false);
   const [webhookName, setWebhookName] = useState("");
@@ -35,38 +62,80 @@ export default function LeadSources() {
   const [createdFunnelId, setCreatedFunnelId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [rotatingTokenId, setRotatingTokenId] = useState<string | null>(null);
+  const [togglingFunnelId, setTogglingFunnelId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { workspaceDetails } = useWorkspace();
   const { toast } = useToast();
 
-  // Load Meta integrations from backend
-  const loadMetaIntegrations = useCallback(async () => {
-    console.log('🔍 Starting to load Meta integrations...');
+  // Load all lead sources
+  const loadAllSources = useCallback(async () => {
+    console.log('🔍 Starting to load all lead sources...');
     setIsLoading(true);
     try {
-      console.log('📡 Calling metaAPI.getIntegrations()...');
-      const integrations = await metaAPI.getIntegrations();
-      console.log('✅ Meta integrations response:', integrations);
-      console.log('✅ Is integrations an array?', Array.isArray(integrations));
-      
-      // Ensure we always set an array
-      if (Array.isArray(integrations)) {
-        setMetaIntegrations(integrations);
+      // Load in parallel for better performance
+      const [metaIntegrationsResult, webhookSourcesResult, funnelsResult] = await Promise.allSettled([
+        metaAPI.getIntegrations(),
+        webhookAPI.listSources(),
+        workspaceDetails?.id ? funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id }) : Promise.resolve({ results: [] })
+      ]);
+
+      // Handle Meta integrations
+      if (metaIntegrationsResult.status === 'fulfilled') {
+        const integrations = metaIntegrationsResult.value;
+        if (Array.isArray(integrations)) {
+          setMetaIntegrations(integrations);
+          console.log(`✅ Loaded ${integrations.length} Meta integrations`);
+        } else {
+          setMetaIntegrations([]);
+        }
       } else {
-        console.warn('⚠️ API returned non-array, using empty array:', integrations);
+        console.error('❌ Error loading Meta integrations:', metaIntegrationsResult.reason);
         setMetaIntegrations([]);
       }
-      console.log(`✅ Loaded ${Array.isArray(integrations) ? integrations.length : 0} Meta integrations`);
+
+      // Handle Webhook sources
+      if (webhookSourcesResult.status === 'fulfilled') {
+        const sources = webhookSourcesResult.value;
+        if (Array.isArray(sources)) {
+          setWebhookSources(sources);
+          console.log(`✅ Loaded ${sources.length} webhook sources`);
+        } else if (sources?.results && Array.isArray(sources.results)) {
+          setWebhookSources(sources.results);
+          console.log(`✅ Loaded ${sources.results.length} webhook sources`);
+        } else {
+          setWebhookSources([]);
+        }
+      } else {
+        console.error('❌ Error loading webhook sources:', webhookSourcesResult.reason);
+        setWebhookSources([]);
+      }
+
+      // Handle Lead Funnels
+      if (funnelsResult.status === 'fulfilled') {
+        const funnels = funnelsResult.value;
+        if (Array.isArray(funnels)) {
+          setLeadFunnels(funnels);
+        } else if (funnels?.results && Array.isArray(funnels.results)) {
+          setLeadFunnels(funnels.results);
+          console.log(`✅ Loaded ${funnels.results.length} lead funnels`);
+        } else {
+          setLeadFunnels([]);
+        }
+      } else {
+        console.error('❌ Error loading lead funnels:', funnelsResult.reason);
+        setLeadFunnels([]);
+      }
     } catch (error) {
-      console.error('❌ Error loading Meta integrations:', error);
-      console.error('❌ Full error object:', JSON.stringify(error, null, 2));
-      // Set empty array to prevent further errors
+      console.error('❌ Unexpected error loading sources:', error);
       setMetaIntegrations([]);
+      setWebhookSources([]);
+      setLeadFunnels([]);
     } finally {
       setIsLoading(false);
-      console.log('🏁 Meta integrations loading completed');
+      console.log('🏁 All sources loading completed');
     }
-  }, []);
+  }, [workspaceDetails?.id]);
 
   const handleAddLeadSource = async (type: string) => {
     if (type === "Meta") {
@@ -157,6 +226,58 @@ export default function LeadSources() {
     }
   };
 
+  const handleToggleFunnel = async (funnelId: string, currentStatus: boolean) => {
+    setTogglingFunnelId(funnelId);
+    try {
+      await funnelAPI.updateFunnel(funnelId, { is_active: !currentStatus });
+      
+      // Update local state
+      setLeadFunnels(prev => prev.map(f => 
+        f.id === funnelId ? { ...f, is_active: !currentStatus } : f
+      ));
+      
+      toast({
+        title: !currentStatus ? "Aktiviert" : "Deaktiviert",
+        description: `Webhook wurde ${!currentStatus ? "aktiviert" : "deaktiviert"}.`,
+      });
+    } catch (error) {
+      console.error('❌ Failed to toggle funnel:', error);
+      toast({
+        title: "Fehler",
+        description: "Status konnte nicht geändert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingFunnelId(null);
+    }
+  };
+
+  const handleRotateToken = async (webhookId: string) => {
+    setRotatingTokenId(webhookId);
+    try {
+      const response = await webhookAPI.rotateToken(webhookId);
+      
+      // Show new token in modal
+      setCreatedWebhookToken(response.token);
+      setCreatedWebhookUrl(response.url);
+      setIsCreatedDialogOpen(true);
+      
+      toast({
+        title: "Token rotiert",
+        description: "Neuer Token wurde generiert. Bitte kopieren!",
+      });
+    } catch (error) {
+      console.error('❌ Failed to rotate token:', error);
+      toast({
+        title: "Fehler",
+        description: "Token konnte nicht rotiert werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setRotatingTokenId(null);
+    }
+  };
+
   // Check for successful integration after OAuth redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -178,17 +299,17 @@ export default function LeadSources() {
     }
   }, [toast]);
 
-  // Load integrations on mount
+  // Load all sources on mount
   useEffect(() => {
-    console.log('🚀 LeadSources component mounted, about to load integrations...');
+    console.log('🚀 LeadSources component mounted, about to load all sources...');
     console.log('📋 Workspace details:', workspaceDetails);
     try {
-      loadMetaIntegrations();
+      loadAllSources();
     } catch (error) {
       console.error('💥 Error in useEffect:', error);
       setIsLoading(false);
     }
-  }, [loadMetaIntegrations]);
+  }, [loadAllSources]);
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -288,9 +409,10 @@ export default function LeadSources() {
         </div>
       )}
 
-      {/* Meta Integrations */}
+      {/* All Lead Sources */}
       {!isLoading && (
         <div className={layoutStyles.cardGrid}>
+          {/* Meta Integrations */}
           {Array.isArray(metaIntegrations) && metaIntegrations.map((integration) => (
             <Card key={integration.id}>
               <CardHeader>
@@ -358,8 +480,129 @@ export default function LeadSources() {
             </Card>
           ))}
 
+          {/* Webhook Sources */}
+          {Array.isArray(webhookSources) && webhookSources.map((webhook) => {
+            // Find the associated funnel
+            const funnel = leadFunnels.find(f => f.id === webhook.lead_funnel);
+            const isActive = funnel?.is_active || false;
+            const hasAgent = !!funnel?.agent;
+            const agentName = funnel?.agent?.name || 'Kein Agent';
+
+            return (
+              <Card key={webhook.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 rounded-lg bg-gray-100">
+                        <Webhook className={`${iconSizes.large} text-gray-700`} />
+                      </div>
+                      <div>
+                        <CardTitle className={textStyles.cardTitle}>
+                          {webhook.name}
+                        </CardTitle>
+                        <p className={textStyles.cardSubtitle}>
+                          Webhook • {new Date(webhook.created_at).toLocaleDateString('de-DE')}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+                      <Badge variant={isActive ? 'default' : 'secondary'}>
+                        {isActive ? 'Aktiv' : 'Inaktiv'}
+                      </Badge>
+                      
+                      <button 
+                        onClick={() => handleToggleFunnel(webhook.lead_funnel, isActive)}
+                        disabled={togglingFunnelId === webhook.lead_funnel}
+                        className={buttonStyles.cardAction.iconDefault}
+                      >
+                        {togglingFunnelId === webhook.lead_funnel ? (
+                          <Loader2 className={`${iconSizes.small} animate-spin`} />
+                        ) : isActive ? (
+                          <Pause className={iconSizes.small} />
+                        ) : (
+                          <Play className={iconSizes.small} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-3">
+                  {/* Agent Status */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm font-medium">Agent:</span>
+                    <span className={`text-sm ${hasAgent ? 'text-green-600' : 'text-orange-600'}`}>
+                      {hasAgent ? agentName : '⚠️ Kein Agent zugeordnet'}
+                    </span>
+                  </div>
+
+                  {!hasAgent && (
+                    <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                      ⚠️ Leads werden ignoriert, bis ein Agent zugeordnet ist.
+                    </div>
+                  )}
+
+                  {/* URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Webhook URL:</span>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(webhook.url)}
+                      >
+                        URL kopieren
+                      </Button>
+                    </div>
+                    <code className="text-xs bg-gray-100 p-2 rounded block break-all">
+                      {webhook.url}
+                    </code>
+                  </div>
+
+                  {/* Token Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Bearer Token:</span>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleRotateToken(webhook.id)}
+                        disabled={rotatingTokenId === webhook.id}
+                      >
+                        {rotatingTokenId === webhook.id ? (
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        ) : null}
+                        Token rotieren
+                      </Button>
+                    </div>
+                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                      Token ist nur bei Erstellung oder Rotation sichtbar
+                    </div>
+                  </div>
+
+                  {/* Example */}
+                  <details className="text-sm">
+                    <summary className="cursor-pointer font-medium">Beispiel-Request anzeigen</summary>
+                    <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+{`curl -X POST "${webhook.url}" \\
+  -H "Authorization: Bearer YOUR_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "Max Mustermann",
+    "email": "max@example.com",
+    "phone": "+4912345678"
+  }'`}
+                    </pre>
+                  </details>
+                </CardContent>
+              </Card>
+            );
+          })}
+
           {/* Empty state */}
-          {Array.isArray(metaIntegrations) && metaIntegrations.length === 0 && (
+          {Array.isArray(metaIntegrations) && metaIntegrations.length === 0 && 
+           Array.isArray(webhookSources) && webhookSources.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
                 <Facebook className="h-12 w-12 mx-auto mb-4 text-gray-400" />
