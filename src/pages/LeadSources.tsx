@@ -278,6 +278,28 @@ export default function LeadSources() {
     }
   };
 
+  const handleDeleteWebhook = async (webhookId: string) => {
+    try {
+      console.log('🗑️ Deleting webhook source:', webhookId);
+      await webhookAPI.deleteSource(webhookId);
+      
+      // Remove from local state
+      setWebhookSources(prev => prev.filter(w => w.id !== webhookId));
+      
+      toast({
+        title: "Webhook gelöscht",
+        description: "Webhook-Quelle wurde erfolgreich entfernt.",
+      });
+    } catch (error) {
+      console.error('❌ Failed to delete webhook:', error);
+      toast({
+        title: "Fehler",
+        description: "Webhook konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Check for successful integration after OAuth redirect
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -485,16 +507,14 @@ export default function LeadSources() {
             // Find the associated funnel
             const funnel = leadFunnels.find(f => f.id === webhook.lead_funnel);
             const isActive = funnel?.is_active || false;
-            const hasAgent = !!funnel?.agent;
-            const agentName = funnel?.agent?.name || 'Kein Agent';
 
             return (
               <Card key={webhook.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 rounded-lg bg-gray-100">
-                        <Webhook className={`${iconSizes.large} text-gray-700`} />
+                      <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
+                        <Webhook className={`${iconSizes.large} text-[#FE5B25]`} />
                       </div>
                       <div>
                         <CardTitle className={textStyles.cardTitle}>
@@ -524,77 +544,37 @@ export default function LeadSources() {
                           <Play className={iconSizes.small} />
                         )}
                       </button>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button className={buttonStyles.cardAction.iconDelete}>
+                            <Trash2 className={iconSizes.small} />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Webhook löschen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Diese Aktion kann nicht rückgängig gemacht werden. Die Webhook-Quelle "{webhook.name}" wird permanent gelöscht.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteWebhook(webhook.id)}>
+                              Löschen
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 </CardHeader>
                 
-                <CardContent className="space-y-3">
-                  {/* Agent Status */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium">Agent:</span>
-                    <span className={`text-sm ${hasAgent ? 'text-green-600' : 'text-orange-600'}`}>
-                      {hasAgent ? agentName : '⚠️ Kein Agent zugeordnet'}
-                    </span>
+                <CardContent>
+                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                    <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
+                    Lead-Quelle verbunden. Genaue Zuordnung in Agent-Einstellungen konfigurieren.
                   </div>
-
-                  {!hasAgent && (
-                    <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
-                      ⚠️ Leads werden ignoriert, bis ein Agent zugeordnet ist.
-                    </div>
-                  )}
-
-                  {/* URL */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Webhook URL:</span>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(webhook.url)}
-                      >
-                        URL kopieren
-                      </Button>
-                    </div>
-                    <code className="text-xs bg-gray-100 p-2 rounded block break-all">
-                      {webhook.url}
-                    </code>
-                  </div>
-
-                  {/* Token Info */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Bearer Token:</span>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleRotateToken(webhook.id)}
-                        disabled={rotatingTokenId === webhook.id}
-                      >
-                        {rotatingTokenId === webhook.id ? (
-                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                        ) : null}
-                        Token rotieren
-                      </Button>
-                    </div>
-                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                      Token ist nur bei Erstellung oder Rotation sichtbar
-                    </div>
-                  </div>
-
-                  {/* Example */}
-                  <details className="text-sm">
-                    <summary className="cursor-pointer font-medium">Beispiel-Request anzeigen</summary>
-                    <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-x-auto">
-{`curl -X POST "${webhook.url}" \\
-  -H "Authorization: Bearer YOUR_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "name": "Max Mustermann",
-    "email": "max@example.com",
-    "phone": "+4912345678"
-  }'`}
-                    </pre>
-                  </details>
                 </CardContent>
               </Card>
             );
@@ -622,41 +602,73 @@ export default function LeadSources() {
 
       {/* Created Webhook Modal (one-time token reveal) */}
       <Dialog open={isCreatedDialogOpen} onOpenChange={setIsCreatedDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Webhook erstellt</DialogTitle>
             <DialogDescription>
               Diese Informationen werden nur einmal angezeigt. Bitte sicher speichern.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <div className="text-sm font-medium mb-1">POST URL</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-gray-50 rounded px-2 py-1 overflow-x-auto">{createdWebhookUrl}</code>
-                <Button variant="outline" onClick={() => copyToClipboard(createdWebhookUrl)}>Kopieren</Button>
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <label className="text-sm font-medium block">POST URL</label>
+              <div className="flex items-center gap-3">
+                <textarea 
+                  readOnly 
+                  value={createdWebhookUrl} 
+                  rows={2}
+                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-sm font-mono resize-none overflow-hidden" 
+                />
+                <Button size="sm" variant="outline" onClick={() => copyToClipboard(createdWebhookUrl)} className="shrink-0">
+                  Kopieren
+                </Button>
               </div>
             </div>
-            <div>
-              <div className="text-sm font-medium mb-1">Header</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-gray-50 rounded px-2 py-1 overflow-x-auto">{`Authorization: Bearer ${createdWebhookToken}`}</code>
-                <Button variant="outline" onClick={() => copyToClipboard(`Authorization: Bearer ${createdWebhookToken}`)}>Kopieren</Button>
+            
+            <div className="space-y-3">
+              <label className="text-sm font-medium block">Header</label>
+              <div className="flex items-center gap-3">
+                <textarea 
+                  readOnly 
+                  value={`Authorization: Bearer ${createdWebhookToken}`} 
+                  rows={3}
+                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 font-mono text-sm resize-none overflow-hidden" 
+                />
+                <Button size="sm" variant="outline" onClick={() => copyToClipboard(`Authorization: Bearer ${createdWebhookToken}`)} className="shrink-0">
+                  Kopieren
+                </Button>
               </div>
             </div>
-            <div>
-              <div className="text-sm font-medium mb-1">Beispiel-Payload</div>
-              <pre className="bg-gray-50 rounded px-3 py-2 text-sm overflow-x-auto">{`{
+            
+            <div className="space-y-3">
+              <label className="text-sm font-medium block">Beispiel-Payload</label>
+              <div className="relative">
+                <pre className="p-4 bg-gray-50 border border-gray-300 rounded-md text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+{`{
   "name": "Max Mustermann",
   "email": "max@example.com",
-  "phone": "+4912345678",
+  "phone": "+491234567890",
   "variables": { "utm_source": "landingpage" },
   "external_id": "optional-unique-id"
-}`}</pre>
+}`}
+                </pre>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Optionale Felder: <code className="bg-gray-100 px-1 rounded">variables</code> (object), <code className="bg-gray-100 px-1 rounded">external_id</code> (string)
+              </p>
             </div>
-            <div className="flex items-center justify-end">
-              <Button onClick={() => setIsCreatedDialogOpen(false)}>Fertig</Button>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
+              <p className="text-sm text-amber-800">
+                <strong>⚠️ Wichtig:</strong> Der Bearer Token wird nur jetzt angezeigt. Bitte sicher speichern!
+              </p>
             </div>
+          </div>
+          
+          <div className="flex justify-end pt-4 border-t">
+            <Button onClick={() => setIsCreatedDialogOpen(false)} className="px-6">
+              Fertig
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
