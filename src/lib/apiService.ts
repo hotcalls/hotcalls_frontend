@@ -1586,6 +1586,8 @@ export const leadAPI = {
     failed_creates: number;
     errors: Array<{ index: number; error: any }>;
     created_lead_ids: string[];
+    import_batch_id?: string;
+    detected_variable_keys?: string[];
   }> {
     console.log('📦 POST /api/leads/bulk_create/ - Bulk creating leads:', leads.length);
     

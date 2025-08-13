@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { leadAPI } from "@/lib/apiService";
 import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2, CheckCircle, Copy, RefreshCw, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { metaAPI, webhookAPI, funnelAPI } from "@/lib/apiService";
+import React from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
 
@@ -53,6 +55,19 @@ export default function LeadSources() {
   const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
   const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCsvStep, setIsCsvStep] = useState(false);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const [csvParsedRows, setCsvParsedRows] = useState<Record<string, any>[]>([]);
+  const [csvParseInfo, setCsvParseInfo] = useState<{ delimiter: string; header: string[]; filename?: string } | null>(null);
+  const [csvImportResult, setCsvImportResult] = useState<null | {
+    import_batch_id?: string;
+    created_lead_ids: string[];
+    total_leads: number;
+    successful_creates: number;
+    failed_creates: number;
+    errors: Array<{ index: number; error: any }>;
+    detected_variable_keys?: string[];
+  }>(null);
   const [isWebhookNameStep, setIsWebhookNameStep] = useState(false);
   const [webhookName, setWebhookName] = useState("");
   const [isCreatingWebhook, setIsCreatingWebhook] = useState(false);
@@ -162,6 +177,10 @@ export default function LeadSources() {
     if (type === "Webhook") {
       // Show lightweight onboarding CTA instead of creating a webhook now
       setIsWebhookNameStep(true);
+      return;
+    }
+    if (type === "CSV") {
+      setIsCsvStep(true);
       return;
     }
     setIsAddDialogOpen(false);
@@ -368,7 +387,7 @@ export default function LeadSources() {
                 Wähle eine Lead Quelle aus, die du mit deinen Agenten verbinden möchtest.
               </DialogDescription>
             </DialogHeader>
-            {!isWebhookNameStep ? (
+            {!isWebhookNameStep && !isCsvStep ? (
               <div className="grid gap-4 py-4">
                 {/* Meta */}
                 <button
@@ -401,8 +420,24 @@ export default function LeadSources() {
                     </p>
                   </div>
                 </button>
+
+                {/* CSV Import */}
+                <button
+                  onClick={() => handleAddLeadSource("CSV")}
+                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
+                >
+                  <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#FFE1D7]">
+                    <Globe className={`${iconSizes.large} text-gray-700 group-hover:text-[#FE5B25]`} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <h3 className="font-medium">CSV Import</h3>
+                    <p className="text-sm text-muted-foreground">
+                      CSV hochladen: Vorname, Nachname, Email, Telefonnummer. Extras werden als Variablen übernommen.
+                    </p>
+                  </div>
+                </button>
               </div>
-            ) : (
+            ) : isWebhookNameStep ? (
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Webhook über Onboarding verbinden</h4>
@@ -422,6 +457,99 @@ export default function LeadSources() {
                       Termin buchen
                     </Button>
                   </a>
+                </div>
+              </div>
+            ) : (
+              // CSV Step
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">CSV hochladen</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Pflichtspalten: Vorname, Nachname, Email, Telefonnummer. Weitere Spalten werden automatisch als Variablen übernommen.
+                  </p>
+                </div>
+
+                {!csvImportResult && (
+                  <>
+                    <CsvUploadInline
+                      isUploading={isUploadingCsv}
+                      onParsed={(rows, info) => {
+                        setCsvParsedRows(rows);
+                        setCsvParseInfo(info);
+                        setCsvImportResult(null);
+                      }}
+                    />
+
+                    {csvParsedRows.length > 0 && (
+                      <div className="space-y-2 text-sm">
+                        <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                          <div className="font-medium">Datei ausgewählt</div>
+                          <div>{csvParseInfo?.filename || 'CSV'} • {csvParsedRows.length} Zeilen</div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {csvImportResult && (
+                  <div className="space-y-2 text-sm">
+                    <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                      <div className="font-medium">Import abgeschlossen</div>
+                      <div>{csvImportResult.successful_creates} / {csvImportResult.total_leads} Leads importiert</div>
+                    </div>
+                    {csvImportResult.failed_creates > 0 && (
+                      <div className="p-3 bg-amber-50 rounded border border-amber-200">
+                        {csvImportResult.failed_creates} Zeilen mit Fehlern.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 gap-2">
+                  <Button variant="outline" onClick={() => { setIsCsvStep(false); setCsvImportResult(null); setCsvParsedRows([]); }}>
+                    Zurück
+                  </Button>
+                  {!csvImportResult && (
+                    <div className="ml-auto flex gap-2">
+                      <Button
+                        variant="default"
+                        disabled={isUploadingCsv || csvParsedRows.length === 0}
+                        onClick={async () => {
+                          if (csvParsedRows.length === 0) return;
+                          try {
+                            setIsUploadingCsv(true);
+                            const res = await leadAPI.bulkCreateLeads(csvParsedRows as any);
+                            setCsvImportResult({
+                              import_batch_id: res.import_batch_id,
+                              created_lead_ids: res.created_lead_ids || [],
+                              total_leads: res.total_leads,
+                              successful_creates: res.successful_creates,
+                              failed_creates: res.failed_creates,
+                              errors: res.errors || [],
+                              detected_variable_keys: res.detected_variable_keys || [],
+                            });
+                            if (res.import_batch_id) {
+                              const key = `csv:${workspaceDetails?.id || 'ws'}:${res.import_batch_id}`;
+                              localStorage.setItem(key, JSON.stringify({
+                                import_batch_id: res.import_batch_id,
+                                created_lead_ids: res.created_lead_ids || [],
+                                detected_variable_keys: res.detected_variable_keys || [],
+                                ts: Date.now(),
+                              }));
+                            }
+                            toast({ title: 'CSV importiert', description: `${res.successful_creates} von ${res.total_leads} Leads importiert.` });
+                          } catch (e) {
+                            console.error(e);
+                            toast({ title: 'Fehler', description: 'CSV-Import fehlgeschlagen.', variant: 'destructive' });
+                          } finally {
+                            setIsUploadingCsv(false);
+                          }
+                        }}
+                      >
+                        {isUploadingCsv ? 'Importiere…' : 'Leads importieren'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -678,6 +806,79 @@ export default function LeadSources() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Inline, minimal CSV upload component (no external deps)
+function CsvUploadInline({ isUploading, onParsed }: { isUploading: boolean; onParsed: (rows: Record<string, any>[], info: { delimiter: string; header: string[]; filename?: string }) => void; }) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const dropRef = React.useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = React.useState(false);
+
+  const sniffDelimiter = (line: string): string => {
+    const candidates = [',', ';', '\t', '|'];
+    let best = ','; let bestCount = -1;
+    for (const c of candidates) {
+      const count = (line.match(new RegExp(`\\${c}`, 'g')) || []).length;
+      if (count > bestCount) { best = c; bestCount = count; }
+    }
+    return best;
+  };
+
+  const parseCsv = async (file: File): Promise<{ rows: Record<string, any>[]; info: { delimiter: string; header: string[]; filename?: string } }> => {
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return { rows: [], info: { delimiter: ',', header: [], filename: file.name } };
+    const delimiter = sniffDelimiter(lines[0]);
+    const header = lines[0].split(delimiter).map(h => h.trim());
+    const rows: Record<string, any>[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(delimiter);
+      const obj: Record<string, any> = {};
+      header.forEach((h, idx) => {
+        obj[h] = (cols[idx] ?? '').trim();
+      });
+      rows.push(obj);
+    }
+    return { rows, info: { delimiter, header, filename: file.name } };
+  };
+
+  return (
+    <div className="space-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const { rows, info } = await parseCsv(file);
+          onParsed(rows, info);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }}
+      />
+      <div
+        ref={dropRef}
+        onDragOver={(e) => { e.preventDefault(); if (!isDragging) setIsDragging(true); }}
+        onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+        onDrop={async (e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer?.files?.[0];
+          if (!file) return;
+          const { rows, info } = await parseCsv(file);
+          onParsed(rows, info);
+        }}
+        className={`border-2 border-dashed rounded-md p-6 text-center ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'}`}
+      >
+        <p className="text-sm text-gray-600 mb-3">Datei hierhin ziehen oder klicken um eine CSV auszuwählen</p>
+        <Button variant="outline" disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
+          {isUploading ? 'Lade hoch…' : 'CSV auswählen'}
+        </Button>
+      </div>
     </div>
   );
 }
