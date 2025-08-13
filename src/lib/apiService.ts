@@ -1895,7 +1895,7 @@ export const webhookAPI = {
   /**
    * Rotate token and return new token (one-time reveal)
    */
-  async rotateToken(sourceId: string): Promise<{ token: string }> {
+  async rotateToken(sourceId: string): Promise<{ token: string; url: string }> {
     console.log(`🔐 POST /api/webhook-sources/${sourceId}/rotate_token/ - Rotating token`);
     try {
       const response = await apiCall<any>(`/api/webhook-sources/${sourceId}/rotate_token/`, {
@@ -1905,6 +1905,34 @@ export const webhookAPI = {
       return response;
     } catch (error) {
       console.error('❌ Webhook source rotate token API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a webhook source
+   */
+  async deleteSource(sourceId: string): Promise<void> {
+    console.log(`🗑️ DELETE /api/webhook-sources/${sourceId}/ - Deleting webhook source`);
+    try {
+      await apiCall<void>(`/api/webhook-sources/${sourceId}/`, {
+        method: 'DELETE',
+      });
+      console.log('✅ Webhook source deleted');
+    } catch (error) {
+      console.error('❌ Delete webhook source API error:', error);
+      throw error;
+    }
+  },
+
+  async getFunnelVariables(funnelId: string): Promise<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>> {
+    try {
+      const res = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/variables/`, {
+        method: 'GET',
+      });
+      return res;
+    } catch (error) {
+      console.error('❌ Funnel variables API error:', error);
       throw error;
     }
   },

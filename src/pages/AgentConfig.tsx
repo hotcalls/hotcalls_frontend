@@ -112,6 +112,8 @@ export default function AgentConfig() {
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
   const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
+  const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
+  const variablesLoadedFor = useRef<string>("");
 
   // Load Event Types from Calendar API
   const loadEventTypes = async () => {
@@ -142,6 +144,38 @@ export default function AgentConfig() {
     } finally {
       setIsLoadingLeadForms(false);
     }
+  };
+
+  // Load variables for selected funnel
+  useEffect(() => {
+    const funnelId = config.selectedLeadForm;
+    if (!funnelId) {
+      setFunnelVariables([]);
+      variablesLoadedFor.current = "";
+      return;
+    }
+    if (variablesLoadedFor.current === funnelId) return;
+    (async () => {
+      try {
+        const vars = await funnelAPI.getFunnelVariables(funnelId);
+        setFunnelVariables(Array.isArray(vars) ? vars : []);
+        variablesLoadedFor.current = funnelId;
+      } catch (e) {
+        console.error('❌ Failed to load funnel variables:', e);
+        setFunnelVariables([]);
+      }
+    })();
+  }, [config.selectedLeadForm]);
+
+  const lastFocusedTextarea = useRef<HTMLTextAreaElement | null>(null);
+  const insertTokenAtCursor = (token: string, setter: (s: string)=>void, currentValue: string) => {
+    const el = lastFocusedTextarea.current;
+    if (!el) return;
+    const start = el.selectionStart ?? currentValue.length;
+    const end = el.selectionEnd ?? currentValue.length;
+    const next = currentValue.slice(0, start) + token + currentValue.slice(end);
+    setter(next);
+    requestAnimationFrame(() => el.setSelectionRange(start + token.length, start + token.length));
   };
 
   // Helper function to map personality to character
@@ -970,29 +1004,7 @@ export default function AgentConfig() {
                 )}
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="outgoingGreeting">Begrüßung (Ausgehende Anrufe)</Label>
-                  <Textarea
-                    id="outgoingGreeting"
-                    value={config.outgoingGreeting || ""}
-                    onChange={(e) => setConfig(prev => ({ ...prev, outgoingGreeting: e.target.value }))}
-                    placeholder="Wie soll der Agent ausgehende Gespräche beginnen?"
-                    rows={3}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="incomingGreeting">Begrüßung (Eingehende Anrufe)</Label>
-                  <Textarea
-                    id="incomingGreeting"
-                    value={config.incomingGreeting || ""}
-                    onChange={(e) => setConfig(prev => ({ ...prev, incomingGreeting: e.target.value }))}
-                    placeholder="Wie soll der Agent eingehende Gespräche beginnen?"
-                    rows={3}
-                  />
-                </div>
-              </div>
+              {/* Begrüßungen ziehen wir in den Skript-Tab */}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1023,6 +1035,26 @@ export default function AgentConfig() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Variables Panel (minimal, orange) */}
+              <div className="mb-3">
+                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {funnelVariables.length === 0 ? (
+                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                  ) : (
+                    funnelVariables.map(v => (
+                      <button
+                        key={v.key}
+                        className="text-xs px-2 py-1 border rounded hover:bg-[#FEF5F1]"
+                        style={{borderColor:'#FE5B25', color:'#2d2d2d'}}
+                        onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                      >
+                        {v.label}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
               <div>
                 <Label htmlFor="script">Skript</Label>
                 <Textarea
@@ -1033,7 +1065,40 @@ export default function AgentConfig() {
                   placeholder="Schreiben Sie hier das Gesprächsskript für Ihren Agent..."
                   className="min-h-[300px]"
                 />
-
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                  <div>
+                    <Label htmlFor="outgoingGreeting">Begrüßung (Ausgehende Anrufe)</Label>
+                    <Textarea
+                      id="outgoingGreeting"
+                      value={config.outgoingGreeting || ""}
+                      onChange={(e) => setConfig(prev => ({ ...prev, outgoingGreeting: e.target.value }))}
+                      onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const token = e.dataTransfer.getData('text/plain');
+                        insertTokenAtCursor(token, val => setConfig(prev => ({...prev, outgoingGreeting: val})), config.outgoingGreeting || '');
+                      }}
+                      placeholder="Wie soll der Agent ausgehende Gespräche beginnen?"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="incomingGreeting">Begrüßung (Eingehende Anrufe)</Label>
+                    <Textarea
+                      id="incomingGreeting"
+                      value={config.incomingGreeting || ""}
+                      onChange={(e) => setConfig(prev => ({ ...prev, incomingGreeting: e.target.value }))}
+                      onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const token = e.dataTransfer.getData('text/plain');
+                        insertTokenAtCursor(token, val => setConfig(prev => ({...prev, incomingGreeting: val})), config.incomingGreeting || '');
+                      }}
+                      placeholder="Wie soll der Agent eingehende Gespräche beginnen?"
+                      rows={3}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
