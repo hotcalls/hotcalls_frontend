@@ -160,6 +160,7 @@ export default function LeadSources() {
       }
     }
     if (type === "Webhook") {
+      // Show lightweight onboarding CTA instead of creating a webhook now
       setIsWebhookNameStep(true);
       return;
     }
@@ -403,19 +404,24 @@ export default function LeadSources() {
               </div>
             ) : (
               <div className="grid gap-4 py-4">
-                <label className="text-sm font-medium">Name der Webhook-Quelle</label>
-                <input
-                  value={webhookName}
-                  onChange={(e) => setWebhookName(e.target.value)}
-                  className="border rounded px-3 py-2"
-                  placeholder="z. B. Website Formular"
-                />
-                <div className="flex items-center justify-end gap-2">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Webhook über Onboarding verbinden</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Um deine eigene Website oder externe Systeme per Webhook anzubinden, buche bitte kurz einen Termin. 
+                    Unser Experte hilft dir bei der sauberen Einrichtung.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between">
                   <Button variant="outline" onClick={() => { setIsWebhookNameStep(false); setWebhookName(""); }}>Zurück</Button>
-                  <Button onClick={handleCreateWebhook} disabled={isCreatingWebhook}>
-                    {isCreatingWebhook ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                    Erstellen
-                  </Button>
+                  <a
+                    href="https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Button>
+                      Termin buchen
+                    </Button>
+                  </a>
                 </div>
               </div>
             )}
