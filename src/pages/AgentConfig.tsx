@@ -14,7 +14,7 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, MakeTestCallRequest } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webhookAPI, MakeTestCallRequest } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -157,7 +157,13 @@ export default function AgentConfig() {
     if (variablesLoadedFor.current === funnelId) return;
     (async () => {
       try {
-        const vars = await funnelAPI.getFunnelVariables(funnelId);
+        const getVarsFn = (funnelAPI as any).getFunnelVariables || (webhookAPI as any).getFunnelVariables;
+        if (typeof getVarsFn !== 'function') {
+          console.error('❌ No getFunnelVariables function available on funnelAPI or webhookAPI');
+          setFunnelVariables([]);
+          return;
+        }
+        const vars = await getVarsFn(funnelId);
         setFunnelVariables(Array.isArray(vars) ? vars : []);
         variablesLoadedFor.current = funnelId;
       } catch (e) {
