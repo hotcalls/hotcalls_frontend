@@ -334,76 +334,32 @@ function EventTypeStep5({ formData, setFormData }: { formData: EventTypeFormData
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Meeting Location</h3>
-      
+
       <div>
         <Label className="text-base font-medium">Art des Meetings</Label>
         <p className="text-sm text-muted-foreground mb-3">
           Wählen Sie aus, ob das Meeting online oder vor Ort stattfindet
         </p>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <input
-              type="radio"
-              id="online"
-              name="meeting_type"
-              value="online"
-              checked={formData.meeting_type === 'online'}
-              onChange={(e) => setFormData({...formData, meeting_type: e.target.value as 'online' | 'in_person'})}
-              className="peer sr-only"
-            />
-            <Label 
-              htmlFor="online" 
-              className={`
-                cursor-pointer block w-full py-3 px-4 text-center rounded-lg border-2 transition-all
-                ${formData.meeting_type === 'online' 
-                  ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
-                }
-              `}
-            >
-              📹 Online Meeting
-            </Label>
-          </div>
-          <div>
-            <input
-              type="radio"
-              id="in_person"
-              name="meeting_type"
-              value="in_person"
-              checked={formData.meeting_type === 'in_person'}
-              onChange={(e) => setFormData({...formData, meeting_type: e.target.value as 'online' | 'in_person'})}
-              className="peer sr-only"
-            />
-            <Label 
-              htmlFor="in_person" 
-              className={`
-                cursor-pointer block w-full py-3 px-4 text-center rounded-lg border-2 transition-all
-                ${formData.meeting_type === 'in_person' 
-                  ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
-                }
-              `}
-            >
-              📍 Vor Ort
-            </Label>
-          </div>
+          <Button
+            variant={formData.meeting_type === 'online' ? 'default' : 'outline'}
+            className={formData.meeting_type === 'online' ? 'bg-[#FE5B25]' : ''}
+            onClick={() => setFormData({ ...formData, meeting_type: 'online' })}
+          >
+            📹 Online Meeting
+          </Button>
+          <Button
+            variant={formData.meeting_type === 'in_person' ? 'default' : 'outline'}
+            className={formData.meeting_type === 'in_person' ? 'bg-[#FE5B25]' : ''}
+            onClick={() => setFormData({ ...formData, meeting_type: 'in_person' })}
+          >
+            📍 Vor Ort
+          </Button>
         </div>
+        {formData.meeting_type === 'online' && (
+          <p className="text-xs text-muted-foreground mt-2">Der Meeting‑Link wird automatisch vom Provider erstellt (Google Meet oder Microsoft Teams).</p>
+        )}
       </div>
-
-      {formData.meeting_type === 'online' && (
-        <div>
-          <Label htmlFor="meeting-link">Meeting Link</Label>
-          <p className="text-sm text-muted-foreground mb-2">
-            Geben Sie Ihren Zoom, Teams oder anderen Meeting-Link ein
-          </p>
-          <Input 
-            id="meeting-link"
-            placeholder="z.B. https://zoom.us/j/123456789"
-            value={formData.meeting_link}
-            onChange={(e) => setFormData({...formData, meeting_link: e.target.value})}
-          />
-        </div>
-      )}
 
       {formData.meeting_type === 'in_person' && (
         <div>
@@ -411,11 +367,11 @@ function EventTypeStep5({ formData, setFormData }: { formData: EventTypeFormData
           <p className="text-sm text-muted-foreground mb-2">
             Geben Sie die Adresse ein, wo das Meeting stattfindet
           </p>
-          <Input 
+          <Input
             id="meeting-address"
             placeholder="z.B. Musterstraße 123, 12345 Musterstadt"
             value={formData.meeting_address}
-            onChange={(e) => setFormData({...formData, meeting_address: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, meeting_address: e.target.value })}
           />
         </div>
       )}
