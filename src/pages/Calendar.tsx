@@ -843,6 +843,14 @@ export default function Calendar() {
     eventType: any | null;
   }>({ show: false, eventType: null });
 
+  // Determine if any provider has at least one connected calendar
+  const hasAnyCalendarConnected = React.useMemo(() => {
+    const hasGoogle = googleConnections.length > 0 && connectedCalendars.length > 0;
+    const msCalendarsCount = Object.values(msCalendarsByConnection || {}).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+    const hasMicrosoft = microsoftConnections.length > 0 && msCalendarsCount > 0;
+    return hasGoogle || hasMicrosoft;
+  }, [googleConnections.length, connectedCalendars.length, microsoftConnections.length, msCalendarsByConnection]);
+
   // Track deleted connections in localStorage to prevent reload issues
   const getDeletedConnections = (): string[] => {
     try {
@@ -1203,7 +1211,7 @@ export default function Calendar() {
         </div>
         <Button 
           onClick={activeTab === 'calendars' ? () => setShowProviderDialog(true) : () => setShowEventTypeModal(true)}
-          disabled={activeTab === 'event-types' && !(googleConnections.length > 0 && connectedCalendars.length > 0)}
+          disabled={activeTab === 'event-types' && !hasAnyCalendarConnected}
           className="bg-[#FE5B25] hover:bg-[#E5522A] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -1323,13 +1331,13 @@ export default function Calendar() {
                 <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Noch keine Event Types</h3>
                 <p className="text-muted-foreground mb-4">
-                  {googleConnections.length > 0 && connectedCalendars.length > 0 
+                  {hasAnyCalendarConnected
                     ? "Erstellen Sie Ihren ersten Event Type, um Buchungen zu ermöglichen."
-                    : "Verbinden Sie zuerst einen Kalender, um Event Types zu erstellen."
-                  }
+                    : "Verbinden Sie zuerst einen Kalender (Google oder Microsoft 365), um Event Types zu erstellen."
+                 }
                 </p>
                 {/* Event Type Creation - Only if calendar connected (like WelcomeOverlay pattern) */}
-                {googleConnections.length > 0 && connectedCalendars.length > 0 && (
+                {hasAnyCalendarConnected && (
                   <Button 
                     onClick={() => setShowEventTypeModal(true)}
                     className="bg-[#FE5B25] hover:bg-[#E5522A]"
