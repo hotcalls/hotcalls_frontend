@@ -184,6 +184,23 @@ export default function AgentConfig() {
     requestAnimationFrame(() => el.setSelectionRange(start + token.length, start + token.length));
   };
 
+  const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-gradient-to-br from-[#FE7A2B] to-[#FE5B25] shadow-sm hover:from-[#FE6A2F] hover:to-[#E14A12] transition";
+  const renderPreview = (content: string) => {
+    const parts = content.split(/(\{\{[^}]+\}\})/g);
+    return (
+      <div className="text-sm whitespace-pre-wrap leading-relaxed">
+        {parts.map((part, idx) => {
+          if (/^\{\{[^}]+\}\}$/.test(part)) {
+            return (
+              <span key={idx} className={`${tokenPillClass} mx-0.5`}>{part.replace(/\{\{|\}\}/g, '')}</span>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </div>
+    );
+  };
+
   // Helper function to map personality to character
   const mapPersonalityToCharacter = (personality: string): string => {
     switch (personality) {
@@ -1051,16 +1068,18 @@ export default function AgentConfig() {
                     <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
                   ) : (
                     funnelVariables.map(v => (
-                      <button
+                      <span
                         key={v.key}
-                        className="text-xs px-2 py-1 border rounded hover:bg-[#FEF5F1]"
-                        style={{borderColor:'#FE5B25', color:'#2d2d2d'}}
+                        role="button"
+                        tabIndex={0}
+                        className={`${tokenPillClass} cursor-pointer select-none`}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
                         onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
                       >
                         {v.label}
-                      </button>
+                      </span>
                     ))
                   )}
                 </div>
@@ -1081,6 +1100,9 @@ export default function AgentConfig() {
                   placeholder="Schreiben Sie hier das Gesprächsskript für Ihren Agent..."
                   className="min-h-[300px]"
                 />
+                <div className="mt-2">
+                  {renderPreview(config.script)}
+                </div>
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div>
                     <Label htmlFor="outgoingGreeting">Begrüßung (Ausgehende Anrufe)</Label>
@@ -1097,6 +1119,9 @@ export default function AgentConfig() {
                       placeholder="Wie soll der Agent ausgehende Gespräche beginnen?"
                       rows={3}
                     />
+                    <div className="mt-2">
+                      {renderPreview(config.outgoingGreeting || '')}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="incomingGreeting">Begrüßung (Eingehende Anrufe)</Label>
@@ -1113,6 +1138,9 @@ export default function AgentConfig() {
                       placeholder="Wie soll der Agent eingehende Gespräche beginnen?"
                       rows={3}
                     />
+                    <div className="mt-2">
+                      {renderPreview(config.incomingGreeting || '')}
+                    </div>
                   </div>
                 </div>
               </div>
