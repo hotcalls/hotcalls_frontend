@@ -113,7 +113,6 @@ export default function AgentConfig() {
   const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
   const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
-  const variablesLoadedFor = useRef<string>("");
 
   // Load Event Types from Calendar API
   const loadEventTypes = async () => {
@@ -151,10 +150,8 @@ export default function AgentConfig() {
     const funnelId = config.selectedLeadForm;
     if (!funnelId) {
       setFunnelVariables([]);
-      variablesLoadedFor.current = "";
       return;
     }
-    if (variablesLoadedFor.current === funnelId) return;
     (async () => {
       try {
         const getVarsFn = (funnelAPI as any).getFunnelVariables || (webhookAPI as any).getFunnelVariables;
@@ -165,7 +162,6 @@ export default function AgentConfig() {
         }
         const vars = await getVarsFn(funnelId);
         setFunnelVariables(Array.isArray(vars) ? vars : []);
-        variablesLoadedFor.current = funnelId;
       } catch (e) {
         console.error('❌ Failed to load funnel variables:', e);
         setFunnelVariables([]);
@@ -176,7 +172,11 @@ export default function AgentConfig() {
   const lastFocusedTextarea = useRef<HTMLTextAreaElement | null>(null);
   const insertTokenAtCursor = (token: string, setter: (s: string)=>void, currentValue: string) => {
     const el = lastFocusedTextarea.current;
-    if (!el) return;
+    // Fallback: wenn kein Fokus-Textarea vorhanden, ans Ende anhängen
+    if (!el) {
+      setter((currentValue || '') + token);
+      return;
+    }
     const start = el.selectionStart ?? currentValue.length;
     const end = el.selectionEnd ?? currentValue.length;
     const next = currentValue.slice(0, start) + token + currentValue.slice(end);
@@ -1042,7 +1042,9 @@ export default function AgentConfig() {
             </CardHeader>
             <CardContent>
               {/* Variables Panel (minimal, orange) */}
-              <div className="mb-3">
+              <div className="mb-3"
+                   onDragOver={(e) => e.preventDefault()}
+              >
                 <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {funnelVariables.length === 0 ? (
@@ -1053,6 +1055,8 @@ export default function AgentConfig() {
                         key={v.key}
                         className="text-xs px-2 py-1 border rounded hover:bg-[#FEF5F1]"
                         style={{borderColor:'#FE5B25', color:'#2d2d2d'}}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
                         onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
                       >
                         {v.label}
@@ -1068,6 +1072,12 @@ export default function AgentConfig() {
                   rows={12}
                   value={config.script}
                   onChange={(e) => setConfig(prev => ({ ...prev, script: e.target.value }))}
+                  onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const token = e.dataTransfer.getData('text/plain');
+                    insertTokenAtCursor(token, val => setConfig(prev => ({...prev, script: val})), config.script || '');
+                  }}
                   placeholder="Schreiben Sie hier das Gesprächsskript für Ihren Agent..."
                   className="min-h-[300px]"
                 />
