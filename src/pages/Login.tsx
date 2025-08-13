@@ -111,10 +111,16 @@ const Login = () => {
         // Don't fail completely, as the session might still work
       }
 
-      // Smart routing: Always redirect to dashboard
-      // The welcome flow will be shown as an overlay if user hasn't completed it
-      console.log('📊 Redirecting to dashboard');
-      navigate("/dashboard");
+      // Smart routing: respect `next` param if provided (used by invitation flow)
+      const params = new URLSearchParams(location.search);
+      const nextParam = params.get('next');
+      const nextPath = nextParam && nextParam.startsWith('/') ? nextParam : null;
+      console.log('📊 Post-login navigation:', { nextParam, nextPath });
+      if (nextPath) {
+        navigate(nextPath);
+      } else {
+        navigate("/dashboard");
+      }
 
       // Optional: Check if user has agents for logging purposes (with better error handling)
       try {
