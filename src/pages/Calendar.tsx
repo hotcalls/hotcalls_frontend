@@ -1388,26 +1388,27 @@ export default function Calendar() {
       </AlertDialog>
 
       {/* Provider Select Dialog */}
-      {showProviderDialog && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Kalender-Provider auswählen</h3>
-              <button onClick={() => setShowProviderDialog(false)}>
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <Button variant="outline" className="justify-start" onClick={handleConnectGoogleCalendar}>
-                <span className="mr-2">🟢</span> Google Kalender verbinden
-              </Button>
-              <Button variant="outline" className="justify-start" onClick={handleConnectMicrosoftCalendar}>
-                <span className="mr-2">🔵</span> Microsoft 365 (Outlook/Exchange) verbinden
-              </Button>
-            </div>
+      <AlertDialog open={showProviderDialog} onOpenChange={setShowProviderDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kalender-Provider auswählen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Wähle, welchen Kalender du verbinden möchtest.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid grid-cols-1 gap-3">
+            <Button variant="outline" className="justify-start" onClick={handleConnectGoogleCalendar}>
+              <span className="mr-2">🟢</span> Google Kalender verbinden
+            </Button>
+            <Button variant="outline" className="justify-start" onClick={handleConnectMicrosoftCalendar}>
+              <span className="mr-2">🔵</span> Microsoft 365 (Outlook/Exchange) verbinden
+            </Button>
           </div>
-        </div>
-      )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Schließen</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Microsoft Disconnect Confirmation Dialog */}
       <AlertDialog 
@@ -1579,6 +1580,93 @@ function GoogleConnectionCard({
                 ))}
               </div>
             )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Microsoft 365 Connection Card Component
+function MicrosoftConnectionCard({
+  connection,
+  calendars,
+  isDisconnecting,
+  onRefresh,
+  onDisconnect
+}: {
+  connection: MicrosoftConnection;
+  calendars: Array<{ id: string; name: string; isPrimary?: boolean }>;
+  isDisconnecting: boolean;
+  onRefresh: () => void;
+  onDisconnect: () => void;
+}) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    try {
+      setIsRefreshing(true);
+      await onRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const primaryCal = calendars.find(c => c.isPrimary);
+  const subCount = calendars.length > 0 ? calendars.length - (primaryCal ? 1 : 0) : 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <CalendarIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Microsoft 365</CardTitle>
+              <p className="text-sm text-muted-foreground">{connection.primary_email}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+              {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aktualisieren'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDisconnect}
+              disabled={isDisconnecting}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              {isDisconnecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-center mb-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-600">{calendars.length}</p>
+            <p className="text-sm text-muted-foreground">Verbundene Kalender</p>
+          </div>
+        </div>
+
+        {subCount > 0 && (
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {calendars.map((cal) => (
+              <div key={cal.id} className="flex items-center gap-2 p-2 text-sm bg-muted/50 rounded">
+                <div className="w-2 h-2 bg-muted-foreground rounded-full" />
+                <span className="truncate flex-1">{cal.name}</span>
+                {cal.isPrimary ? (
+                  <span className="text-xs text-blue-600">Primär</span>
+                ) : null}
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
