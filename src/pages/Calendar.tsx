@@ -149,7 +149,7 @@ function EventTypeStep2({ formData, setFormData, availableCalendars }: {
         <p className="text-sm text-muted-foreground mb-2">
           Wählen Sie den Kalender aus, in den die Buchungen dieses Event-Types eingetragen werden sollen.
         </p>
-        <Select 
+          <Select 
           value={formData.calendar}
           onValueChange={(value) => setFormData({...formData, calendar: value})}
         >
@@ -160,14 +160,14 @@ function EventTypeStep2({ formData, setFormData, availableCalendars }: {
             <SelectItem value="none">Kein Zielkalender</SelectItem>
             {availableCalendars.map((cal) => (
               <SelectItem key={cal.id} value={cal.id}>
-                {cal.name} {cal.provider_details?.external_id ? `(Google: ${cal.provider_details.external_id})` : '(Google Calendar)'}
+                {cal.name} ({cal.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <div>
+          <div>
         <Label>Kalender für Verfügbarkeitsprüfung</Label>
         <p className="text-sm text-muted-foreground mb-3">
           Wählen Sie die Kalender aus, die auf Konflikte geprüft werden sollen.
@@ -192,8 +192,8 @@ function EventTypeStep2({ formData, setFormData, availableCalendars }: {
                   }
                 }}
               />
-              <Label htmlFor={cal.id} className="flex items-center space-x-2">
-                <span>{cal.name}</span>
+                  <Label htmlFor={cal.id} className="flex items-center space-x-2">
+                    <span>{cal.name} <span className="text-xs text-muted-foreground">({cal.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})</span></span>
                 {formData.calendar === cal.id && formData.calendar !== 'none' && (
                   <Badge className="bg-[#FE5B25] text-white text-xs">Zielkalender</Badge>
                 )}
@@ -999,7 +999,7 @@ export default function Calendar() {
 
       setConnectedCalendars(convertedCalendars);
       
-      // Store all individual backend calendars for Event Type creation
+      // Store provider-agnostic calendars for Event Type creation (Google + Microsoft)
       setAllBackendCalendars(calendars);
       
       console.log(`✅ Loaded ${filteredConnections.length} Google connections, ${msConnectionsResponse.length} Microsoft connections and ${convertedCalendars.length} calendars`);
