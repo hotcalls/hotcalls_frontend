@@ -506,7 +506,7 @@ function EventTypeModal({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto relative">
+      <AlertDialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         {/* Close Button - minimalistisches X rechts oben */}
         <button
           onClick={() => onOpenChange(false)}
@@ -718,7 +718,7 @@ function EventTypeEditModal({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <AlertDialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
         <AlertDialogHeader className="border-b pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
