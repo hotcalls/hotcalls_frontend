@@ -1848,6 +1848,24 @@ export const funnelAPI = {
       throw error;
     }
   },
+
+  /**
+   * Get variables for a specific funnel (core + recent custom)
+   */
+  async getFunnelVariables(
+    funnelId: string
+  ): Promise<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>> {
+    console.log(`📋 GET /api/funnels/lead-funnels/${funnelId}/variables/`);
+    try {
+      const res = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/variables/`, {
+        method: 'GET',
+      });
+      return Array.isArray(res) ? res : [];
+    } catch (error) {
+      console.error('❌ Funnel variables API error:', error);
+      throw error;
+    }
+  },
 }; 
 
 // Webhook Source API calls
@@ -1925,17 +1943,7 @@ export const webhookAPI = {
     }
   },
 
-  async getFunnelVariables(funnelId: string): Promise<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>> {
-    try {
-      const res = await apiCall<any>(`/api/funnels/lead-funnels/${funnelId}/variables/`, {
-        method: 'GET',
-      });
-      return res;
-    } catch (error) {
-      console.error('❌ Funnel variables API error:', error);
-      throw error;
-    }
-  },
+  
 };
 
 // Chart Data Generation using Real APIs
