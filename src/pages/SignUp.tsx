@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import SignupStep1 from "./SignupStep1";
 import SignupStep2 from "./SignupStep2";
@@ -13,6 +13,8 @@ import {
 const SignUp = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const location = useLocation();
+  const nextParam = new URLSearchParams(location.search).get('next');
   const [isLoading, setIsLoading] = useState(false);
   const [signupData, setSignupData] = useState<Partial<CompleteSignupData>>({});
 
@@ -43,7 +45,7 @@ const SignUp = () => {
       });
 
       // Navigate to a verification pending page or show instructions
-      navigate("/email-verification-pending", { 
+      navigate(`/email-verification-pending${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ''}`, { 
         state: { email: registrationResponse.email } 
       });
       

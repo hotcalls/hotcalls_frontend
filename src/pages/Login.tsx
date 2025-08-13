@@ -17,6 +17,8 @@ const Login = () => {
   });
   const navigate = useNavigate();
   const location = useLocation();
+  const paramsForLinks = new URLSearchParams(location.search);
+  const nextQuery = paramsForLinks.get('next');
 
   // Handle registration success message and pre-fill email
   useEffect(() => {
@@ -325,7 +327,7 @@ const Login = () => {
                 Noch kein Account? 
               </span>
               {" "}
-              <Link to="/signup" className="text-primary hover:underline font-medium">
+              <Link to={nextQuery ? `/signup?next=${encodeURIComponent(nextQuery)}` : "/signup"} className="text-primary hover:underline font-medium">
                 Jetzt registrieren
               </Link>
             </div>

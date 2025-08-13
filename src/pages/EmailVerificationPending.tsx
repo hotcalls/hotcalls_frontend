@@ -10,6 +10,7 @@ const EmailVerificationPending = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const nextParam = searchParams.get('next');
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'success' | 'error'>('pending');
 
@@ -50,7 +51,8 @@ const EmailVerificationPending = () => {
       // Navigate to login page (not dashboard) after a short delay
       // User needs to actually login to get session cookies!
       setTimeout(() => {
-        navigate("/login", { 
+        const loginUrl = nextParam ? `/login?next=${encodeURIComponent(nextParam)}` : "/login";
+        navigate(loginUrl, { 
           state: { 
             email: user.email,
             message: "Ihr Konto wurde erfolgreich verifiziert. Bitte melden Sie sich an."
