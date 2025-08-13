@@ -467,7 +467,7 @@ function EventTypeModal({
 
   const handleSubmit = async () => {
     try {
-      const payload = {
+        const payload = {
         id: crypto.randomUUID(),
         name: formData.name,
         calendar: formData.calendar === 'none' ? null : formData.calendar,
@@ -477,9 +477,8 @@ function EventTypeModal({
         from_time: formData.from_time,
         to_time: formData.to_time,
         workdays: formData.workdays,
-        meeting_type: formData.meeting_type,
-        meeting_link: formData.meeting_link,
-        meeting_address: formData.meeting_address,
+          meeting_type: formData.meeting_type,
+          meeting_address: formData.meeting_type === 'in_person' ? formData.meeting_address : '',
         conflict_calendars: formData.conflictCheckCalendars
       };
 
@@ -690,8 +689,7 @@ function EventTypeEditModal({
         to_time: editFormData.to_time,
         workdays: editFormData.workdays,
         meeting_type: editFormData.meeting_type,
-        meeting_link: editFormData.meeting_link,
-        meeting_address: editFormData.meeting_address,
+        meeting_address: editFormData.meeting_type === 'in_person' ? editFormData.meeting_address : '',
         conflict_calendars: editFormData.conflictCheckCalendars
       };
 
