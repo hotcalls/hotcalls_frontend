@@ -18,10 +18,18 @@ export function Layout({ children }: LayoutProps) {
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
 
   useEffect(() => {
-    // Temporarily disable Welcome Flow for development
-    setShowWelcome(false);
-    setIsCheckingSubscription(false);
-    
+    // Respect skip_welcome URL flag coming from invite-accept redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('skip_welcome') === '1') {
+      setShowWelcome(false);
+      setIsCheckingSubscription(false);
+      // Do not return; still fall through to clear logic below
+    } else {
+      // Temporarily disable Welcome Flow for development (default behavior)
+      setShowWelcome(false);
+      setIsCheckingSubscription(false);
+    }
+
     /* 
     const checkWelcomeFlow = async () => {
       try {

@@ -31,9 +31,13 @@ export function useWorkspace() {
       setWorkspaces(workspaceData);
       setCurrentUser(userProfile);
 
-      // Fetch details for the first workspace
+      // Choose primary workspace: prefer joined_workspace from URL, else first
       if (workspaceData.length > 0) {
-        const primaryWorkspace = workspaceData[0];
+        const params = new URLSearchParams(window.location.search);
+        const joinedWorkspaceParam = params.get('joined_workspace');
+        const primaryWorkspace = joinedWorkspaceParam
+          ? (workspaceData.find(w => String(w.id) === String(joinedWorkspaceParam)) || workspaceData[0])
+          : workspaceData[0];
         console.log('🔍 Fetching details for primary workspace:', primaryWorkspace.id);
         
         try {
@@ -44,6 +48,18 @@ export function useWorkspace() {
           console.warn('⚠️ Could not fetch workspace details:', detailsError);
           // Set basic workspace info even if details fail
           setWorkspaceDetails(primaryWorkspace);
+        }
+
+        // Clean URL params after processing to avoid side effects
+        try {
+          if (joinedWorkspaceParam || params.get('skip_welcome')) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('joined_workspace');
+            url.searchParams.delete('skip_welcome');
+            window.history.replaceState({}, '', url.toString());
+          }
+        } catch (e) {
+          // ignore URL cleanup errors
         }
       }
     } catch (err) {
