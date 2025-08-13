@@ -1161,6 +1161,17 @@ export interface GoogleConnection {
   status: string;
 }
 
+export interface MicrosoftConnection {
+  id: string;
+  workspace: string;
+  primary_email: string;
+  display_name?: string;
+  timezone_windows?: string;
+  active: boolean;
+  last_sync?: string | null;
+  created_at?: string;
+}
+
 // Calendar API calls
 export const calendarAPI = {
   /**
@@ -1196,6 +1207,21 @@ export const calendarAPI = {
   },
 
   /**
+   * Get Microsoft 365 Calendar connections
+   */
+  async getMicrosoftConnections(): Promise<MicrosoftConnection[]> {
+    console.log('🔗 GET /api/calendars/microsoft_connections/ - Fetching Microsoft connections');
+    try {
+      const response = await apiCall<MicrosoftConnection[]>('/api/calendars/microsoft_connections/');
+      console.log('✅ Microsoft connections loaded:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Microsoft connections API error:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Generate Google OAuth URL
    */
   async getGoogleOAuthURL(): Promise<{
@@ -1219,6 +1245,69 @@ export const calendarAPI = {
       console.error('❌ Google OAuth URL generation error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Generate Microsoft OAuth URL
+   */
+  async getMicrosoftOAuthURL(): Promise<{
+    authorization_url: string;
+    state: string;
+  }> {
+    console.log('🔐 POST /api/calendars/microsoft_auth_url/ - Generating OAuth URL');
+    try {
+      const response = await apiCall<{ authorization_url: string; state: string }>('/api/calendars/microsoft_auth_url/', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      console.log('✅ Microsoft OAuth URL generated:', response.authorization_url);
+      return response;
+    } catch (error) {
+      console.error('❌ Microsoft OAuth URL generation error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * List Microsoft calendars for a connection
+   */
+  async getMicrosoftCalendars(connectionId: string): Promise<Array<{ id: string; name: string; is_primary: boolean; owner_email: string; can_edit: boolean }>> {
+    const url = `/api/calendars/microsoft_calendars/?connection_id=${encodeURIComponent(connectionId)}`;
+    return apiCall(url);
+  },
+
+  /**
+   * Refresh Microsoft connection
+   */
+  async refreshMicrosoftConnection(connectionId: string): Promise<any> {
+    return apiCall(`/api/calendars/${connectionId}/microsoft_refresh/`, { method: 'POST' });
+  },
+
+  /**
+   * Disconnect Microsoft connection
+   */
+  async disconnectMicrosoftCalendar(connectionId: string): Promise<{ success: boolean; message?: string; }>{
+    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect/`, { method: 'POST' });
+  },
+
+  /**
+   * Save Microsoft-specific settings for a connection
+   */
+  async saveMicrosoftSettings(connectionId: string, settings: Record<string, any>): Promise<{ saved: boolean; settings: Record<string, any> }>{
+    return apiCall(`/api/calendars/${connectionId}/settings/`, {
+      method: 'POST',
+      body: JSON.stringify(settings)
+    });
+  },
+
+  /**
+   * Create Microsoft subscription (webhook)
+   */
+  async subscribeMicrosoft(connectionId: string, body: { notificationUrl?: string; clientState?: string }): Promise<any> {
+    return apiCall(`/api/calendars/${connectionId}/microsoft_subscribe/`, {
+      method: 'POST',
+      body: JSON.stringify(body || {})
+    });
   },
 
   /**

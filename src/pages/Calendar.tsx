@@ -39,7 +39,7 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { calendarAPI, BackendCalendar, GoogleConnection } from "@/lib/apiService";
+import { calendarAPI, BackendCalendar, GoogleConnection, MicrosoftConnection } from "@/lib/apiService";
 import { getCalendarDisplayName, getCalendarEmail, saveCalendars } from "@/lib/calendarService";
 
 // Types
@@ -816,8 +816,13 @@ export default function Calendar() {
   // States
   const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>([]);
   const [googleConnections, setGoogleConnections] = useState<GoogleConnection[]>([]);
+  const [microsoftConnections, setMicrosoftConnections] = useState<MicrosoftConnection[]>([]);
+  const [showProviderDialog, setShowProviderDialog] = useState(false);
+  const [msCalendarsByConnection, setMsCalendarsByConnection] = useState<Record<string, { id: string; name: string; is_primary: boolean; owner_email: string; can_edit: boolean }[]>>({});
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(true);
   const [disconnectingConnectionId, setDisconnectingConnectionId] = useState<string | null>(null);
+  const [msDisconnectingConnectionId, setMsDisconnectingConnectionId] = useState<string | null>(null);
+  const [msRefreshingConnectionId, setMsRefreshingConnectionId] = useState<string | null>(null);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState<{ 
     show: boolean; 
     connection: GoogleConnection | null; 
@@ -919,8 +924,9 @@ export default function Calendar() {
   const loadCalendarsFromBackend = async () => {
     setIsLoadingCalendars(true);
     try {
-      const [connectionsResponse, calendarsResponse] = await Promise.all([
+      const [connectionsResponse, msConnectionsResponse, calendarsResponse] = await Promise.all([
         calendarAPI.getGoogleConnections(),
+        calendarAPI.getMicrosoftConnections(),
         calendarAPI.getCalendars()
       ]);
 
@@ -929,6 +935,20 @@ export default function Calendar() {
       const filteredConnections = connectionsResponse;
 
       setGoogleConnections(filteredConnections);
+      setMicrosoftConnections(msConnectionsResponse || []);
+      // Load Microsoft calendars per connection to mirror Google UI
+      try {
+        const msMap: Record<string, any[]> = {};
+        await Promise.all((msConnectionsResponse || []).map(async (c: MicrosoftConnection) => {
+          try {
+            const list = await calendarAPI.getMicrosoftCalendars(c.id);
+            msMap[c.id] = Array.isArray(list) ? list : [];
+          } catch (e) {
+            msMap[c.id] = [];
+          }
+        }));
+        setMsCalendarsByConnection(msMap);
+      } catch {}
       // BUGFIX: Handle paginated response
       const calendars = Array.isArray(calendarsResponse) 
         ? calendarsResponse 
@@ -981,7 +1001,7 @@ export default function Calendar() {
       // Store all individual backend calendars for Event Type creation
       setAllBackendCalendars(calendars);
       
-      console.log(`✅ Loaded ${filteredConnections.length} connections and ${convertedCalendars.length} calendars (filtered deleted connections)`);
+      console.log(`✅ Loaded ${filteredConnections.length} Google connections, ${msConnectionsResponse.length} Microsoft connections and ${convertedCalendars.length} calendars`);
       
     } catch (error) {
       console.error('❌ Error loading calendars:', error);
@@ -991,6 +1011,51 @@ export default function Calendar() {
       setAllBackendCalendars([]);
     } finally {
       setIsLoadingCalendars(false);
+    }
+  };
+
+  // Microsoft actions
+  const handleRefreshMicrosoftConnection = async (connectionId: string) => {
+    try {
+      setMsRefreshingConnectionId(connectionId);
+      await calendarAPI.refreshMicrosoftConnection(connectionId);
+      toast({ title: 'Aktualisiert', description: 'Microsoft Verbindung aktualisiert.' });
+    } catch (e) {
+      console.error('❌ Refresh Microsoft error:', e);
+      toast({ title: 'Fehler', description: 'Aktualisieren fehlgeschlagen.', variant: 'destructive' });
+    } finally {
+      setMsRefreshingConnectionId(null);
+      loadCalendarsFromBackend();
+    }
+  };
+
+  const handleDisconnectMicrosoftConnection = async (connectionId: string) => {
+    setShowMsDisconnectConfirm({ show: true, connectionId });
+  };
+
+  const [showMsDisconnectConfirm, setShowMsDisconnectConfirm] = useState<{ show: boolean; connectionId: string | null }>({ show: false, connectionId: null });
+
+  const confirmDisconnectMicrosoft = async () => {
+    const id = showMsDisconnectConfirm.connectionId;
+    if (!id) return;
+    try {
+      setMsDisconnectingConnectionId(id);
+      const res = await calendarAPI.disconnectMicrosoftCalendar(id);
+      if (res?.success) {
+        setMicrosoftConnections(prev => prev.filter(c => c.id !== id));
+        const map = { ...msCalendarsByConnection };
+        delete map[id];
+        setMsCalendarsByConnection(map);
+        toast({ title: 'Verbindung getrennt', description: 'Microsoft 365 wurde getrennt.' });
+      } else {
+        throw new Error(res?.message || 'Trennen fehlgeschlagen');
+      }
+    } catch (e) {
+      console.error('❌ Disconnect Microsoft error:', e);
+      toast({ title: 'Fehler', description: 'Trennen fehlgeschlagen.', variant: 'destructive' });
+    } finally {
+      setMsDisconnectingConnectionId(null);
+      setShowMsDisconnectConfirm({ show: false, connectionId: null });
     }
   };
 
@@ -1004,6 +1069,20 @@ export default function Calendar() {
       toast({
         title: "Verbindung fehlgeschlagen",
         description: "Google Kalender konnte nicht verbunden werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConnectMicrosoftCalendar = async () => {
+    try {
+      const oauthResponse = await calendarAPI.getMicrosoftOAuthURL();
+      window.location.href = oauthResponse.authorization_url;
+    } catch (error) {
+      console.error('❌ Failed to initiate Microsoft OAuth:', error);
+      toast({
+        title: "Verbindung fehlgeschlagen",
+        description: "Microsoft 365 Kalender konnte nicht verbunden werden.",
         variant: "destructive",
       });
     }
@@ -1083,7 +1162,19 @@ export default function Calendar() {
       loadEventTypes();
     }
 
-    // Handle success message from OAuth callback
+    // Handle success message from OAuth callback via state or query
+    const params = new URLSearchParams(location.search);
+    const oauthSuccess = params.get('oauth_success');
+    const provider = params.get('provider');
+
+    if (oauthSuccess === 'true') {
+      const prov = provider === 'microsoft' ? 'Microsoft 365' : 'Google Calendar';
+      toast({ title: 'Kalender verbunden', description: `${prov} erfolgreich verbunden.` });
+      // Clear query params
+      navigate(location.pathname, { replace: true });
+      loadCalendarsFromBackend();
+    }
+
     if (location.state?.newConnection) {
       // Bei neuer Connection: Lösche die Liste der gelöschten Connections
       clearDeletedConnections();
@@ -1111,7 +1202,7 @@ export default function Calendar() {
           </p>
         </div>
         <Button 
-          onClick={activeTab === 'calendars' ? handleConnectGoogleCalendar : () => setShowEventTypeModal(true)}
+          onClick={activeTab === 'calendars' ? () => setShowProviderDialog(true) : () => setShowEventTypeModal(true)}
           disabled={activeTab === 'event-types' && !(googleConnections.length > 0 && connectedCalendars.length > 0)}
           className="bg-[#FE5B25] hover:bg-[#E5522A] disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -1161,16 +1252,35 @@ export default function Calendar() {
                 </div>
               )}
 
-              {/* Show "Noch keine Kalender verbunden" only if no Google connections */}
-              {googleConnections.length === 0 && (
+              {/* Microsoft Connections */}
+              {microsoftConnections.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Microsoft 365 Verbindungen</h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {microsoftConnections.map((conn) => (
+                      <MicrosoftConnectionCard
+                        key={conn.id}
+                        connection={conn}
+                        calendars={(msCalendarsByConnection[conn.id] || []).map(c => ({ id: c.id, name: c.name, isPrimary: c.is_primary }))}
+                        isDisconnecting={msDisconnectingConnectionId === conn.id}
+                        onRefresh={() => handleRefreshMicrosoftConnection(conn.id)}
+                        onDisconnect={() => handleDisconnectMicrosoftConnection(conn.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Show "Noch keine Kalender verbunden" only if no connections */}
+              {googleConnections.length === 0 && microsoftConnections.length === 0 && (
                 <Card>
                   <CardContent className="text-center py-12">
                     <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Noch keine Kalender verbunden</h3>
                     <p className="text-muted-foreground mb-4">
-                      Verbinden Sie Ihren Google Kalender, um Event-Types zu erstellen.
+                      Verbinden Sie Ihren Kalender (Google oder Microsoft 365), um Event-Types zu erstellen.
                     </p>
-                    <Button onClick={handleConnectGoogleCalendar} className="bg-[#FE5B25] hover:bg-[#E5522A]">
+                    <Button onClick={() => setShowProviderDialog(true)} className="bg-[#FE5B25] hover:bg-[#E5522A]">
                       <Plus className="h-4 w-4 mr-2" />
                       Kalender verbinden
                     </Button>
@@ -1271,6 +1381,62 @@ export default function Calendar() {
               onClick={confirmDisconnectGoogleCalendar}
               className="bg-red-600 hover:bg-red-700"
             >
+              Verbindung trennen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Provider Select Dialog */}
+      {showProviderDialog && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Kalender-Provider auswählen</h3>
+              <button onClick={() => setShowProviderDialog(false)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <Button variant="outline" className="justify-start" onClick={handleConnectGoogleCalendar}>
+                <span className="mr-2">🟢</span> Google Kalender verbinden
+              </Button>
+              <Button variant="outline" className="justify-start" onClick={handleConnectMicrosoftCalendar}>
+                <span className="mr-2">🔵</span> Microsoft 365 (Outlook/Exchange) verbinden
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Microsoft Disconnect Confirmation Dialog */}
+      <AlertDialog 
+        open={showMsDisconnectConfirm.show}
+        onOpenChange={(open) => {
+          if (!open) setShowMsDisconnectConfirm({ show: false, connectionId: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Verbindung trennen (Microsoft 365)
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p> Sind Sie sicher, dass Sie die Microsoft 365 Verbindung trennen möchten?</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  <li>• Alle synchronisierten Kalender werden deaktiviert</li>
+                  <li>• Event-Type Konfigurationen bleiben erhalten</li>
+                  <li>• Neue Autorisierung für erneute Verbindung nötig</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDisconnectMicrosoft} className="bg-red-600 hover:bg-red-700">
               Verbindung trennen
             </AlertDialogAction>
           </AlertDialogFooter>
