@@ -38,6 +38,13 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { calendarAPI, BackendCalendar, GoogleConnection, MicrosoftConnection } from "@/lib/apiService";
 import { getCalendarDisplayName, getCalendarEmail, saveCalendars } from "@/lib/calendarService";
@@ -505,20 +512,11 @@ function EventTypeModal({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-        {/* Close Button - minimalistisches X rechts oben */}
-        <button
-          onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-10"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </button>
-        
-        <AlertDialogHeader>
-          <AlertDialogTitle>Event Type erstellen - Schritt {currentStep} von 5</AlertDialogTitle>
-        </AlertDialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Event Type erstellen - Schritt {currentStep} von 5</DialogTitle>
+        </DialogHeader>
         
         {/* Multi-Step Content */}
         {currentStep === 1 && (
@@ -537,7 +535,7 @@ function EventTypeModal({
           <EventTypeStep5 formData={formData} setFormData={setFormData} />
         )}
 
-        <AlertDialogFooter className="flex justify-between">
+        <DialogFooter className="flex justify-between">
           <div>
             {currentStep > 1 && (
               <Button variant="outline" onClick={handleBack}>
@@ -558,9 +556,9 @@ function EventTypeModal({
               </Button>
             )}
           </div>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -717,19 +715,14 @@ function EventTypeEditModal({
   ];
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
-        <AlertDialogHeader className="border-b pb-4">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden">
+        <DialogHeader className="border-b pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <AlertDialogTitle>Event-Typ bearbeiten</AlertDialogTitle>
+              <DialogTitle>Event-Typ bearbeiten</DialogTitle>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              <Plus className="h-4 w-4 rotate-45" />
-            </Button>
+            
           </div>
           
           {/* Tab Navigation */}
@@ -752,7 +745,7 @@ function EventTypeEditModal({
               ))}
             </div>
           </div>
-        </AlertDialogHeader>
+        </DialogHeader>
         
         <div className="flex-1 overflow-y-auto py-4">
           {activeEditTab === 'grundinformationen' && (
@@ -772,14 +765,14 @@ function EventTypeEditModal({
           )}
         </div>
 
-        <AlertDialogFooter className="border-t pt-4">
-          <AlertDialogCancel onClick={() => onOpenChange(false)}>Abbrechen</AlertDialogCancel>
+        <DialogFooter className="border-t pt-4">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
           <Button onClick={handleUpdate} className="bg-[#FE5B25] hover:bg-[#E5522A]">
             Änderungen speichern
           </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
