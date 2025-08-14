@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI } from "@/lib/apiService";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,6 +42,10 @@ export default function Leads() {
   const [selectedCsvFunnelId, setSelectedCsvFunnelId] = useState<string>("");
   const [agents, setAgents] = useState<any[]>([]);
   const [isPlanning, setIsPlanning] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [scheduleMode, setScheduleMode] = useState<'now'|'later'>('now');
+  const [scheduleAt, setScheduleAt] = useState<string>("");
 
   // Load leads from API
   const loadLeads = useCallback(async (page: number = 1) => {
@@ -181,43 +186,94 @@ export default function Leads() {
                 <PhoneCall className="h-5 w-5 text-[#FE5B25]" />
                 <span className="font-medium">Anrufe planen für CSV-Leads</span>
               </div>
-              {csvFunnels.length > 1 && (
-                <Select value={selectedCsvFunnelId || 'none'} onValueChange={(v) => setSelectedCsvFunnelId(v)}>
-                  <SelectTrigger className="w-[280px]"><SelectValue placeholder="CSV-Quelle wählen" /></SelectTrigger>
-                  <SelectContent>
-                    {csvFunnels.map((f: any) => (
-                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
               <Button
                 className="bg-[#FE5B25] hover:bg-[#e14a12]"
-                disabled={isPlanning || agents.length === 0 || (!selectedCsvFunnelId && csvFunnels.length > 1)}
+                disabled={false}
+                onClick={() => setPlanOpen(true)}
+              >
+                {isPlanning ? 'Plane…' : 'Anrufe planen'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Plan Dialog */}
+      <Dialog open={planOpen} onOpenChange={setPlanOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anrufe planen</DialogTitle>
+            <DialogDescription>Quelle, Agent und Zeitpunkt wählen. Planung erfolgt sofort und bestätigt mit einer Meldung.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="w-28 text-sm text-muted-foreground">CSV-Quelle</span>
+              <Select value={selectedCsvFunnelId || csvFunnels[0]?.id || 'none'} onValueChange={(v) => setSelectedCsvFunnelId(v)}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="CSV-Quelle wählen" /></SelectTrigger>
+                <SelectContent>
+                  {csvFunnels.map((f: any) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-28 text-sm text-muted-foreground">Agent</span>
+              <Select value={selectedAgentId || agents[0]?.agent_id || 'none'} onValueChange={(v) => setSelectedAgentId(v)}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Agent wählen" /></SelectTrigger>
+                <SelectContent>
+                  {agents.map((a: any) => (
+                    <SelectItem key={a.agent_id || a.id} value={a.agent_id || a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <input type="radio" id="mode-now" checked={scheduleMode==='now'} onChange={() => setScheduleMode('now')} />
+                <label htmlFor="mode-now" className="text-sm">Jetzt</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="radio" id="mode-later" checked={scheduleMode==='later'} onChange={() => setScheduleMode('later')} />
+                <label htmlFor="mode-later" className="text-sm">Zeitpunkt</label>
+                <input type="datetime-local" className="border rounded px-2 py-1 text-sm" disabled={scheduleMode!=='later'} value={scheduleAt} onChange={(e)=>setScheduleAt(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                className="bg-[#FE5B25] hover:bg-[#e14a12]"
+                disabled={isPlanning || !selectedCsvFunnelId || !selectedAgentId}
                 onClick={async () => {
                   try {
                     setIsPlanning(true);
                     const funnelId = selectedCsvFunnelId || csvFunnels[0]?.id;
-                    if (!funnelId) return;
-                    const agent = agents[0];
-                    if (!agent) { setIsPlanning(false); return; }
-                    let page = 1; const ids: string[] = [];
-                    while (page <= 5) {
+                    const agent = agents.find((a:any)=> (a.agent_id||a.id)===selectedAgentId) || agents[0];
+                    if (!funnelId || !agent) { setIsPlanning(false); return; }
+                    // assign agent to funnel (exclusive)
+                    try { await funnelAPI.assignAgent(funnelId, agent.agent_id || agent.id); } catch { try { await funnelAPI.unassignAgent(funnelId); await funnelAPI.assignAgent(funnelId, agent.agent_id || agent.id); } catch {} }
+                    // gather leads
+                    let page = 1; const ids: string[] = []; const MAX = 5000;
+                    while (ids.length < MAX) {
                       const resp: any = await leadAPI.getLeads({ page, page_size: 100, workspace: workspaceDetails?.id, ordering: '-created_at' } as any);
                       const results: Lead[] = resp?.results || [];
                       if (results.length === 0) break;
                       results.filter((l: any) => (l as any).lead_funnel?.id === funnelId || (l as any).lead_funnel === funnelId).forEach((l) => ids.push(l.id));
                       if (!resp.next) break; page += 1;
                     }
-                    const chunkSize = 25;
-                    for (let i = 0; i < ids.length; i += chunkSize) {
-                      const slice = ids.slice(i, i + chunkSize);
+                    // if later: naive client-side delay (optional)
+                    if (scheduleMode==='later' && scheduleAt) {
+                      const waitMs = new Date(scheduleAt).getTime() - Date.now();
+                      if (waitMs>0) await new Promise(r=>setTimeout(r, Math.min(waitMs, 60000))); // max 1min block
+                    }
+                    // send tasks
+                    for (let i = 0; i < ids.length; i += 25) {
+                      const slice = ids.slice(i, i + 25);
                       await Promise.all(slice.map(async (id) => {
-                        try {
-                          await (window as any).apiCall?.('/api/call_tasks/', { method: 'POST', body: JSON.stringify({ workspace: agent.workspace, agent: agent.agent_id || agent.id, target_ref: `lead:${id}` }) });
-                        } catch {}
+                        try { await (window as any).apiCall?.('/api/call_tasks/', { method: 'POST', body: JSON.stringify({ workspace: agent.workspace, agent: agent.agent_id || agent.id, target_ref: `lead:${id}` }) }); } catch {}
                       }));
                     }
+                    setPlanOpen(false);
                     toast({ title: 'Deine Anrufe wurden erfolgreich geplant' });
                   } finally {
                     setIsPlanning(false);
@@ -227,9 +283,9 @@ export default function Leads() {
                 {isPlanning ? 'Plane…' : 'Anrufe planen'}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Filters and Search */}
       <Card>
