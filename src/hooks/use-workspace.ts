@@ -3,6 +3,7 @@ import { workspaceAPI, CreateWorkspaceResponse, authAPI } from '@/lib/apiService
 
 export interface WorkspaceDetails extends CreateWorkspaceResponse {
   members?: any[];
+  users?: any[]; // Backend returns `users` in WorkspaceSerializer
 }
 
 export function useWorkspace() {
@@ -43,7 +44,12 @@ export function useWorkspace() {
         try {
           const details = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
           console.log('✅ Workspace details loaded:', details);
-          setWorkspaceDetails(details);
+          // Normalize members/users field for UI consumption
+          const normalized: WorkspaceDetails = {
+            ...details,
+            members: (details as any)?.members || (details as any)?.users || []
+          };
+          setWorkspaceDetails(normalized);
         } catch (detailsError) {
           console.warn('⚠️ Could not fetch workspace details:', detailsError);
           // Set basic workspace info even if details fail
@@ -95,9 +101,10 @@ export function useWorkspace() {
       members.push(currentUserMember);
     }
     
-    // Add other workspace members if available
-    if (workspaceDetails?.members) {
-      workspaceDetails.members.forEach((member: any) => {
+    // Add other workspace members if available (support both `members` and `users`)
+    const rawMembers = (workspaceDetails as any)?.members || (workspaceDetails as any)?.users || [];
+    if (rawMembers && Array.isArray(rawMembers)) {
+      rawMembers.forEach((member: any) => {
         // Skip if this is the current user (already added)
         if (currentUser && (member.id === currentUser.id || member.user_id === currentUser.id)) {
           return;
