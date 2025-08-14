@@ -667,6 +667,17 @@ const formatAppointmentDate = (isoDateTime: string): string => {
   }
 };
 
+// Call Task API
+export const callTaskAPI = {
+  async createTask(payload: { workspace: string; agent: string; target_ref: string; next_call?: string }): Promise<any> {
+    console.log('📞 POST /api/call_tasks/ - Creating call task:', payload);
+    return apiCall<any>('/api/call_tasks/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
 const formatCallDate = (isoDateTime: string): string => {
   try {
     const date = new Date(isoDateTime);
@@ -1461,6 +1472,7 @@ export const leadAPI = {
     email?: string;
     phone?: string;
     ordering?: string;
+    workspace?: string;
   }): Promise<LeadsListResponse> {
     console.log('📞 GET /api/leads/ - Getting leads');
     
@@ -1491,6 +1503,9 @@ export const leadAPI = {
       }
       if (params?.ordering) {
         searchParams.append('ordering', params.ordering);
+      }
+      if (params?.workspace) {
+        searchParams.append('workspace', params.workspace);
       }
       
       if (searchParams.toString()) {

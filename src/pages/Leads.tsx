@@ -10,7 +10,7 @@ import { User, Mail, Phone, Calendar, Building, Hash, Eye, Facebook, PhoneCall }
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI } from "@/lib/apiService";
+import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI, callTaskAPI } from "@/lib/apiService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,18 @@ export default function Leads() {
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [scheduleMode, setScheduleMode] = useState<'now'|'later'>('now');
   const [scheduleAt, setScheduleAt] = useState<string>("");
+
+  // Preselect defaults when dialog opens or data loads
+  useEffect(() => {
+    if (!planOpen) return;
+    if (!selectedCsvFunnelId && csvFunnels.length > 0) {
+      setSelectedCsvFunnelId(csvFunnels[0].id);
+    }
+    if (!selectedAgentId && agents.length > 0) {
+      const first = agents[0];
+      setSelectedAgentId(first.agent_id || first.id);
+    }
+  }, [planOpen, csvFunnels, agents]);
 
   // Load leads from API
   const loadLeads = useCallback(async (page: number = 1) => {
@@ -270,7 +282,7 @@ export default function Leads() {
                     for (let i = 0; i < ids.length; i += 25) {
                       const slice = ids.slice(i, i + 25);
                       await Promise.all(slice.map(async (id) => {
-                        try { await (window as any).apiCall?.('/api/call_tasks/', { method: 'POST', body: JSON.stringify({ workspace: agent.workspace, agent: agent.agent_id || agent.id, target_ref: `lead:${id}` }) }); } catch {}
+                        try { await callTaskAPI.createTask({ workspace: agent.workspace, agent: (agent.agent_id || agent.id), target_ref: `lead:${id}` }); } catch {}
                       }));
                     }
                     setPlanOpen(false);
