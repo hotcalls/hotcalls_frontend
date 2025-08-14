@@ -393,7 +393,8 @@ export const workspaceAPI = {
    * Get team members for a workspace (deprecated - use getWorkspaceDetails instead)
    */
   async getWorkspaceMembers(workspaceId: string): Promise<any[]> {
-    return apiCall<any[]>(`/api/workspaces/workspaces/${workspaceId}/members/`);
+    // Backend action is named `users` (see WorkspaceViewSet.users)
+    return apiCall<any[]>(`/api/workspaces/workspaces/${workspaceId}/users/`);
   },
 };
 
@@ -665,17 +666,6 @@ const formatAppointmentDate = (isoDateTime: string): string => {
     console.error('❌ Error formatting appointment date:', error);
     return isoDateTime; // Fallback to original
   }
-};
-
-// Call Task API
-export const callTaskAPI = {
-  async createTask(payload: { workspace: string; agent: string; target_ref: string; next_call?: string }): Promise<any> {
-    console.log('📞 POST /api/call_tasks/ - Creating call task:', payload);
-    return apiCall<any>('/api/call_tasks/', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  },
 };
 
 const formatCallDate = (isoDateTime: string): string => {
@@ -1472,7 +1462,6 @@ export const leadAPI = {
     email?: string;
     phone?: string;
     ordering?: string;
-    workspace?: string;
   }): Promise<LeadsListResponse> {
     console.log('📞 GET /api/leads/ - Getting leads');
     
@@ -1503,9 +1492,6 @@ export const leadAPI = {
       }
       if (params?.ordering) {
         searchParams.append('ordering', params.ordering);
-      }
-      if (params?.workspace) {
-        searchParams.append('workspace', params.workspace);
       }
       
       if (searchParams.toString()) {
@@ -1603,7 +1589,6 @@ export const leadAPI = {
     created_lead_ids: string[];
     import_batch_id?: string;
     detected_variable_keys?: string[];
-    lead_funnel_id?: string;
   }> {
     console.log('📦 POST /api/leads/bulk_create/ - Bulk creating leads:', leads.length);
     
@@ -1908,22 +1893,6 @@ export const funnelAPI = {
       return response;
     } catch (error) {
       console.error('❌ Funnel update API error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Delete a lead funnel
-   */
-  async deleteFunnel(funnelId: string): Promise<void> {
-    console.log(`🗑️ DELETE /api/funnels/lead-funnels/${funnelId}/ - Deleting funnel`);
-    try {
-      await apiCall<void>(`/api/funnels/lead-funnels/${funnelId}/`, {
-        method: 'DELETE',
-      });
-      console.log('✅ Funnel deleted');
-    } catch (error) {
-      console.error('❌ Funnel delete API error:', error);
       throw error;
     }
   },
