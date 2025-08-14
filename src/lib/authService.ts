@@ -330,7 +330,7 @@ export const authService = {
   },
 
   // New registration method using the updated endpoint with email verification
-  async register(signupData: CompleteSignupData): Promise<RegisterResponse> {
+  async register(signupData: CompleteSignupData, nextParam?: string | null): Promise<RegisterResponse> {
     const registerRequest: RegisterRequest = {
       email: signupData.email,
       first_name: signupData.firstName,
@@ -357,10 +357,11 @@ export const authService = {
     console.log('- Passwords match:', signupData.password === signupData.passwordConfirm);
 
     try {
-      const response = await apiClient.post<RegisterResponse>(
-        apiConfig.endpoints.register,
-        registerRequest
-      );
+      // Attach next as query param so backend can detect invite flow and avoid creating a default workspace
+      const registerEndpoint = nextParam
+        ? `${apiConfig.endpoints.register}?next=${encodeURIComponent(nextParam)}`
+        : apiConfig.endpoints.register;
+      const response = await apiClient.post<RegisterResponse>(registerEndpoint, registerRequest);
       
       console.log('Registration successful, email verification required:', response);
       return response;

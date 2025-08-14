@@ -35,7 +35,7 @@ const SignUp = () => {
       console.log('Attempting to register user with email verification...');
       
       // Use the new registration endpoint with email verification
-      const registrationResponse = await authService.register(completeData);
+      const registrationResponse = await authService.register(completeData, nextParam);
       
       // Store registration data temporarily for potential verification
       authService.storeRegistrationData(completeData);
