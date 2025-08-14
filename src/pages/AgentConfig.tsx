@@ -1079,25 +1079,27 @@ export default function AgentConfig() {
                           </span>
                         </div>
                       )}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {(!funnelVariables || funnelVariables.length === 0) && !showMetaHint && (
-                          <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
-                        )}
-                        {Array.isArray(funnelVariables) && funnelVariables.map(v => (
-                          <span
-                            key={v.key}
-                            role="button"
-                            tabIndex={0}
-                            className={`${tokenPillClass} cursor-pointer select-none`}
-                            draggable
-                            onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
-                            onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                          >
-                            {v.label}
-                          </span>
-                        ))}
-                      </div>
+                      {!showMetaHint && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {(!funnelVariables || funnelVariables.length === 0) && (
+                            <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                          )}
+                          {Array.isArray(funnelVariables) && funnelVariables.map(v => (
+                            <span
+                              key={v.key}
+                              role="button"
+                              tabIndex={0}
+                              className={`${tokenPillClass} cursor-pointer select-none`}
+                              draggable
+                              onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
+                              onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                            >
+                              {v.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </>
                   );
                 })()}
