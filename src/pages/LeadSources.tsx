@@ -8,7 +8,7 @@ import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2,
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { metaAPI, webhookAPI, funnelAPI } from "@/lib/apiService";
+import { metaAPI, webhookAPI } from "@/lib/apiService";
 import React from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
@@ -53,7 +53,7 @@ interface LeadFunnel {
 export default function LeadSources() {
   const [metaIntegrations, setMetaIntegrations] = useState<MetaIntegration[]>([]);
   const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
-  const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
+  const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]); // kept for type, but not populated
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCsvStep, setIsCsvStep] = useState(false);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
@@ -88,11 +88,10 @@ export default function LeadSources() {
     console.log('🔍 Starting to load all lead sources...');
     setIsLoading(true);
     try {
-      // Load in parallel for better performance
-      const [metaIntegrationsResult, webhookSourcesResult, funnelsResult] = await Promise.allSettled([
+      // Load only real connections (Meta + Webhook). Do not load funnels here to avoid listing all Meta forms.
+      const [metaIntegrationsResult, webhookSourcesResult] = await Promise.allSettled([
         metaAPI.getIntegrations(),
         webhookAPI.listSources(),
-        workspaceDetails?.id ? funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id }) : Promise.resolve({ results: [] })
       ]);
 
       // Handle Meta integrations
@@ -126,21 +125,7 @@ export default function LeadSources() {
         setWebhookSources([]);
       }
 
-      // Handle Lead Funnels
-      if (funnelsResult.status === 'fulfilled') {
-        const funnels = funnelsResult.value;
-        if (Array.isArray(funnels)) {
-          setLeadFunnels(funnels);
-        } else if (funnels?.results && Array.isArray(funnels.results)) {
-          setLeadFunnels(funnels.results);
-          console.log(`✅ Loaded ${funnels.results.length} lead funnels`);
-        } else {
-          setLeadFunnels([]);
-        }
-      } else {
-        console.error('❌ Error loading lead funnels:', funnelsResult.reason);
-        setLeadFunnels([]);
-      }
+      // We intentionally do not load funnels on this page to prevent listing all Meta funnels.
     } catch (error) {
       console.error('❌ Unexpected error loading sources:', error);
       setMetaIntegrations([]);
@@ -646,77 +631,10 @@ export default function LeadSources() {
             </Card>
           ))}
 
-          {/* CSV Funnels (created from CSV imports) */}
-          {Array.isArray(leadFunnels) && leadFunnels
-            .filter((f: any) => !f.meta_form && !f.webhook_source)
-            .map((funnel: any) => {
-              const isActive = funnel?.is_active || false;
-              return (
-                <Card key={funnel.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
-                          <Globe className={`${iconSizes.large} text-[#FE5B25]`} />
-                        </div>
-                        <div>
-                          <CardTitle className={textStyles.cardTitle}>
-                            {funnel.name || 'CSV Import'}
-                          </CardTitle>
-                          <p className={textStyles.cardSubtitle}>CSV Import</p>
-                        </div>
-                      </div>
-                      <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                        <Badge variant={isActive ? 'default' : 'secondary'}>
-                          {isActive ? 'Aktiv' : 'Inaktiv'}
-                        </Badge>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button className={buttonStyles.cardAction.iconDelete}>
-                              <Trash2 className={iconSizes.small} />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>CSV-Quelle löschen?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Diese Aktion kann nicht rückgängig gemacht werden. Die CSV-Leadquelle "{funnel.name}" wird entfernt. Bereits importierte Leads bleiben erhalten.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                              <AlertDialogAction onClick={async () => {
-                                try {
-                                  await funnelAPI.deleteFunnel(funnel.id);
-                                  setLeadFunnels(prev => prev.filter((f: any) => f.id !== funnel.id));
-                                  toast({ title: 'Gelöscht', description: 'CSV-Leadquelle erfolgreich gelöscht.' });
-                                } catch (e) {
-                                  console.error(e);
-                                  toast({ title: 'Fehler', description: 'CSV-Leadquelle konnte nicht gelöscht werden.', variant: 'destructive' });
-                                }
-                              }}>Löschen</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                      <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
-                      Lead-Quelle verbunden. Genaue Zuordnung in Agent-Einstellungen konfigurieren.
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          {/* CSV Funnels are intentionally not listed here to avoid clutter; CSV Upload is available via the dialog. */}
 
           {/* Webhook Sources */}
           {Array.isArray(webhookSources) && webhookSources.map((webhook) => {
-            // Find the associated funnel
-            const funnel = leadFunnels.find(f => f.id === webhook.lead_funnel);
-            const isActive = funnel?.is_active || false;
-
             return (
               <Card key={webhook.id}>
                 <CardHeader>
@@ -736,24 +654,10 @@ export default function LeadSources() {
                     </div>
                     
                     <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                      <Badge variant={isActive ? 'default' : 'secondary'}>
-                        {isActive ? 'Aktiv' : 'Inaktiv'}
+                      <Badge variant={'default'}>
+                        Verbunden
                       </Badge>
                       
-                      <button 
-                        onClick={() => handleToggleFunnel(webhook.lead_funnel, isActive)}
-                        disabled={togglingFunnelId === webhook.lead_funnel}
-                        className={buttonStyles.cardAction.iconDefault}
-                      >
-                        {togglingFunnelId === webhook.lead_funnel ? (
-                          <Loader2 className={`${iconSizes.small} animate-spin`} />
-                        ) : isActive ? (
-                          <Pause className={iconSizes.small} />
-                        ) : (
-                          <Play className={iconSizes.small} />
-                        )}
-                      </button>
-
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button className={buttonStyles.cardAction.iconDelete}>
