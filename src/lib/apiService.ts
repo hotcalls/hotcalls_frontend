@@ -684,6 +684,23 @@ const formatCallDate = (isoDateTime: string): string => {
 // Call API calls
 export const callAPI = {
   /**
+   * Create a CallTask for an Agent and a specific Lead target_ref
+   */
+  async createTask(data: { workspace: string; agent: string; target_ref: string; next_call?: string }): Promise<any> {
+    console.log('📞 POST /api/call_tasks/ - Creating call task:', data);
+    try {
+      const response = await apiCall<any>('/api/call_tasks/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      console.log('✅ Call task created:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Call task creation API error:', error);
+      throw error;
+    }
+  },
+  /**
    * Make an outbound call using LiveKit
    */
   async makeOutboundCall(data: MakeOutboundCallRequest): Promise<MakeOutboundCallResponse> {
@@ -1462,6 +1479,7 @@ export const leadAPI = {
     email?: string;
     phone?: string;
     ordering?: string;
+    workspace?: string;
   }): Promise<LeadsListResponse> {
     console.log('📞 GET /api/leads/ - Getting leads');
     
@@ -1492,6 +1510,9 @@ export const leadAPI = {
       }
       if (params?.ordering) {
         searchParams.append('ordering', params.ordering);
+      }
+      if (params?.workspace) {
+        searchParams.append('workspace', params.workspace);
       }
       
       if (searchParams.toString()) {
@@ -1915,6 +1936,22 @@ export const funnelAPI = {
       return response;
     } catch (error) {
       console.error('❌ Funnel assign agent API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a lead funnel
+   */
+  async deleteFunnel(funnelId: string): Promise<void> {
+    console.log(`🗑️ DELETE /api/funnels/lead-funnels/${funnelId}/ - Deleting funnel`);
+    try {
+      await apiCall<void>(`/api/funnels/lead-funnels/${funnelId}/`, {
+        method: 'DELETE',
+      });
+      console.log('✅ Funnel deleted');
+    } catch (error) {
+      console.error('❌ Funnel delete API error:', error);
       throw error;
     }
   },

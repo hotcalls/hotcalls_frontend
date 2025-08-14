@@ -10,7 +10,7 @@ import { User, Mail, Phone, Calendar, Building, Hash, Eye, Facebook, PhoneCall }
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI, callTaskAPI } from "@/lib/apiService";
+import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI, callAPI } from "@/lib/apiService";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
