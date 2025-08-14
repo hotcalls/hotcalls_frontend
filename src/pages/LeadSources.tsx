@@ -534,9 +534,15 @@ export default function LeadSources() {
                                 import_batch_id: res.import_batch_id,
                                 created_lead_ids: res.created_lead_ids || [],
                                 detected_variable_keys: res.detected_variable_keys || [],
+                                lead_funnel_id: res.lead_funnel_id || null,
                                 ts: Date.now(),
                               }));
                             }
+                            // Refresh lead funnels so the new CSV funnel erscheint sofort
+                            try { 
+                              const updatedFunnels = await funnelAPI.getLeadFunnels({ workspace: workspaceDetails?.id || '' });
+                              if (Array.isArray(updatedFunnels)) setLeadFunnels(updatedFunnels);
+                            } catch {}
                             toast({ title: 'CSV importiert', description: `${res.successful_creates} von ${res.total_leads} Leads importiert.` });
                           } catch (e) {
                             console.error(e);
@@ -635,6 +641,56 @@ export default function LeadSources() {
               </CardContent>
             </Card>
           ))}
+
+          {/* CSV Funnels (created from CSV imports) */}
+          {Array.isArray(leadFunnels) && leadFunnels
+            .filter((f: any) => !f.meta_form && !f.webhook_source)
+            .map((funnel: any) => {
+              const isActive = funnel?.is_active || false;
+              return (
+                <Card key={funnel.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
+                          <Globe className={`${iconSizes.large} text-[#FE5B25]`} />
+                        </div>
+                        <div>
+                          <CardTitle className={textStyles.cardTitle}>
+                            {funnel.name || 'CSV Import'}
+                          </CardTitle>
+                          <p className={textStyles.cardSubtitle}>CSV Import</p>
+                        </div>
+                      </div>
+                      <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+                        <Badge variant={isActive ? 'default' : 'secondary'}>
+                          {isActive ? 'Aktiv' : 'Inaktiv'}
+                        </Badge>
+                        <button
+                          onClick={() => handleToggleFunnel(funnel.id, isActive)}
+                          disabled={togglingFunnelId === funnel.id}
+                          className={buttonStyles.cardAction.iconDefault}
+                        >
+                          {togglingFunnelId === funnel.id ? (
+                            <Loader2 className={`${iconSizes.small} animate-spin`} />
+                          ) : isActive ? (
+                            <Pause className={iconSizes.small} />
+                          ) : (
+                            <Play className={iconSizes.small} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                      <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
+                      Lead-Quelle verbunden. Genaue Zuordnung in Agent-Einstellungen konfigurieren.
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
 
           {/* Webhook Sources */}
           {Array.isArray(webhookSources) && webhookSources.map((webhook) => {
