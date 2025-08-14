@@ -275,18 +275,22 @@ export const agentService = {
 export const authService = {
   // Login method
   async login(email: string, password: string): Promise<LoginResponse> {
-    const loginRequest: LoginRequest = {
-      email,
-      password
-    };
-
-    console.log('🔑 Logging in user (cookie-based auth):', { email, password: '[REDACTED]' });
+    const loginRequest: LoginRequest = { email, password };
+    console.log('🔑 Logging in user (cookie-based auth, no auth header):', { email, password: '[REDACTED]' });
 
     try {
-      const response = await apiClient.post<LoginResponse>(
-        apiConfig.endpoints.login,
-        loginRequest
-      );
+      // Use direct fetch to avoid Authorization header from apiClient
+      const res = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.login}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginRequest),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw err;
+      }
+      const response: LoginResponse = await res.json();
       
       console.log('✅ Login API response received:', {
         hasUser: !!response.user,
