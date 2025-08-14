@@ -361,7 +361,19 @@ export const authService = {
       const registerEndpoint = nextParam
         ? `${apiConfig.endpoints.register}?next=${encodeURIComponent(nextParam)}`
         : apiConfig.endpoints.register;
-      const response = await apiClient.post<RegisterResponse>(registerEndpoint, registerRequest);
+      // IMPORTANT: Do NOT send Authorization header on public register endpoint
+      const response = await fetch(`${apiConfig.baseUrl}${registerEndpoint}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(registerRequest),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: res.statusText }));
+          throw err;
+        }
+        return res.json();
+      });
       
       console.log('Registration successful, email verification required:', response);
       return response;
