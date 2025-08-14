@@ -1063,26 +1063,44 @@ export default function AgentConfig() {
                    onDragOver={(e) => e.preventDefault()}
               >
                 <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {funnelVariables.length === 0 ? (
-                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
-                  ) : (
-                    funnelVariables.map(v => (
-                      <span
-                        key={v.key}
-                        role="button"
-                        tabIndex={0}
-                        className={`${tokenPillClass} cursor-pointer select-none`}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
-                        onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                      >
-                        {v.label}
-                      </span>
-                    ))
-                  )}
-                </div>
+                {(() => {
+                  const CORE = new Set(['first_name','last_name','full_name','email','phone']);
+                  const selected = (availableLeadForms as any[]).find((f:any) => f.id === config.selectedLeadForm);
+                  const isMeta = !!selected?.meta_lead_form;
+                  const hasSelection = !!config.selectedLeadForm;
+                  const hasCustom = Array.isArray(funnelVariables) && funnelVariables.some(v => !CORE.has(v.key));
+                  const showMetaHint = hasSelection && isMeta && !hasCustom;
+                  return (
+                    <>
+                      {showMetaHint && (
+                        <div className="mt-2">
+                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                            Noch keine Variablen erkannt. Sende einen Test‑Lead aus deinem Meta‑Formular, um die Variablen hier anzuzeigen.
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {(!funnelVariables || funnelVariables.length === 0) && !showMetaHint && (
+                          <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                        )}
+                        {Array.isArray(funnelVariables) && funnelVariables.map(v => (
+                          <span
+                            key={v.key}
+                            role="button"
+                            tabIndex={0}
+                            className={`${tokenPillClass} cursor-pointer select-none`}
+                            draggable
+                            onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
+                            onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                          >
+                            {v.label}
+                          </span>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <div>
                 <Label htmlFor="script">Skript</Label>
