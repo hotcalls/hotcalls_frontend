@@ -1338,11 +1338,20 @@ export default function AgentConfig() {
                 ) : (
                   <Select 
                     value={config.selectedLeadForm || "none"} 
-                    onValueChange={(value) => {
-                      setConfig(prev => ({ 
-                        ...prev, 
-                        selectedLeadForm: value === "none" ? "" : value
-                      }));
+                    onValueChange={async (value) => {
+                      const nextFunnelId = value === "none" ? "" : value;
+                      setConfig(prev => ({ ...prev, selectedLeadForm: nextFunnelId }));
+                      // Instant refresh of variables for better UX
+                      if (nextFunnelId) {
+                        try {
+                          const vars = await funnelAPI.getFunnelVariables(nextFunnelId);
+                          setFunnelVariables(Array.isArray(vars) ? vars : []);
+                        } catch (e) {
+                          setFunnelVariables([]);
+                        }
+                      } else {
+                        setFunnelVariables([]);
+                      }
                     }}
                   >
                     <SelectTrigger>

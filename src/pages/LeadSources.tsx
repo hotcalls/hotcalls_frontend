@@ -485,6 +485,9 @@ export default function LeadSources() {
                         <div className="p-3 bg-blue-50 rounded border border-blue-200">
                           <div className="font-medium">Datei ausgewählt</div>
                           <div>{csvParseInfo?.filename || 'CSV'} • {csvParsedRows.length} Zeilen</div>
+                          {csvParsedRows.length > 10000 && (
+                            <div className="mt-2 text-red-600">Maximal 10.000 Zeilen pro CSV erlaubt.</div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -513,9 +516,10 @@ export default function LeadSources() {
                     <div className="ml-auto flex gap-2">
                       <Button
                         variant="default"
-                        disabled={isUploadingCsv || csvParsedRows.length === 0}
+                        disabled={isUploadingCsv || csvParsedRows.length === 0 || csvParsedRows.length > 10000}
                         onClick={async () => {
                           if (csvParsedRows.length === 0) return;
+                          if (csvParsedRows.length > 10000) { toast({ title: 'Limit erreicht', description: 'Maximal 10.000 Zeilen pro CSV erlaubt.', variant: 'destructive' }); return; }
                           try {
                             setIsUploadingCsv(true);
                             const res = await leadAPI.bulkCreateLeads(csvParsedRows as any);
