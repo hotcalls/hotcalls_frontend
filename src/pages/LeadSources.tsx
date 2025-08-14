@@ -666,19 +666,34 @@ export default function LeadSources() {
                         <Badge variant={isActive ? 'default' : 'secondary'}>
                           {isActive ? 'Aktiv' : 'Inaktiv'}
                         </Badge>
-                        <button
-                          onClick={() => handleToggleFunnel(funnel.id, isActive)}
-                          disabled={togglingFunnelId === funnel.id}
-                          className={buttonStyles.cardAction.iconDefault}
-                        >
-                          {togglingFunnelId === funnel.id ? (
-                            <Loader2 className={`${iconSizes.small} animate-spin`} />
-                          ) : isActive ? (
-                            <Pause className={iconSizes.small} />
-                          ) : (
-                            <Play className={iconSizes.small} />
-                          )}
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className={buttonStyles.cardAction.iconDelete}>
+                              <Trash2 className={iconSizes.small} />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>CSV-Quelle löschen?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Diese Aktion kann nicht rückgängig gemacht werden. Die CSV-Leadquelle "{funnel.name}" wird entfernt. Bereits importierte Leads bleiben erhalten.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                              <AlertDialogAction onClick={async () => {
+                                try {
+                                  await funnelAPI.deleteFunnel(funnel.id);
+                                  setLeadFunnels(prev => prev.filter((f: any) => f.id !== funnel.id));
+                                  toast({ title: 'Gelöscht', description: 'CSV-Leadquelle erfolgreich gelöscht.' });
+                                } catch (e) {
+                                  console.error(e);
+                                  toast({ title: 'Fehler', description: 'CSV-Leadquelle konnte nicht gelöscht werden.', variant: 'destructive' });
+                                }
+                              }}>Löschen</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   </CardHeader>

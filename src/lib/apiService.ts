@@ -1588,6 +1588,7 @@ export const leadAPI = {
     created_lead_ids: string[];
     import_batch_id?: string;
     detected_variable_keys?: string[];
+    lead_funnel_id?: string;
   }> {
     console.log('📦 POST /api/leads/bulk_create/ - Bulk creating leads:', leads.length);
     
@@ -1892,6 +1893,22 @@ export const funnelAPI = {
       return response;
     } catch (error) {
       console.error('❌ Funnel update API error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a lead funnel
+   */
+  async deleteFunnel(funnelId: string): Promise<void> {
+    console.log(`🗑️ DELETE /api/funnels/lead-funnels/${funnelId}/ - Deleting funnel`);
+    try {
+      await apiCall<void>(`/api/funnels/lead-funnels/${funnelId}/`, {
+        method: 'DELETE',
+      });
+      console.log('✅ Funnel deleted');
+    } catch (error) {
+      console.error('❌ Funnel delete API error:', error);
       throw error;
     }
   },
