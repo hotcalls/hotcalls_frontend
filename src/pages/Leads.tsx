@@ -6,11 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, Mail, Phone, Calendar, Building, Hash, Eye, Facebook } from "lucide-react";
+import { User, Mail, Phone, Calendar, Building, Hash, Eye, Facebook, PhoneCall } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { leadAPI, Lead, LeadsListResponse } from "@/lib/apiService";
+import { leadAPI, Lead, LeadsListResponse, funnelAPI, agentAPI } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
 
@@ -35,6 +35,12 @@ export default function Leads() {
   
   const { workspaceDetails } = useWorkspace();
   const { toast } = useToast();
+
+  // CSV funnel presence and selection
+  const [csvFunnels, setCsvFunnels] = useState<any[]>([]);
+  const [selectedCsvFunnelId, setSelectedCsvFunnelId] = useState<string>("");
+  const [agents, setAgents] = useState<any[]>([]);
+  const [isPlanning, setIsPlanning] = useState(false);
 
   // Load leads from API
   const loadLeads = useCallback(async (page: number = 1) => {
@@ -95,6 +101,31 @@ export default function Leads() {
     }
   }, [loadLeads, workspaceDetails?.id]);
 
+  // Load CSV funnels and agents for visibility of "Anrufe planen"
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!workspaceDetails?.id) return;
+        const funnels = await funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id });
+        const csvOnly = (funnels || []).filter((f: any) => !f.meta_lead_form && !f.webhook_source && f.is_active);
+        setCsvFunnels(csvOnly);
+        if (csvOnly.length > 0 && !selectedCsvFunnelId) {
+          // prefer last stored
+          const stored = Object.keys(localStorage).find(k => k.startsWith(`csv:${workspaceDetails.id}:`));
+          const storedVal = stored ? JSON.parse(localStorage.getItem(stored) || '{}') : null;
+          const prefer = storedVal?.lead_funnel_id && csvOnly.some((f: any) => f.id === storedVal.lead_funnel_id)
+            ? storedVal.lead_funnel_id
+            : csvOnly[0].id;
+          setSelectedCsvFunnelId(prefer);
+        }
+        // load agents
+        try { const a = await agentAPI.getAgents?.(); if (Array.isArray(a)) setAgents(a); } catch {}
+      } catch (e) {
+        console.error('❌ Failed to load CSV funnels/agents:', e);
+      }
+    })();
+  }, [workspaceDetails?.id]);
+
   // Handle search input changes with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -140,6 +171,78 @@ export default function Leads() {
           Verwalte und verfolge deine potenziellen Kunden
         </p>
       </div>
+
+      {/* Plan Calls - visible only when active CSV funnel exists */}
+      {csvFunnels.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row items-center gap-4">
+              <div className="flex-1 flex items-center gap-2">
+                <PhoneCall className="h-5 w-5 text-[#FE5B25]" />
+                <span className="font-medium">Anrufe planen für CSV-Leads</span>
+              </div>
+              {csvFunnels.length > 1 && (
+                <Select value={selectedCsvFunnelId || 'none'} onValueChange={(v) => setSelectedCsvFunnelId(v)}>
+                  <SelectTrigger className="w-[280px]"><SelectValue placeholder="CSV-Quelle wählen" /></SelectTrigger>
+                  <SelectContent>
+                    {csvFunnels.map((f: any) => (
+                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button
+                className="bg-[#FE5B25] hover:bg-[#e14a12]"
+                disabled={isPlanning || agents.length === 0 || !selectedCsvFunnelId && csvFunnels.length > 1}
+                onClick={async () => {
+                  try {
+                    setIsPlanning(true);
+                    const funnelId = selectedCsvFunnelId || csvFunnels[0]?.id;
+                    if (!funnelId) return;
+                    // choose first agent for MVP
+                    const agent = agents[0];
+                    if (!agent) { toast({ title: 'Kein Agent', description: 'Bitte zuerst einen Agenten konfigurieren.', variant: 'destructive' }); setIsPlanning(false); return; }
+                    // fetch leads (first few pages) and plan
+                    let page = 1; const ids: string[] = [];
+                    while (page <= 5) { // MVP: max 5 Seiten
+                      const resp: any = await leadAPI.getLeads({ page, page_size: 100, workspace: workspaceDetails?.id, ordering: '-created_at' } as any);
+                      const results: Lead[] = resp?.results || [];
+                      if (results.length === 0) break;
+                      results
+                        .filter((l: any) => (l as any).lead_funnel?.id === funnelId || (l as any).lead_funnel === funnelId)
+                        .forEach((l) => ids.push(l.id));
+                      if (!resp.next) break; page += 1;
+                    }
+                    if (ids.length === 0) { toast({ title: 'Keine CSV-Leads', description: 'Für die ausgewählte CSV-Quelle wurden keine Leads gefunden.' }); setIsPlanning(false); return; }
+                    // send create tasks
+                    const chunkSize = 25; let ok = 0; let skip = 0; let fail = 0;
+                    for (let i = 0; i < ids.length; i += chunkSize) {
+                      const slice = ids.slice(i, i + chunkSize);
+                      await Promise.all(slice.map(async (id) => {
+                        try {
+                          await (window as any).apiCall?.('/api/call_tasks/', { method: 'POST', body: JSON.stringify({ workspace: agent.workspace, agent: agent.agent_id || agent.id, target_ref: `lead:${id}` }) });
+                          ok += 1;
+                        } catch (e: any) {
+                          const msg = String(e?.message || '');
+                          if (msg.includes('409') || msg.includes('400')) skip += 1; else fail += 1;
+                        }
+                      }));
+                    }
+                    toast({ title: 'Anrufe geplant', description: `${ok} geplant, ${skip} übersprungen, ${fail} Fehler.` });
+                  } catch (e) {
+                    console.error(e);
+                    toast({ title: 'Fehler', description: 'Anrufplanung fehlgeschlagen.', variant: 'destructive' });
+                  } finally {
+                    setIsPlanning(false);
+                  }
+                }}
+              >
+                {isPlanning ? 'Plane…' : 'Anrufe planen'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters and Search */}
       <Card>
