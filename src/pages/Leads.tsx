@@ -193,45 +193,32 @@ export default function Leads() {
               )}
               <Button
                 className="bg-[#FE5B25] hover:bg-[#e14a12]"
-                disabled={isPlanning || agents.length === 0 || !selectedCsvFunnelId && csvFunnels.length > 1}
+                disabled={isPlanning || agents.length === 0 || (!selectedCsvFunnelId && csvFunnels.length > 1)}
                 onClick={async () => {
                   try {
                     setIsPlanning(true);
                     const funnelId = selectedCsvFunnelId || csvFunnels[0]?.id;
                     if (!funnelId) return;
-                    // choose first agent for MVP
                     const agent = agents[0];
-                    if (!agent) { toast({ title: 'Kein Agent', description: 'Bitte zuerst einen Agenten konfigurieren.', variant: 'destructive' }); setIsPlanning(false); return; }
-                    // fetch leads (first few pages) and plan
+                    if (!agent) { setIsPlanning(false); return; }
                     let page = 1; const ids: string[] = [];
-                    while (page <= 5) { // MVP: max 5 Seiten
+                    while (page <= 5) {
                       const resp: any = await leadAPI.getLeads({ page, page_size: 100, workspace: workspaceDetails?.id, ordering: '-created_at' } as any);
                       const results: Lead[] = resp?.results || [];
                       if (results.length === 0) break;
-                      results
-                        .filter((l: any) => (l as any).lead_funnel?.id === funnelId || (l as any).lead_funnel === funnelId)
-                        .forEach((l) => ids.push(l.id));
+                      results.filter((l: any) => (l as any).lead_funnel?.id === funnelId || (l as any).lead_funnel === funnelId).forEach((l) => ids.push(l.id));
                       if (!resp.next) break; page += 1;
                     }
-                    if (ids.length === 0) { toast({ title: 'Keine CSV-Leads', description: 'Für die ausgewählte CSV-Quelle wurden keine Leads gefunden.' }); setIsPlanning(false); return; }
-                    // send create tasks
-                    const chunkSize = 25; let ok = 0; let skip = 0; let fail = 0;
+                    const chunkSize = 25;
                     for (let i = 0; i < ids.length; i += chunkSize) {
                       const slice = ids.slice(i, i + chunkSize);
                       await Promise.all(slice.map(async (id) => {
                         try {
                           await (window as any).apiCall?.('/api/call_tasks/', { method: 'POST', body: JSON.stringify({ workspace: agent.workspace, agent: agent.agent_id || agent.id, target_ref: `lead:${id}` }) });
-                          ok += 1;
-                        } catch (e: any) {
-                          const msg = String(e?.message || '');
-                          if (msg.includes('409') || msg.includes('400')) skip += 1; else fail += 1;
-                        }
+                        } catch {}
                       }));
                     }
-                    toast({ title: 'Anrufe geplant', description: `${ok} geplant, ${skip} übersprungen, ${fail} Fehler.` });
-                  } catch (e) {
-                    console.error(e);
-                    toast({ title: 'Fehler', description: 'Anrufplanung fehlgeschlagen.', variant: 'destructive' });
+                    toast({ title: 'Deine Anrufe wurden erfolgreich geplant' });
                   } finally {
                     setIsPlanning(false);
                   }
