@@ -22,6 +22,7 @@ import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { subscriptionService } from "@/lib/subscriptionService";
 import { paymentAPI, workspaceAPI } from "@/lib/apiService";
 import { useToast } from "@/hooks/use-toast";
+import { apiConfig } from "@/lib/apiConfig";
 
 // Minute packages will be loaded dynamically from database via @core module
 
@@ -30,9 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
-  const [isProcessing, setIsProcessing] = useState(false);
   
-  const [showTopUpDialog, setShowTopUpDialog] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
@@ -44,7 +43,7 @@ export default function Settings() {
   const [isInviting, setIsInviting] = useState(false);
   
   // Load workspace and usage data
-  const { primaryWorkspace, workspaceDetails, teamMembers, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
+  const { primaryWorkspace, workspaceDetails, teamMembers, isAdmin, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
   const { usage, features, loading: usageLoading, error: usageError, lastUpdated } = useAllFeaturesUsage(primaryWorkspace?.id || null);
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { toast } = useToast();
@@ -319,7 +318,7 @@ export default function Settings() {
     setIsCancellingSubscription(true);
     try {
       console.log('🚫 Cancelling subscription for workspace:', primaryWorkspace.id);
-      const result = await paymentAPI.cancelSubscription();
+      const result = await subscriptionService.cancelSubscription(primaryWorkspace.id);
       console.log('✅ Subscription cancelled:', result);
       
       toast({
@@ -340,6 +339,22 @@ export default function Settings() {
       });
     } finally {
       setIsCancellingSubscription(false);
+    }
+  };
+
+  // Resume subscription function (undo cancel_at_period_end)
+  const handleResumeSubscription = async () => {
+    if (!primaryWorkspace?.id) return;
+    try {
+      console.log('✅ Resuming subscription for workspace:', primaryWorkspace.id);
+      const result = await subscriptionService.resumeSubscription(primaryWorkspace.id);
+      console.log('✅ Subscription resumed:', result);
+      toast({ title: 'Kündigung zurückgenommen' });
+      const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
+      setSubscriptionStatus(subscriptionData);
+    } catch (error: any) {
+      console.error('❌ Failed to resume subscription:', error);
+      toast({ title: 'Fehler beim Zurücknehmen', description: error.message || 'Bitte erneut versuchen', variant: 'destructive' });
     }
   };
 
@@ -538,47 +553,7 @@ export default function Settings() {
     }
   };
 
-  // Billing functions
-  const handlePurchase = async (packageId: string) => {
-    setIsProcessing(true);
-    console.log('Processing purchase for package:', packageId);
-    
-    // Simulate Stripe redirect
-    setTimeout(() => {
-      setIsProcessing(false);
-      setShowTopUpDialog(false);
-      console.log('Redirecting to Stripe...');
-    }, 1000);
-  };
-
-  const minutePackages: any[] = []; // Will be loaded from API
-
-  const MinutePackageCard = ({ pkg }: { pkg: typeof minutePackages[0] }) => (
-    <Card className={pkg.popular ? "border-[#FE5B25]" : ""}>
-      <CardContent className="p-6">
-        {pkg.popular && (
-          <Badge className="mb-4 bg-[#FE5B25] text-white">
-            Am beliebtesten
-          </Badge>
-        )}
-        <div className="text-center space-y-4">
-          <div>
-            <div className="text-3xl font-bold text-gray-900">{pkg.minutes}</div>
-            <div className="text-sm text-gray-500">Minuten</div>
-            <div className="text-lg font-semibold text-gray-700 mt-1">{pkg.price}</div>
-            <div className="text-xs text-gray-500">{pkg.pricePerMinute}/Min</div>
-          </div>
-          <button 
-            className={buttonStyles.primary.fullWidth}
-            onClick={() => handlePurchase(pkg.id)}
-            disabled={isProcessing}
-          >
-            <span>{isProcessing ? "Verarbeitung..." : "Auswählen"}</span>
-          </button>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  // Top-up workflow entfernt – wird später nachgezogen
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -723,58 +698,9 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Firmen-Informationen</CardTitle>
-            </CardHeader>
-            <CardContent className={layoutStyles.cardContent}>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="companyName">Firmenname</Label>
-                  <Input id="companyName" defaultValue="Mein Unternehmen GmbH" />
-                </div>
-                <div>
-                  <Label htmlFor="taxId">Steuernummer</Label>
-                  <Input id="taxId" defaultValue="DE123456789" />
-                </div>
-                <div className="col-span-2">
-                  <Label htmlFor="address">Firmen-Adresse</Label>
-                  <Textarea id="address" defaultValue="Musterstraße 123&#10;12345 Musterstadt&#10;Deutschland" rows={3} />
-                </div>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Diese Informationen werden für die Stripe-Rechnungsstellung verwendet.
-              </p>
-              
-              <div className="flex justify-end pt-4">
-                <button className={buttonStyles.create.default}>
-                  <span>Firmen-Daten speichern</span>
-                </button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Entfernt: Firmen-Informationen (werden im Stripe-Portal verwaltet) */}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>E-Mail Einstellungen</CardTitle>
-            </CardHeader>
-            <CardContent className={layoutStyles.cardContent}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>E-Mail Benachrichtigungen</Label>
-                  <p className="text-sm text-gray-500">Erhalte Updates per E-Mail</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Workspace-Einladungen</Label>
-                  <p className="text-sm text-gray-500">Benachrichtigung bei neuen Workspace-Einladungen</p>
-                </div>
-                <Switch defaultChecked />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Entfernt: E-Mail Einstellungen (derzeit ohne Backend-Anbindung) */}
         </TabsContent>
 
         {/* Workspace Tab - NUR Team Mitglieder */}
@@ -841,12 +767,47 @@ export default function Settings() {
                         </Avatar>
                         <div>
                           <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-gray-500">{member.email}</p>
+                          <p className="text-sm text-gray-500">
+                            {member.email}
+                            {(() => {
+                              const ws: any = workspaceDetails || {};
+                              const isWorkspaceAdmin =
+                                (ws.admin_user_id && member.id === ws.admin_user_id) ||
+                                (ws.creator_id && member.id === ws.creator_id) ||
+                                (profile?.email === member.email && isAdmin);
+                              return isWorkspaceAdmin ? (
+                                <span className="ml-2 inline-flex items-center text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-200">
+                                  Workspace Admin
+                                </span>
+                              ) : null;
+                            })()}
+                          </p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-4">
-                        {/* UI-Polish: Rollen-/Status-Badges und Löschbutton entfernt */}
+                        {isAdmin && member.email !== profile?.email && (
+                          <button
+                            className="text-xs text-red-600 hover:text-red-800"
+                            onClick={async () => {
+                              if (!primaryWorkspace?.id) return;
+                              if (!confirm(`Benutzer ${member.email} wirklich entfernen?`)) return;
+                              try {
+                                await fetch(`${apiConfig.baseUrl}/api/workspaces/${primaryWorkspace.id}/remove_users/`, {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${localStorage.getItem('authToken')}` },
+                                  body: JSON.stringify({ user_ids: [member.id] })
+                                });
+                                toast({ title: 'Benutzer entfernt' });
+                                window.location.reload();
+                              } catch (e:any) {
+                                toast({ title: 'Entfernen fehlgeschlagen', description: e?.message || 'Bitte erneut versuchen', variant: 'destructive' });
+                              }
+                            }}
+                          >
+                            Entfernen
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -859,32 +820,38 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Hidden Advanced Settings - Only for non-Enterprise plans */}
-          {usage?.workspace?.plan && usage.workspace.plan !== 'Enterprise' && (
-            <div className="flex justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 h-6"
-                  >
-                    <SettingsIcon className="h-3 w-3 mr-1" />
-                    Advanced
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem 
-                    onClick={handleManageSubscription}
-                    className="text-xs text-gray-600 cursor-pointer"
-                  >
-                    <CreditCard className="h-3 w-3 mr-2" />
-                    Subscription Portal
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          {/* Admin Actions */}
+          {isAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className={textStyles.sectionTitle}>Workspace-Administration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="transferAdmin">Admin übertragen an</Label>
+                  <select id="transferAdmin" className="border rounded px-2 py-1" onChange={async (e) => {
+                    const newId = e.target.value; if (!newId) return;
+                    if (!primaryWorkspace?.id) return;
+                    if (!confirm('Admin-Rechte übertragen?')) { e.currentTarget.value = ''; return; }
+                    try {
+                      await workspaceAPI.transferAdmin(String(primaryWorkspace.id), newId);
+                      toast({ title: 'Admin übertragen' });
+                      window.location.reload();
+                    } catch (err:any) {
+                      toast({ title: 'Übertragen fehlgeschlagen', description: err?.message || 'Bitte erneut versuchen', variant: 'destructive' });
+                    }
+                  }}>
+                    <option value="">Benutzer wählen…</option>
+                    {teamMembers.filter((m:any) => m.email !== profile?.email).map((m:any) => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+                    ))}
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
           )}
+
+          {/* Advanced Feld entfernt */}
         </TabsContent>
 
         {/* Pläne & Guthaben Tab */}
@@ -1040,40 +1007,32 @@ export default function Settings() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className={textStyles.sectionTitle}>Aktueller Plan</CardTitle>
-                  <div className="flex gap-2">
-                    <Select onValueChange={handlePlanChange} disabled={changingPlan}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Plan ändern" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Start" disabled={currentPlan.name === "Start"}>
-                          Start - 199€
-                        </SelectItem>
-                        <SelectItem value="Pro" disabled={currentPlan.name === "Pro"}>
-                          Pro - 549€  
-                        </SelectItem>
-                        <SelectItem value="Enterprise" disabled={currentPlan.name === "Enterprise"}>
-                          Enterprise
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <button 
-                      className={buttonStyles.secondary.default}
-                      onClick={handleManageSubscription}
-                      disabled={isLoadingSubscription || !subscriptionStatus?.has_subscription}
-                    >
-                      <ExternalLink className={iconSizes.small} />
-                      <span>Abonnement verwalten</span>
-                    </button>
-                    <button 
-                      className={buttonStyles.secondary.default}
-                      onClick={() => window.location.href = '/dashboard/plans'}
-                    >
-                      <SettingsIcon className={iconSizes.small} />
-                      <span>Vergleichen</span>
-                    </button>
-                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <button className={buttonStyles.primary.default} onClick={async () => {
+                      if (!primaryWorkspace?.id) return;
+                      try {
+                        const current = (usage?.workspace?.plan || '').toLowerCase();
+                        const next = current === 'start' ? 'Pro' : current === 'pro' ? 'Enterprise' : null;
+                        if (!next) { toast({ title: 'Kein höherer Plan verfügbar' }); return; }
+                        const plans = await subscriptionService.getPlans();
+                        const nextPlan = plans.find((p:any) => p.plan_name === next);
+                        const priceId = nextPlan?.stripe_price_id_monthly;
+                        if (!priceId) { const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id); window.open(portal.url, '_blank'); return; }
+                        const sub = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
+                        if (!sub?.has_subscription) { const checkout = await subscriptionService.createCheckoutSession({ workspace_id: primaryWorkspace.id, price_id: priceId }); window.location.href = checkout.checkout_url; return; }
+                        await subscriptionService.changePlan(primaryWorkspace.id, priceId);
+                        toast({ title: 'Planwechsel gestartet', description: 'Abrechnung wird von Stripe automatisch angepasst.' });
+                        const refreshed = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
+                        setSubscriptionStatus(refreshed as any);
+                      } catch (e:any) { toast({ title: 'Planwechsel fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' }); }
+                    }}>Plan upgraden</button>
+                  )}
+                  <button className={buttonStyles.secondary.default} onClick={handleManageSubscription} disabled={isLoadingSubscription || !isAdmin}>
+                    <ExternalLink className={iconSizes.small} />
+                    <span>Abonnement verwalten</span>
+                  </button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -1083,7 +1042,7 @@ export default function Settings() {
                       <h3 className={textStyles.cardTitle}>
                         {isLoadingSubscription 
                           ? "Wird geladen..." 
-                          : subscriptionStatus?.subscription?.plan || currentPlan.name
+                          : currentPlan.name
                         } Plan
                       </h3>
                       <p className={textStyles.cardSubtitle}>
@@ -1108,11 +1067,13 @@ export default function Settings() {
                           Premium Features
                         </Badge>
                       )}
-                      {subscriptionStatus?.subscription?.cancel_at_period_end && (
+                      {subscriptionStatus?.has_subscription &&
+                       subscriptionStatus.subscription?.cancel_at_period_end &&
+                       subscriptionStatus.subscription?.current_period_end ? (
                         <p className="text-xs text-gray-500">
-                          Endet: {new Date(subscriptionStatus.subscription.current_period_end).toLocaleDateString('de-DE')}
+                          Dein Plan läuft zum {new Date(subscriptionStatus.subscription.current_period_end * 1000).toLocaleDateString('de-DE')} aus
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                   
@@ -1176,17 +1137,7 @@ export default function Settings() {
                   </div>
 
                   {/* Cancel Subscription Button */}
-                  {subscriptionStatus?.has_subscription && !subscriptionStatus.subscription?.cancel_at_period_end && (
-                    <div className="pt-4 mt-4 border-t border-gray-200">
-                      <button 
-                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                        onClick={handleCancelSubscription}
-                        disabled={isCancellingSubscription}
-                      >
-                        {isCancellingSubscription ? "Wird gekündigt..." : "Abonnement kündigen"}
-                      </button>
-                    </div>
-                  )}
+                  {/* Kündigungs-Buttons entfernt – Verwaltung nur im Stripe-Portal */}
                 </div>
               </CardContent>
             </Card>
@@ -1198,24 +1149,7 @@ export default function Settings() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className={textStyles.sectionTitle}>Verfügbare Minuten</CardTitle>
-                  <Dialog open={showTopUpDialog} onOpenChange={setShowTopUpDialog}>
-                    <DialogTrigger asChild>
-                      <button className={buttonStyles.primary.default}>
-                        <CreditCard className={iconSizes.small} />
-                        <span>Guthaben aufladen</span>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-4xl">
-                      <DialogHeader>
-                        <DialogTitle>Minuten aufladen</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-                        {minutePackages.map((pkg) => (
-                          <MinutePackageCard key={pkg.id} pkg={pkg} />
-                        ))}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  {/* Top-Up Button entfernt */}
                 </div>
               </CardHeader>
               <CardContent>
