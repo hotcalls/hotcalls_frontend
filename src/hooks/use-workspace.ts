@@ -6,11 +6,16 @@ export interface WorkspaceDetails extends CreateWorkspaceResponse {
   users?: any[]; // Backend returns `users` in WorkspaceSerializer
 }
 
+function lsKeyForUser(userId?: string | number | null) {
+  return userId ? `selected_workspace_id:${userId}` : 'selected_workspace_id';
+}
+
 export function useWorkspace() {
   const [workspaces, setWorkspaces] = useState<CreateWorkspaceResponse[]>([]);
   const [workspaceDetails, setWorkspaceDetails] = useState<WorkspaceDetails | null>(null);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,20 +38,25 @@ export function useWorkspace() {
       setWorkspaces(workspaceData);
       setCurrentUser(userProfile);
 
-      // Choose selected workspace: joined_workspace (URL) → localStorage → first
+      // Choose selected workspace: joined_workspace (URL) → user-scoped localStorage → first
       if (workspaceData.length > 0) {
         const params = new URLSearchParams(window.location.search);
         const joinedWorkspaceParam = params.get('joined_workspace');
-        const storedWorkspaceId = localStorage.getItem('selected_workspace_id');
+        const key = lsKeyForUser(userProfile?.id);
+        const storedWorkspaceId = localStorage.getItem(key);
+
+        // validate stored workspace against user's workspaces
+        const storedWorkspace = storedWorkspaceId && workspaceData.find(w => String(w.id) === String(storedWorkspaceId));
+
         const initialWorkspace =
           (joinedWorkspaceParam && (workspaceData.find(w => String(w.id) === String(joinedWorkspaceParam)) || null)) ||
-          (storedWorkspaceId && (workspaceData.find(w => String(w.id) === String(storedWorkspaceId)) || null)) ||
+          storedWorkspace ||
           workspaceData[0];
 
         // Persist selection if it changed
         if (!selectedWorkspaceId || String(selectedWorkspaceId) !== String(initialWorkspace.id)) {
           setSelectedWorkspaceId(String(initialWorkspace.id));
-          localStorage.setItem('selected_workspace_id', String(initialWorkspace.id));
+          localStorage.setItem(key, String(initialWorkspace.id));
         }
 
         // Load details for the selected workspace
@@ -58,9 +68,15 @@ export function useWorkspace() {
             members: (details as any)?.members || (details as any)?.users || []
           };
           setWorkspaceDetails(normalized);
+          // fetch my role (is_admin)
+          try {
+            const roleResp = await workspaceAPI.getMyWorkspaceRole(String(initialWorkspace.id));
+            setIsAdmin(!!roleResp?.is_admin);
+          } catch (e) { setIsAdmin(false); }
         } catch (detailsError) {
           console.warn('⚠️ Could not fetch workspace details:', detailsError);
           setWorkspaceDetails(initialWorkspace);
+          setIsAdmin(false);
         }
 
         // Clean URL params after processing to avoid side effects
@@ -180,7 +196,8 @@ export function useWorkspace() {
 
   const setSelectedWorkspace = (workspaceId: string) => {
     setSelectedWorkspaceId(workspaceId);
-    localStorage.setItem('selected_workspace_id', String(workspaceId));
+    const key = lsKeyForUser(currentUser?.id);
+    localStorage.setItem(key, String(workspaceId));
   };
 
   return {
@@ -188,6 +205,7 @@ export function useWorkspace() {
     primaryWorkspace,
     workspaceDetails,
     teamMembers: getTeamMembers(),
+    isAdmin,
     loading,
     updating,
     error,

@@ -150,6 +150,31 @@ class SubscriptionService {
   }
 
   /**
+   * Change plan for an existing subscription (Stripe proration)
+   */
+  async changePlan(workspaceId: string, priceId: string, options?: {
+    proration_behavior?: 'create_prorations' | 'always_invoice' | 'none';
+    payment_behavior?: 'allow_incomplete' | 'error_if_incomplete' | 'pending_if_incomplete' | 'default_incomplete';
+  }): Promise<{ id: string; status: string; cancel_at_period_end: boolean; current_period_end: number; price_id: string; }> {
+    try {
+      const payload = {
+        workspace_id: workspaceId,
+        price_id: priceId,
+        proration_behavior: options?.proration_behavior || 'create_prorations',
+        payment_behavior: options?.payment_behavior || 'pending_if_incomplete',
+      };
+
+      return await this.fetchWithAuth('/api/payments/stripe/change-plan/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error('❌ Failed to change plan:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Cancel subscription at period end
    */
   async cancelSubscription(workspaceId: string): Promise<{ message: string; cancel_at: number }> {
@@ -159,6 +184,20 @@ class SubscriptionService {
       });
     } catch (error) {
       console.error('❌ Failed to cancel subscription:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Resume subscription (undo cancel_at_period_end)
+   */
+  async resumeSubscription(workspaceId: string): Promise<{ message: string; cancel_at_period_end: boolean; current_period_end: number; status: string; }> {
+    try {
+      return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/subscription/resume/`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('❌ Failed to resume subscription:', error);
       throw error;
     }
   }

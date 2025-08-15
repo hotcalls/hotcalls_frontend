@@ -48,6 +48,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { calendarAPI, BackendCalendar, GoogleConnection, MicrosoftConnection } from "@/lib/apiService";
 import { getCalendarDisplayName, getCalendarEmail, saveCalendars } from "@/lib/calendarService";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 // Types
 interface CalendarType {
@@ -763,7 +764,7 @@ export default function Calendar() {
   // States
   const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>([]);
   // Current workspace
-  const { primaryWorkspace } = require('@/hooks/use-workspace');
+  const { primaryWorkspace } = useWorkspace();
   const [googleConnections, setGoogleConnections] = useState<GoogleConnection[]>([]);
   const [microsoftConnections, setMicrosoftConnections] = useState<MicrosoftConnection[]>([]);
   const [showProviderDialog, setShowProviderDialog] = useState(false);
@@ -776,6 +777,9 @@ export default function Calendar() {
     show: boolean; 
     connection: GoogleConnection | null; 
   }>({ show: false, connection: null });
+  const [googleAffected, setGoogleAffected] = useState<{ count: number; items: Array<{ id: string; name: string; calendar: string }> } | null>(null);
+  const [msAffected, setMsAffected] = useState<{ count: number; items: Array<{ id: string; name: string; calendar: string }> } | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   
   // Event Type Creation Modal State
   const [showEventTypeModal, setShowEventTypeModal] = useState(false);
@@ -993,6 +997,15 @@ export default function Calendar() {
 
   const handleDisconnectMicrosoftConnection = async (connectionId: string) => {
     setShowMsDisconnectConfirm({ show: true, connectionId });
+    try {
+      setIsPreviewLoading(true);
+      const preview = await calendarAPI.previewMicrosoftDisconnect(connectionId);
+      setMsAffected(preview);
+    } catch (e) {
+      setMsAffected(null);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   };
 
   const [showMsDisconnectConfirm, setShowMsDisconnectConfirm] = useState<{ show: boolean; connectionId: string | null }>({ show: false, connectionId: null });
@@ -1055,6 +1068,15 @@ export default function Calendar() {
     const connection = googleConnections.find(conn => conn.id === connectionId);
     if (!connection) return;
     setShowDisconnectConfirm({ show: true, connection });
+    try {
+      setIsPreviewLoading(true);
+      const preview = await calendarAPI.previewGoogleDisconnect(connectionId);
+      setGoogleAffected(preview);
+    } catch (e) {
+      setGoogleAffected(null);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   };
 
   const confirmDisconnectGoogleCalendar = async () => {
@@ -1326,15 +1348,30 @@ export default function Calendar() {
                 Sind Sie sicher, dass Sie die Google Calendar Verbindung für{' '}
                 <strong>{showDisconnectConfirm.connection?.account_email}</strong> trennen möchten?
               </p>
-              
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
-                <ul className="text-sm text-amber-700 space-y-1">
-                  <li>• Alle synchronisierten Kalender werden deaktiviert</li>
-                  <li>• Event-Type Konfigurationen bleiben erhalten</li>
-                  <li>• Neue Autorisierung für erneute Verbindung nötig</li>
-                </ul>
-              </div>
+              {isPreviewLoading ? (
+                <div className="text-sm text-muted-foreground">Prüfe betroffene Event‑Types…</div>
+              ) : googleAffected && googleAffected.count > 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 font-medium mb-2">Diese Event‑Types würden gelöscht ({googleAffected.count}):</p>
+                  <ul className="text-sm text-amber-700 list-disc pl-5">
+                    {googleAffected.items.slice(0, 8).map(it => (
+                      <li key={it.id}>{it.name}</li>
+                    ))}
+                  </ul>
+                  {googleAffected.items.length > 8 && (
+                    <p className="text-xs text-amber-700 mt-2">… und weitere {googleAffected.items.length - 8}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• Alle synchronisierten Kalender werden deaktiviert</li>
+                    <li>• Event‑Types, die diesen Kalender als Ziel oder Konflikt nutzen, werden gelöscht</li>
+                    <li>• Neue Autorisierung für erneute Verbindung nötig</li>
+                  </ul>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1387,14 +1424,30 @@ export default function Calendar() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p> Sind Sie sicher, dass Sie die Microsoft 365 Verbindung trennen möchten?</p>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
-                <ul className="text-sm text-amber-700 space-y-1">
-                  <li>• Alle synchronisierten Kalender werden deaktiviert</li>
-                  <li>• Event-Type Konfigurationen bleiben erhalten</li>
-                  <li>• Neue Autorisierung für erneute Verbindung nötig</li>
-                </ul>
-              </div>
+              {isPreviewLoading ? (
+                <div className="text-sm text-muted-foreground">Prüfe betroffene Event‑Types…</div>
+              ) : msAffected && msAffected.count > 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 font-medium mb-2">Diese Event‑Types würden gelöscht ({msAffected.count}):</p>
+                  <ul className="text-sm text-amber-700 list-disc pl-5">
+                    {msAffected.items.slice(0, 8).map(it => (
+                      <li key={it.id}>{it.name}</li>
+                    ))}
+                  </ul>
+                  {msAffected.items.length > 8 && (
+                    <p className="text-xs text-amber-700 mt-2">… und weitere {msAffected.items.length - 8}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• Alle synchronisierten Kalender werden deaktiviert</li>
+                    <li>• Event‑Types, die diesen Kalender als Ziel oder Konflikt nutzen, werden gelöscht</li>
+                    <li>• Neue Autorisierung für erneute Verbindung nötig</li>
+                  </ul>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

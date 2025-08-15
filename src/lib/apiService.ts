@@ -333,29 +333,24 @@ export const workspaceAPI = {
    * Get current user's workspaces (authenticated user's workspaces only)
    */
   async getMyWorkspaces(): Promise<CreateWorkspaceResponse[]> {
-    return apiCall<CreateWorkspaceResponse[]>('/api/workspaces/workspaces/my_workspaces/');
+    return apiCall('/api/workspaces/workspaces/my_workspaces/');
   },
 
   /**
    * Get detailed workspace information including members
    */
   async getWorkspaceDetails(workspaceId: string): Promise<any> {
-    return apiCall<any>(`/api/workspaces/workspaces/${workspaceId}/`);
+    return apiCall(`/api/workspaces/${workspaceId}/`);
   },
 
   /**
    * Update workspace details
    */
-  async updateWorkspace(workspaceId: string, workspaceData: { workspace_name: string }): Promise<CreateWorkspaceResponse> {
-    console.log('🔄 Updating workspace:', workspaceId);
-    
-    const response = await apiCall<CreateWorkspaceResponse>(`/api/workspaces/workspaces/${workspaceId}/`, {
-      method: 'PUT',
-      body: JSON.stringify(workspaceData),
+  async updateWorkspace(workspaceId: string, updates: { workspace_name: string }): Promise<any> {
+    return apiCall(`/api/workspaces/${workspaceId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
     });
-    
-    console.log('✅ Workspace updated:', response);
-    return response;
   },
 
   /**
@@ -378,15 +373,10 @@ export const workspaceAPI = {
    * Invite a user to workspace via email
    */
   async inviteUserToWorkspace(workspaceId: string, email: string): Promise<any> {
-    console.log('📧 Inviting user to workspace:', { workspaceId, email });
-    
-    const response = await apiCall<any>(`/api/workspaces/workspaces/${workspaceId}/invite/`, {
+    return apiCall(`/api/workspaces/${workspaceId}/invite/`, {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
-    
-    console.log('✅ User invited to workspace:', response);
-    return response;
   },
 
   /**
@@ -395,6 +385,23 @@ export const workspaceAPI = {
   async getWorkspaceMembers(workspaceId: string): Promise<any[]> {
     // Backend action is named `users` (see WorkspaceViewSet.users)
     return apiCall<any[]>(`/api/workspaces/workspaces/${workspaceId}/users/`);
+  },
+
+  /**
+   * Get current user's role in a workspace
+   */
+  async getMyWorkspaceRole(workspaceId: string): Promise<{ is_admin: boolean }> {
+    return apiCall(`/api/workspaces/${workspaceId}/my_role/`);
+  },
+
+  /**
+   * Transfer admin rights to a new user
+   */
+  async transferAdmin(workspaceId: string, newAdminUserId: string): Promise<{ message: string; new_admin_user_id: string }> {
+    return apiCall(`/api/workspaces/${workspaceId}/transfer-admin/`, {
+      method: 'POST',
+      body: JSON.stringify({ user_ids: [newAdminUserId] }),
+    });
   },
 };
 
@@ -1325,7 +1332,7 @@ export const calendarAPI = {
    * Disconnect Microsoft connection
    */
   async disconnectMicrosoftCalendar(connectionId: string): Promise<{ success: boolean; message?: string; }>{
-    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect/`, { method: 'POST' });
+    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect/`, { method: 'POST', body: JSON.stringify({ confirm: true }) });
   },
 
   /**
@@ -1362,7 +1369,8 @@ export const calendarAPI = {
         success: boolean;
         message?: string;
       }>(`/api/calendars/${connectionId}/google_disconnect/`, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({ confirm: true })
       });
       console.log('✅ Google Calendar disconnected:', response);
       return response;
@@ -1370,6 +1378,20 @@ export const calendarAPI = {
       console.error('❌ Google disconnect error:', error);
       throw error;
     }
+  },
+
+  /**
+   * Preview which Event Types will be deleted when disconnecting a Google connection
+   */
+  async previewGoogleDisconnect(connectionId: string): Promise<{ count: number; items: Array<{ id: string; name: string; calendar: string }> }>{
+    return apiCall(`/api/calendars/${connectionId}/google_disconnect_preview/`, { method: 'GET' });
+  },
+
+  /**
+   * Preview which Event Types will be deleted when disconnecting a Microsoft connection
+   */
+  async previewMicrosoftDisconnect(connectionId: string): Promise<{ count: number; items: Array<{ id: string; name: string; calendar: string }> }>{
+    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect_preview/`, { method: 'GET' });
   },
 
   /**

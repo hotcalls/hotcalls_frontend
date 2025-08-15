@@ -523,7 +523,7 @@ export const authService = {
     
     // Clear auth token from apiConfig if available
     try {
-      const { apiConfig } = require('@/lib/apiConfig');
+      // Avoid dynamic require in browser bundles
       apiConfig.clearAuthToken();
     } catch (e) {
       console.log('Note: Could not clear apiConfig token');

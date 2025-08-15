@@ -8,7 +8,7 @@ import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2,
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { metaAPI, webhookAPI } from "@/lib/apiService";
+import { metaAPI, webhookAPI, funnelAPI } from "@/lib/apiService";
 import React from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
@@ -53,7 +53,8 @@ interface LeadFunnel {
 export default function LeadSources() {
   const [metaIntegrations, setMetaIntegrations] = useState<MetaIntegration[]>([]);
   const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
-  const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]); // kept for type, but not populated
+  const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
+  const [csvFunnels, setCsvFunnels] = useState<LeadFunnel[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCsvStep, setIsCsvStep] = useState(false);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
@@ -88,10 +89,11 @@ export default function LeadSources() {
     console.log('🔍 Starting to load all lead sources...');
     setIsLoading(true);
     try {
-      // Load only real connections (Meta + Webhook). Do not load funnels here to avoid listing all Meta forms.
-      const [metaIntegrationsResult, webhookSourcesResult] = await Promise.allSettled([
+      // Load real connections (Meta + Webhook) and CSV funnels for this workspace
+      const [metaIntegrationsResult, webhookSourcesResult, funnelsResult] = await Promise.allSettled([
         metaAPI.getIntegrations(),
         webhookAPI.listSources(),
+        workspaceDetails?.id ? funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id }) : Promise.resolve([] as any[]),
       ]);
 
       // Handle Meta integrations
@@ -125,12 +127,20 @@ export default function LeadSources() {
         setWebhookSources([]);
       }
 
-      // We intentionally do not load funnels on this page to prevent listing all Meta funnels.
+      // Handle CSV funnels (filter out Meta and Webhook based funnels)
+      if (funnelsResult.status === 'fulfilled') {
+        const allFunnels = (funnelsResult.value as any[]) || [];
+        const csvOnly = allFunnels.filter((f: any) => !f.meta_lead_form && !f.webhook_source);
+        setCsvFunnels(csvOnly);
+      } else {
+        setCsvFunnels([]);
+      }
     } catch (error) {
       console.error('❌ Unexpected error loading sources:', error);
       setMetaIntegrations([]);
       setWebhookSources([]);
       setLeadFunnels([]);
+      setCsvFunnels([]);
     } finally {
       setIsLoading(false);
       console.log('🏁 All sources loading completed');
@@ -631,7 +641,38 @@ export default function LeadSources() {
             </Card>
           ))}
 
-          {/* CSV Funnels are intentionally not listed here to avoid clutter; CSV Upload is available via the dialog. */}
+          {/* CSV Sources */}
+          {Array.isArray(csvFunnels) && csvFunnels.length > 0 && csvFunnels.map((funnel) => (
+            <Card key={funnel.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
+                      <Globe className={`${iconSizes.large} text-[#FE5B25]`} />
+                    </div>
+                    <div>
+                      <CardTitle className={textStyles.cardTitle}>
+                        {funnel.name || 'CSV Quelle'}
+                      </CardTitle>
+                      <p className={textStyles.cardSubtitle}>
+                        CSV • {funnel.is_active ? 'Aktiv' : 'Inaktiv'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
+                    <Badge variant={funnel.is_active ? 'default' : 'secondary'}>
+                      {funnel.is_active ? 'Aktiv' : 'Inaktiv'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  CSV‑Lead‑Quelle verfügbar. Genaue Zuordnung in Agent‑Einstellungen konfigurieren.
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
           {/* Webhook Sources */}
           {Array.isArray(webhookSources) && webhookSources.map((webhook) => {
@@ -695,13 +736,14 @@ export default function LeadSources() {
 
           {/* Empty state */}
           {Array.isArray(metaIntegrations) && metaIntegrations.length === 0 && 
-           Array.isArray(webhookSources) && webhookSources.length === 0 && (
+           Array.isArray(webhookSources) && webhookSources.length === 0 &&
+           Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
                 <Facebook className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <h3 className="text-lg font-medium mb-2">Keine Lead Quellen verbunden</h3>
                 <p className="text-gray-500 mb-4">
-                  Verbinde deine Meta Lead Ads um automatisch Leads zu empfangen
+                  Verbinde Meta, Webhook oder lade CSV‑Leads hoch, um automatisch Leads zu empfangen
                 </p>
                 <Button onClick={() => setIsAddDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
