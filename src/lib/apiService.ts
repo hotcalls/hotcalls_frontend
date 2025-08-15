@@ -340,14 +340,14 @@ export const workspaceAPI = {
    * Get detailed workspace information including members
    */
   async getWorkspaceDetails(workspaceId: string): Promise<any> {
-    return apiCall(`/api/workspaces/${workspaceId}/`);
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/`);
   },
 
   /**
    * Update workspace details
    */
   async updateWorkspace(workspaceId: string, updates: { workspace_name: string }): Promise<any> {
-    return apiCall(`/api/workspaces/${workspaceId}/`, {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
@@ -373,7 +373,7 @@ export const workspaceAPI = {
    * Invite a user to workspace via email
    */
   async inviteUserToWorkspace(workspaceId: string, email: string): Promise<any> {
-    return apiCall(`/api/workspaces/${workspaceId}/invite/`, {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/invite/`, {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
@@ -391,14 +391,14 @@ export const workspaceAPI = {
    * Get current user's role in a workspace
    */
   async getMyWorkspaceRole(workspaceId: string): Promise<{ is_admin: boolean }> {
-    return apiCall(`/api/workspaces/${workspaceId}/my_role/`);
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/my_role/`);
   },
 
   /**
    * Transfer admin rights to a new user
    */
   async transferAdmin(workspaceId: string, newAdminUserId: string): Promise<{ message: string; new_admin_user_id: string }> {
-    return apiCall(`/api/workspaces/${workspaceId}/transfer-admin/`, {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/transfer-admin/`, {
       method: 'POST',
       body: JSON.stringify({ user_ids: [newAdminUserId] }),
     });
