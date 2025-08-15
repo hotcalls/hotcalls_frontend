@@ -846,14 +846,7 @@ export default function Settings() {
                       </div>
                       
                       <div className="flex items-center space-x-4">
-                        <Badge variant="secondary">{member.role}</Badge>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{member.status}</p>
-                          <p className="text-xs text-gray-500">{member.lastActive}</p>
-                        </div>
-                        <button className={buttonStyles.cardAction.iconDelete}>
-                          <Trash2 className={iconSizes.small} />
-                        </button>
+                        {/* UI-Polish: Rollen-/Status-Badges und Löschbutton entfernt */}
                       </div>
                     </div>
                   ))

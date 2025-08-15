@@ -95,17 +95,15 @@ export function WorkspaceSelector() {
                   <CommandItem
                     key={workspace.value}
                     value={workspace.value}
-                    onSelect={(currentValue) => {
-                      if (!currentValue) return;
-                      // Persist selection and navigate to ensure global reload in chosen workspace
-                      setSelectedWorkspace(currentValue);
+                    onSelect={() => {
+                      const id = workspace.value;
+                      setSelectedWorkspace(id);
                       setOpen(false);
+                      const url = `/dashboard?joined_workspace=${encodeURIComponent(id)}&skip_welcome=1`;
                       try {
-                        const url = `/dashboard?joined_workspace=${encodeURIComponent(currentValue)}&skip_welcome=1`;
                         window.location.assign(url);
                       } catch {
-                        // fallback
-                        window.location.href = `/dashboard?joined_workspace=${encodeURIComponent(currentValue)}&skip_welcome=1`;
+                        window.location.href = url;
                       }
                     }}
                   >

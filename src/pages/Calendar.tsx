@@ -762,6 +762,8 @@ export default function Calendar() {
 
   // States
   const [connectedCalendars, setConnectedCalendars] = useState<CalendarType[]>([]);
+  // Current workspace
+  const { primaryWorkspace } = require('@/hooks/use-workspace');
   const [googleConnections, setGoogleConnections] = useState<GoogleConnection[]>([]);
   const [microsoftConnections, setMicrosoftConnections] = useState<MicrosoftConnection[]>([]);
   const [showProviderDialog, setShowProviderDialog] = useState(false);
@@ -914,6 +916,11 @@ export default function Calendar() {
         throw new Error('Invalid calendars response');
       }
 
+      // Filter calendars by current workspace if field present
+      const wsId = String(primaryWorkspace?.id || '');
+      const filteredCalendars = wsId
+        ? calendars.filter((c: any) => String(c.workspace) === wsId || String((c as any)?.workspace_id) === wsId)
+        : calendars;
       // MINIMALISTIC: Use Google Connections directly - like Lead Sources
       // Show only account_email and calendar_count as subCalendars
       const convertedCalendars: CalendarType[] = filteredConnections.map((connection: any) => {

@@ -750,6 +750,7 @@ export const callAPI = {
     page_size?: number;
     search?: string;
     agent?: string;
+    agent__workspace?: string;
     status?: string;
     direction?: string;
     ordering?: string;
@@ -773,6 +774,9 @@ export const callAPI = {
       }
       if (params?.agent) {
         searchParams.append('agent', params.agent);
+      }
+      if (params?.agent__workspace) {
+        searchParams.append('agent__workspace', params.agent__workspace);
       }
       if (params?.status) {
         searchParams.append('status', params.status);
@@ -830,11 +834,15 @@ export const callAPI = {
   /**
    * Get appointment statistics
    */
-  async getAppointmentStats(): Promise<AppointmentStats> {
+  async getAppointmentStats(params?: { agent__workspace?: string }): Promise<AppointmentStats> {
     console.log('📅 GET /api/calls/call-logs/appointment_stats/ - Getting appointment statistics');
     
     try {
-      const response = await apiCall<AppointmentStats>('/api/calls/call-logs/appointment_stats/');
+      let url = '/api/calls/call-logs/appointment_stats/';
+      if (params?.agent__workspace) {
+        url += `?agent__workspace=${encodeURIComponent(params.agent__workspace)}`;
+      }
+      const response = await apiCall<AppointmentStats>(url);
       console.log('✅ Appointment statistics retrieved:', response);
       return response;
     } catch (error) {
@@ -854,11 +862,15 @@ export const callAPI = {
   /**
    * Get daily call statistics for chart data
    */
-  async getDailyStats(days: number = 30): Promise<DailyStats> {
+  async getDailyStats(days: number = 30, params?: { agent__workspace?: string }): Promise<DailyStats> {
     console.log(`📊 GET /api/calls/call-logs/daily_stats/?days=${days} - Getting daily call statistics`);
     
     try {
-      const response = await apiCall<DailyStats>(`/api/calls/call-logs/daily_stats/?days=${days}`);
+      let url = `/api/calls/call-logs/daily_stats/?days=${days}`;
+      if (params?.agent__workspace) {
+        url += `&agent__workspace=${encodeURIComponent(params.agent__workspace)}`;
+      }
+      const response = await apiCall<DailyStats>(url);
       console.log('✅ Daily stats retrieved:', response);
       return response;
     } catch (error) {
@@ -911,6 +923,7 @@ export const callAPI = {
     ordering?: string;
     appointment_datetime_after?: string;
     appointment_datetime_before?: string;
+    agent__workspace?: string;
   }): Promise<AppointmentCallLog[]> {
     console.log('📅 GET /api/calls/call-logs/ (appointments) - Getting appointment call logs');
     
@@ -929,6 +942,9 @@ export const callAPI = {
       }
       if (params?.appointment_datetime_before) {
         callParams.appointment_datetime_before = params.appointment_datetime_before;
+      }
+      if (params?.agent__workspace) {
+        callParams.agent__workspace = params.agent__workspace;
       }
 
       // Call the existing getCallLogs function with appointment filters
@@ -962,6 +978,7 @@ export const callAPI = {
     timestamp_after?: string;
     timestamp_before?: string;
     search?: string;
+    agent__workspace?: string;
   }): Promise<CallLog[]> {
     console.log('📞 GET /api/calls/call-logs/ (recent) - Getting recent call logs');
     
@@ -984,6 +1001,9 @@ export const callAPI = {
       // Add search if provided
       if (params?.search && params.search.trim()) {
         callParams.search = params.search.trim();
+      }
+      if (params?.agent__workspace) {
+        callParams.agent__workspace = params.agent__workspace;
       }
 
       // Call the existing getCallLogs function

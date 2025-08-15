@@ -42,6 +42,7 @@ import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint, AppointmentCallLog } from '@/lib/apiService';
+import { useWorkspace } from '@/hooks/use-workspace';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -265,6 +266,7 @@ const transformCallLogToRecentCall = (callLog: CallLog): RecentCallData => {
 const leadDetails = generateLeadDetails();
 
 export default function Dashboard() {
+  const { primaryWorkspace } = useWorkspace();
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: subDays(new Date(), 6),
     to: new Date()
@@ -318,8 +320,8 @@ export default function Dashboard() {
           return;
         }
 
-        // Use normal leads endpoint to get count
-        const data = await leadAPI.getLeads({ page_size: 1 }); // Only need count, not the actual leads
+        // Get count filtered by current workspace
+        const data = await leadAPI.getLeads({ page_size: 1, workspace: String(primaryWorkspace?.id || '') });
         setLeadsStats({ count: data.count || 0 });
       } catch (error) {
         console.error('Error fetching leads count:', error);
@@ -329,8 +331,8 @@ export default function Dashboard() {
       }
     };
 
-    fetchLeadsCount();
-  }, []); // Run once on mount
+    if (primaryWorkspace?.id) fetchLeadsCount();
+  }, [primaryWorkspace?.id]);
 
   // API Call für Reached Leads Count
   useEffect(() => {
@@ -348,8 +350,8 @@ export default function Dashboard() {
           return;
         }
 
-        // Get all call logs to calculate reached leads
-        const callLogsData = await callAPI.getCallLogs();
+        // Get call logs filtered by workspace
+        const callLogsData = await callAPI.getCallLogs({ agent__workspace: String(primaryWorkspace?.id || '') });
         const reachedCount = callAPI.calculateReachedLeads(callLogsData.results);
         setReachedLeadsCount(reachedCount);
       } catch (error) {
@@ -361,8 +363,8 @@ export default function Dashboard() {
       }
     };
 
-    fetchReachedLeadsCount();
-  }, []); // Run once on mount
+    if (primaryWorkspace?.id) fetchReachedLeadsCount();
+  }, [primaryWorkspace?.id]);
 
   // API Call für Appointment Stats
   useEffect(() => {
@@ -387,8 +389,8 @@ export default function Dashboard() {
           return;
         }
 
-        // Get appointment statistics
-        const stats = await callAPI.getAppointmentStats();
+        // Get appointment statistics filtered by workspace
+        const stats = await callAPI.getAppointmentStats({ agent__workspace: String(primaryWorkspace?.id || '') });
         setAppointmentStats(stats);
       } catch (error) {
         console.error('Error fetching appointment stats:', error);
@@ -398,8 +400,8 @@ export default function Dashboard() {
       }
     };
 
-    fetchAppointmentStats();
-  }, []); // Run once on mount
+    if (primaryWorkspace?.id) fetchAppointmentStats();
+  }, [primaryWorkspace?.id]);
 
   // API Call für Static Appointment List (nächste 2 Wochen ab heute)
   useEffect(() => {
@@ -419,7 +421,8 @@ export default function Dashboard() {
           page_size: 5, // Get exactly 5 appointments
           ordering: 'appointment_datetime', // Order by appointment time (earliest first)
           appointment_datetime_after: now.toISOString(),
-          appointment_datetime_before: twoWeeksLater.toISOString()
+          appointment_datetime_before: twoWeeksLater.toISOString(),
+          agent__workspace: String(primaryWorkspace?.id || '')
         });
         
         setRealAppointments(appointments);
@@ -456,7 +459,8 @@ export default function Dashboard() {
           ordering: '-timestamp',          // Neueste zuerst
           timestamp_after: startDate,      // Gleicher Filter wie Chart
           timestamp_before: endDate,       // Gleicher Filter wie Chart
-          search: searchQuery || undefined // Keyword Search
+          search: searchQuery || undefined, // Keyword Search
+          agent__workspace: String(primaryWorkspace?.id || '')
         });
         
         // Transform API → Frontend
@@ -473,7 +477,7 @@ export default function Dashboard() {
     };
     
     fetchRecentCalls();
-  }, [dateRange, searchQuery]); // Abhängig von Datum UND Search
+  }, [dateRange, searchQuery, primaryWorkspace?.id]); // Abhängig von Datum, Search und Workspace
 
   // Real Chart Data State
   const [realChartData, setRealChartData] = useState<ChartDataPoint[]>([]);
