@@ -787,26 +787,51 @@ export default function Settings() {
                       
                       <div className="flex items-center space-x-4">
                         {isAdmin && member.email !== profile?.email && (
-                          <button
-                            className="text-xs text-red-600 hover:text-red-800"
-                            onClick={async () => {
-                              if (!primaryWorkspace?.id) return;
-                              if (!confirm(`Benutzer ${member.email} wirklich entfernen?`)) return;
-                              try {
-                                await fetch(`${apiConfig.baseUrl}/api/workspaces/${primaryWorkspace.id}/remove_users/`, {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${localStorage.getItem('authToken')}` },
-                                  body: JSON.stringify({ user_ids: [member.id] })
-                                });
-                                toast({ title: 'Benutzer entfernt' });
-                                window.location.reload();
-                              } catch (e:any) {
-                                toast({ title: 'Entfernen fehlgeschlagen', description: e?.message || 'Bitte erneut versuchen', variant: 'destructive' });
-                              }
-                            }}
-                          >
-                            Entfernen
-                          </button>
+                          <>
+                            {(() => {
+                              const ws: any = workspaceDetails || {};
+                              const isAlreadyAdmin = (ws.admin_user_id && member.id === ws.admin_user_id) || (ws.creator_id && member.id === ws.creator_id);
+                              if (isAlreadyAdmin) return null;
+                              return (
+                                <button
+                                  className="text-xs text-orange-600 hover:text-orange-800"
+                                  onClick={async () => {
+                                    if (!primaryWorkspace?.id) return;
+                                    if (!confirm(`Soll ${member.email} Workspace-Admin werden?`)) return;
+                                    try {
+                                      await workspaceAPI.transferAdmin(String(primaryWorkspace.id), String(member.id));
+                                      toast({ title: 'Admin übertragen' });
+                                      window.location.reload();
+                                    } catch (err:any) {
+                                      toast({ title: 'Übertragen fehlgeschlagen', description: err?.message || 'Bitte erneut versuchen', variant: 'destructive' });
+                                    }
+                                  }}
+                                >
+                                  Admin machen
+                                </button>
+                              );
+                            })()}
+                            <button
+                              className="text-xs text-red-600 hover:text-red-800"
+                              onClick={async () => {
+                                if (!primaryWorkspace?.id) return;
+                                if (!confirm(`Benutzer ${member.email} wirklich entfernen?`)) return;
+                                try {
+                                  await fetch(`${apiConfig.baseUrl}/api/workspaces/workspaces/${primaryWorkspace.id}/remove_users/`, {
+                                    method: 'DELETE',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${localStorage.getItem('authToken')}` },
+                                    body: JSON.stringify({ user_ids: [member.id] })
+                                  });
+                                  toast({ title: 'Benutzer entfernt' });
+                                  window.location.reload();
+                                } catch (e:any) {
+                                  toast({ title: 'Entfernen fehlgeschlagen', description: e?.message || 'Bitte erneut versuchen', variant: 'destructive' });
+                                }
+                              }}
+                            >
+                              Entfernen
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -820,36 +845,7 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Admin Actions */}
-          {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className={textStyles.sectionTitle}>Workspace-Administration</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="transferAdmin">Admin übertragen an</Label>
-                  <select id="transferAdmin" className="border rounded px-2 py-1" onChange={async (e) => {
-                    const newId = e.target.value; if (!newId) return;
-                    if (!primaryWorkspace?.id) return;
-                    if (!confirm('Admin-Rechte übertragen?')) { e.currentTarget.value = ''; return; }
-                    try {
-                      await workspaceAPI.transferAdmin(String(primaryWorkspace.id), newId);
-                      toast({ title: 'Admin übertragen' });
-                      window.location.reload();
-                    } catch (err:any) {
-                      toast({ title: 'Übertragen fehlgeschlagen', description: err?.message || 'Bitte erneut versuchen', variant: 'destructive' });
-                    }
-                  }}>
-                    <option value="">Benutzer wählen…</option>
-                    {teamMembers.filter((m:any) => m.email !== profile?.email).map((m:any) => (
-                      <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
-                    ))}
-                  </select>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Workspace-Administration-Bereich entfernt – Aktionen direkt pro Mitglied */}
 
           {/* Advanced Feld entfernt */}
         </TabsContent>
