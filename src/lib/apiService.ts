@@ -398,7 +398,8 @@ export const workspaceAPI = {
    * Transfer admin rights to a new user
    */
   async transferAdmin(workspaceId: string, newAdminUserId: string): Promise<{ message: string; new_admin_user_id: string }> {
-    return apiCall(`/api/workspaces/workspaces/${workspaceId}/transfer-admin/`, {
+    // DRF action name uses underscore -> /transfer_admin/
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/transfer_admin/`, {
       method: 'POST',
       body: JSON.stringify({ user_ids: [newAdminUserId] }),
     });
