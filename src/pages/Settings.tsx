@@ -793,8 +793,9 @@ export default function Settings() {
                               const isAlreadyAdmin = (ws.admin_user_id && member.id === ws.admin_user_id) || (ws.creator_id && member.id === ws.creator_id);
                               if (isAlreadyAdmin) return null;
                               return (
-                                <button
-                                  className="text-xs text-orange-600 hover:text-orange-800"
+                                <Button
+                                  variant="outline"
+                                  className="h-7 px-2 text-xs"
                                   onClick={async () => {
                                     if (!primaryWorkspace?.id) return;
                                     if (!confirm(`Soll ${member.email} Workspace-Admin werden?`)) return;
@@ -808,20 +809,17 @@ export default function Settings() {
                                   }}
                                 >
                                   Admin machen
-                                </button>
+                                </Button>
                               );
                             })()}
-                            <button
-                              className="text-xs text-red-600 hover:text-red-800"
+                            <Button
+                              variant="destructive"
+                              className="h-7 px-2 text-xs"
                               onClick={async () => {
                                 if (!primaryWorkspace?.id) return;
                                 if (!confirm(`Benutzer ${member.email} wirklich entfernen?`)) return;
                                 try {
-                                  await fetch(`${apiConfig.baseUrl}/api/workspaces/workspaces/${primaryWorkspace.id}/remove_users/`, {
-                                    method: 'DELETE',
-                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${localStorage.getItem('authToken')}` },
-                                    body: JSON.stringify({ user_ids: [member.id] })
-                                  });
+                                  await workspaceAPI.removeUsers(String(primaryWorkspace.id), [String(member.id)]);
                                   toast({ title: 'Benutzer entfernt' });
                                   window.location.reload();
                                 } catch (e:any) {
@@ -830,7 +828,7 @@ export default function Settings() {
                               }}
                             >
                               Entfernen
-                            </button>
+                            </Button>
                           </>
                         )}
                       </div>

@@ -403,6 +403,16 @@ export const workspaceAPI = {
       body: JSON.stringify({ user_ids: [newAdminUserId] }),
     });
   },
+
+  /**
+   * Remove one or more users from a workspace
+   */
+  async removeUsers(workspaceId: string, userIds: string[]): Promise<{ message: string; removed_users: string[]; total_removed: number }> {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/remove_users/`, {
+      method: 'DELETE',
+      body: JSON.stringify({ user_ids: userIds }),
+    });
+  },
 };
 
 // Agent API calls
