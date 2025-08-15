@@ -9,6 +9,7 @@ export interface WorkspaceDetails extends CreateWorkspaceResponse {
 export function useWorkspace() {
   const [workspaces, setWorkspaces] = useState<CreateWorkspaceResponse[]>([]);
   const [workspaceDetails, setWorkspaceDetails] = useState<WorkspaceDetails | null>(null);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -32,19 +33,26 @@ export function useWorkspace() {
       setWorkspaces(workspaceData);
       setCurrentUser(userProfile);
 
-      // Choose primary workspace: prefer joined_workspace from URL, else first
+      // Choose selected workspace: joined_workspace (URL) → localStorage → first
       if (workspaceData.length > 0) {
         const params = new URLSearchParams(window.location.search);
         const joinedWorkspaceParam = params.get('joined_workspace');
-        const primaryWorkspace = joinedWorkspaceParam
-          ? (workspaceData.find(w => String(w.id) === String(joinedWorkspaceParam)) || workspaceData[0])
-          : workspaceData[0];
-        console.log('🔍 Fetching details for primary workspace:', primaryWorkspace.id);
-        
+        const storedWorkspaceId = localStorage.getItem('selected_workspace_id');
+        const initialWorkspace =
+          (joinedWorkspaceParam && (workspaceData.find(w => String(w.id) === String(joinedWorkspaceParam)) || null)) ||
+          (storedWorkspaceId && (workspaceData.find(w => String(w.id) === String(storedWorkspaceId)) || null)) ||
+          workspaceData[0];
+
+        // Persist selection if it changed
+        if (!selectedWorkspaceId || String(selectedWorkspaceId) !== String(initialWorkspace.id)) {
+          setSelectedWorkspaceId(String(initialWorkspace.id));
+          localStorage.setItem('selected_workspace_id', String(initialWorkspace.id));
+        }
+
+        // Load details for the selected workspace
         try {
-          const details = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
+          const details = await workspaceAPI.getWorkspaceDetails(initialWorkspace.id);
           console.log('✅ Workspace details loaded:', details);
-          // Normalize members/users field for UI consumption
           const normalized: WorkspaceDetails = {
             ...details,
             members: (details as any)?.members || (details as any)?.users || []
@@ -52,8 +60,7 @@ export function useWorkspace() {
           setWorkspaceDetails(normalized);
         } catch (detailsError) {
           console.warn('⚠️ Could not fetch workspace details:', detailsError);
-          // Set basic workspace info even if details fail
-          setWorkspaceDetails(primaryWorkspace);
+          setWorkspaceDetails(initialWorkspace);
         }
 
         // Clean URL params after processing to avoid side effects
@@ -80,8 +87,10 @@ export function useWorkspace() {
     fetchWorkspaces();
   }, []);
 
-  // Get primary workspace (first one)
-  const primaryWorkspace = workspaces.length > 0 ? workspaces[0] : null;
+  // Derive primary workspace from selectedWorkspaceId (fallback: first)
+  const primaryWorkspace =
+    (selectedWorkspaceId && workspaces.find(w => String(w.id) === String(selectedWorkspaceId))) ||
+    (workspaces.length > 0 ? workspaces[0] : null);
 
   // Extract team members from workspace details and ensure current user is included
   const getTeamMembers = () => {
@@ -169,6 +178,11 @@ export function useWorkspace() {
     }
   };
 
+  const setSelectedWorkspace = (workspaceId: string) => {
+    setSelectedWorkspaceId(workspaceId);
+    localStorage.setItem('selected_workspace_id', String(workspaceId));
+  };
+
   return {
     workspaces,
     primaryWorkspace,
@@ -178,6 +192,8 @@ export function useWorkspace() {
     updating,
     error,
     refetch: fetchWorkspaces,
-    updateWorkspace
+    updateWorkspace,
+    selectedWorkspaceId,
+    setSelectedWorkspace
   };
 } 

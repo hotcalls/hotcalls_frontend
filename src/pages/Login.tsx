@@ -119,6 +119,12 @@ const Login = () => {
       const nextPath = nextParam && nextParam.startsWith('/') ? nextParam : null;
       console.log('📊 Post-login navigation:', { nextParam, nextPath });
       if (nextPath) {
+        // For server-side invitation accept routes, force a full page load so the
+        // Django template with auto-accept script can run reliably.
+        if (nextPath.startsWith('/invitations/')) {
+          window.location.assign(nextParam!);
+          return; // stop SPA navigation
+        }
         navigate(nextPath);
       } else {
         navigate("/dashboard");

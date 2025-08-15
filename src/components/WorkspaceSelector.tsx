@@ -19,17 +19,10 @@ import React from "react";
 
 export function WorkspaceSelector() {
   const [open, setOpen] = useState(false);
-  const { workspaces, primaryWorkspace, loading, error } = useWorkspace();
+  const { workspaces, primaryWorkspace, loading, error, selectedWorkspaceId, setSelectedWorkspace } = useWorkspace();
   
-  // Use primary workspace as default, or first workspace if available
-  const [value, setValue] = useState(primaryWorkspace?.id || "");
-
-  // Update value when primaryWorkspace is loaded
-  React.useEffect(() => {
-    if (primaryWorkspace && !value) {
-      setValue(primaryWorkspace.id);
-    }
-  }, [primaryWorkspace, value]);
+  // Use selected workspace id from hook
+  const value = selectedWorkspaceId || primaryWorkspace?.id || "";
 
   // Map API workspaces to selector format
   const workspaceOptions = workspaces.map(workspace => ({
@@ -103,8 +96,17 @@ export function WorkspaceSelector() {
                     key={workspace.value}
                     value={workspace.value}
                     onSelect={(currentValue) => {
-                      setValue(currentValue === value ? "" : currentValue);
+                      if (!currentValue) return;
+                      // Persist selection and navigate to ensure global reload in chosen workspace
+                      setSelectedWorkspace(currentValue);
                       setOpen(false);
+                      try {
+                        const url = `/dashboard?joined_workspace=${encodeURIComponent(currentValue)}&skip_welcome=1`;
+                        window.location.assign(url);
+                      } catch {
+                        // fallback
+                        window.location.href = `/dashboard?joined_workspace=${encodeURIComponent(currentValue)}&skip_welcome=1`;
+                      }
                     }}
                   >
                     <Check
