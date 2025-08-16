@@ -19,8 +19,8 @@ const items = [
 
 const PlanSection = () => {
   const { primaryWorkspace, isAdmin } = useWorkspace();
-  // Always call hooks at top-level to keep order stable
-  const { 
+  // Always call hooks in the same order; pass null workspaceId for non-admins
+  const {
     callMinutes, 
     loading, 
     error, 
@@ -29,7 +29,7 @@ const PlanSection = () => {
     usageColor, 
     displayText, 
     percentage 
-  } = useCallMinutesUsage(primaryWorkspace?.id || null);
+  } = useCallMinutesUsage(isAdmin ? (primaryWorkspace?.id || null) : null);
 
   // Hide plan/usage section for non-admin users
   if (!isAdmin) {
