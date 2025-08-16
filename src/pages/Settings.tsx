@@ -49,6 +49,8 @@ export default function Settings() {
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<null | { type: 'make_admin' | 'remove_user'; member: any }>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // Ensure activeTab is valid for current role (non-admins cannot view billing)
   useEffect(() => {
@@ -847,35 +849,22 @@ export default function Settings() {
                   </div>
                 )}
               </div>
-              {isAdmin && (
-                <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4">
+                {isAdmin ? (
                   <Button
                     variant="destructive"
                     className="h-8 px-3 text-xs bg-red-600 hover:bg-red-700 text-white"
-                    onClick={async () => {
-                      if (!primaryWorkspace?.id) return;
-                      const sure = window.confirm(
-                        'Bist du dir sicher, dass du diesen Workspace löschen möchtest?\n\nAlle deine Daten werden aus unserem System entfernt. Dein Plan läuft somit aus.'
-                      );
-                      if (!sure) return;
-                      try {
-                        await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
-                        toast({ title: 'Workspace gelöscht' });
-                        try {
-                          const key = `selected_workspace_id:${profile?.id || ''}`;
-                          localStorage.removeItem(key);
-                          localStorage.removeItem('welcomeCompleted');
-                        } catch {}
-                        window.location.href = '/';
-                      } catch (e: any) {
-                        toast({ title: 'Löschen fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
-                      }
+                    onClick={() => {
+                      setDeleteConfirmText("");
+                      setShowDeleteConfirm(true);
                     }}
                   >
                     Workspace löschen
                   </Button>
-                </div>
-              )}
+                ) : (
+                  <span className="text-xs text-gray-500">Nur der Workspace-Admin kann den Workspace löschen.</span>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -1283,6 +1272,51 @@ export default function Settings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmAction}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Workspace Confirm */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Workspace wirklich löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Diese Aktion kann nicht rückgängig gemacht werden. Bitte tippe den Namen des Workspaces ein, um zu bestätigen: <b>{workspaceDetails?.workspace_name || ''}</b>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="Workspace Name eingeben"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteConfirmText !== (workspaceDetails?.workspace_name || '')}
+              onClick={async () => {
+                if (!primaryWorkspace?.id) return;
+                try {
+                  await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
+                  toast({ title: 'Workspace gelöscht' });
+                  try {
+                    const key = `selected_workspace_id:${profile?.id || ''}`;
+                    localStorage.removeItem(key);
+                    localStorage.removeItem('welcomeCompleted');
+                  } catch {}
+                  window.location.href = '/';
+                } catch (e: any) {
+                  const message = (e?.detail || e?.message || 'Du hast keine Berechtigung, diesen Workspace zu löschen.');
+                  toast({ title: 'Löschen fehlgeschlagen', description: message, variant: 'destructive' });
+                } finally {
+                  setShowDeleteConfirm(false);
+                }
+              }}
+            >
+              Endgültig löschen
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
