@@ -1276,26 +1276,18 @@ export default function Settings() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Workspace Confirm */}
+      {/* Delete Workspace Confirm - minimal dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Workspace wirklich löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Bitte tippe den Namen des Workspaces ein, um zu bestätigen: <b>{workspaceDetails?.workspace_name || ''}</b>
+              Alle Daten dieses Workspaces werden dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-2">
-            <Input
-              placeholder="Workspace Name eingeben"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-            />
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
-              disabled={deleteConfirmText !== (workspaceDetails?.workspace_name || '')}
               onClick={async () => {
                 if (!primaryWorkspace?.id) return;
                 try {
