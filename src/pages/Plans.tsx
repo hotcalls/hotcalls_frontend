@@ -9,13 +9,11 @@ import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus } from "@/li
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
-import { useWorkspace } from "@/hooks/use-workspace";
 
 export default function Plans() {
   const navigate = useNavigate();
-  const { isAdmin } = useWorkspace();
+  const { isAdmin, primaryWorkspace } = useWorkspace();
   const { toast } = useToast();
-  const { primaryWorkspace } = useWorkspace();
   const { usage } = useAllFeaturesUsage(primaryWorkspace?.id || null);
   
   const [plans, setPlans] = useState<PlanInfo[]>([]);
@@ -23,6 +21,7 @@ export default function Plans() {
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const isProcessing = processingPlan !== null;
   
   // Get current plan from usage data
   const currentPlan = usage?.workspace?.plan || null;
@@ -250,7 +249,10 @@ export default function Plans() {
               ) : (
                 <Button 
                   className="w-full h-12 bg-[#FE5B25] hover:bg-[#E5501F] text-white"
-                  onClick={() => handlePlanChange("Pro")}
+                  onClick={() => {
+                    const proPlan = plans.find(p => (p as any).plan_name === "Pro");
+                    if (proPlan) handlePlanChange(proPlan);
+                  }}
                   disabled={isProcessing}
                 >
                   {isProcessing ? "Wechsle..." : "14 Tage kostenlos testen"}
