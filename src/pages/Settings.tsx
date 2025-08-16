@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuIte
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
 import { User, Building, CreditCard, Check, Phone, Users, Plus, Trash2, Settings as SettingsIcon, Clock, AlertTriangle, Calendar, Infinity, ExternalLink } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -43,10 +44,11 @@ export default function Settings() {
   const [isInviting, setIsInviting] = useState(false);
   
   // Load workspace and usage data
-  const { primaryWorkspace, workspaceDetails, teamMembers, isAdmin, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace } = useWorkspace();
+  const { primaryWorkspace, workspaceDetails, teamMembers, isAdmin, loading: workspaceLoading, updating: isUpdatingWorkspace, updateWorkspace, refetch } = useWorkspace();
   const { usage, features, loading: usageLoading, error: usageError, lastUpdated } = useAllFeaturesUsage(primaryWorkspace?.id || null);
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { toast } = useToast();
+  const [confirm, setConfirm] = useState<null | { type: 'make_admin' | 'remove_user'; member: any }>(null);
   
   // Generate current plan data from API
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
@@ -342,6 +344,25 @@ export default function Settings() {
     }
   };
 
+  // Confirm modal action handler for admin transfer / remove user
+  const handleConfirmAction = async () => {
+    if (!confirm || !primaryWorkspace?.id) { setConfirm(null); return; }
+    try {
+      if (confirm.type === 'make_admin') {
+        await workspaceAPI.transferAdmin(String(primaryWorkspace.id), String(confirm.member.id));
+        toast({ title: 'Admin übertragen' });
+      } else if (confirm.type === 'remove_user') {
+        await workspaceAPI.removeUsers(String(primaryWorkspace.id), [String(confirm.member.id)]);
+        toast({ title: 'Benutzer entfernt' });
+      }
+      await refetch();
+    } catch (err: any) {
+      toast({ title: 'Aktion fehlgeschlagen', description: err?.message || 'Bitte erneut versuchen', variant: 'destructive' });
+    } finally {
+      setConfirm(null);
+    }
+  };
+
   // Resume subscription function (undo cancel_at_period_end)
   const handleResumeSubscription = async () => {
     if (!primaryWorkspace?.id) return;
@@ -599,20 +620,22 @@ export default function Settings() {
               </div>
             </button>
             
-            <button
-              onClick={() => setActiveTab("billing")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                activeTab === "billing"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-              role="tab"
-            >
-              <div className="flex items-center">
-                <CreditCard className={iconSizes.small} />
-                <span className="ml-2">Pläne & Guthaben</span>
-              </div>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab("billing")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                  activeTab === "billing"
+                    ? "border-[#FE5B25] text-[#FE5B25]"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+                role="tab"
+              >
+                <div className="flex items-center">
+                  <CreditCard className={iconSizes.small} />
+                  <span className="ml-2">Pläne & Guthaben</span>
+                </div>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -773,9 +796,7 @@ export default function Settings() {
                               const ws: any = workspaceDetails || {};
                               const isWorkspaceAdmin = Boolean(ws.admin_user_id && member.id === ws.admin_user_id);
                               return isWorkspaceAdmin ? (
-                                <span className="ml-2 inline-flex items-center text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-200">
-                                  Workspace Admin
-                                </span>
+                                <Badge variant="outline" className="ml-2 text-xs">Workspace Admin</Badge>
                               ) : null;
                             })()}
                           </p>
@@ -793,17 +814,7 @@ export default function Settings() {
                                 <Button
                                   variant="outline"
                                   className="h-7 px-2 text-xs"
-                                  onClick={async () => {
-                                    if (!primaryWorkspace?.id) return;
-                                    if (!confirm(`Soll ${member.email} Workspace-Admin werden?`)) return;
-                                    try {
-                                      await workspaceAPI.transferAdmin(String(primaryWorkspace.id), String(member.id));
-                                      toast({ title: 'Admin übertragen' });
-                                      window.location.reload();
-                                    } catch (err:any) {
-                                      toast({ title: 'Übertragen fehlgeschlagen', description: err?.message || 'Bitte erneut versuchen', variant: 'destructive' });
-                                    }
-                                  }}
+                                  onClick={() => setConfirm({ type: 'make_admin', member })}
                                 >
                                   Admin machen
                                 </Button>
@@ -812,17 +823,7 @@ export default function Settings() {
                             <Button
                               variant="destructive"
                               className="h-7 px-2 text-xs"
-                              onClick={async () => {
-                                if (!primaryWorkspace?.id) return;
-                                if (!confirm(`Benutzer ${member.email} wirklich entfernen?`)) return;
-                                try {
-                                  await workspaceAPI.removeUsers(String(primaryWorkspace.id), [String(member.id)]);
-                                  toast({ title: 'Benutzer entfernt' });
-                                  window.location.reload();
-                                } catch (e:any) {
-                                  toast({ title: 'Entfernen fehlgeschlagen', description: e?.message || 'Bitte erneut versuchen', variant: 'destructive' });
-                                }
-                              }}
+                              onClick={() => setConfirm({ type: 'remove_user', member })}
                             >
                               Entfernen
                             </Button>
@@ -845,7 +846,8 @@ export default function Settings() {
           {/* Advanced Feld entfernt */}
         </TabsContent>
 
-        {/* Pläne & Guthaben Tab */}
+        {/* Pläne & Guthaben Tab (nur Admin) */}
+        {isAdmin && (
         <TabsContent value="billing" className="space-y-6">
           {/* Usage Overview Section */}
           <Card>
@@ -1179,6 +1181,7 @@ export default function Settings() {
             </Card>
           </div>
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Invite User Modal - Small & Centered */}
@@ -1225,6 +1228,26 @@ export default function Settings() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation Dialog for Admin/Remove actions */}
+      <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) setConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm?.type === 'make_admin' ? 'Workspace-Admin übertragen?' : 'Mitglied entfernen?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.type === 'make_admin'
+                ? `Soll ${confirm.member?.email} Workspace-Admin werden?`
+                : `Soll ${confirm?.member?.email} wirklich aus diesem Workspace entfernt werden?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

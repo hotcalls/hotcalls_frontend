@@ -9,9 +9,11 @@ import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus } from "@/li
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/hooks/use-workspace";
 
 export default function Plans() {
   const navigate = useNavigate();
+  const { isAdmin } = useWorkspace();
   const { toast } = useToast();
   const { primaryWorkspace } = useWorkspace();
   const { usage } = useAllFeaturesUsage(primaryWorkspace?.id || null);
@@ -24,6 +26,13 @@ export default function Plans() {
   
   // Get current plan from usage data
   const currentPlan = usage?.workspace?.plan || null;
+
+  // Redirect non-admins away from this page
+  useEffect(() => {
+    if (isAdmin === false) {
+      navigate('/dashboard');
+    }
+  }, [isAdmin, navigate]);
 
   // Load plans and subscription status
   useEffect(() => {

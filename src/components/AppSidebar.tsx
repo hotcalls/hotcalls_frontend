@@ -18,7 +18,12 @@ const items = [
 ];
 
 const PlanSection = () => {
-  const { primaryWorkspace } = useWorkspace();
+  const { primaryWorkspace, isAdmin } = useWorkspace();
+  
+  // Hide plan/usage section for non-admin users
+  if (!isAdmin) {
+    return null;
+  }
   const { 
     callMinutes, 
     loading, 

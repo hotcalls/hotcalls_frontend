@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { workspaceAPI } from '@/lib/apiService';
+import { useWorkspace } from '@/hooks/use-workspace';
 import { usageService } from '@/lib/usageService';
 
 export function UsageAlertOverlay() {
+  const { isAdmin } = useWorkspace();
   const [visible, setVisible] = useState(false);
   const [threshold, setThreshold] = useState<75 | 90 | null>(null);
   const [dismissKey, setDismissKey] = useState<string | null>(null);
 
   useEffect(() => {
+    // Only admins should see usage/billing nudges
+    if (!isAdmin) return;
     const run = async () => {
       try {
         const workspaces = await workspaceAPI.getMyWorkspaces();
@@ -35,9 +39,9 @@ export function UsageAlertOverlay() {
       }
     };
     run();
-  }, []);
+  }, [isAdmin]);
 
-  if (!visible || !threshold) return null;
+  if (!isAdmin || !visible || !threshold) return null;
 
   const onDismiss = () => {
     if (dismissKey) localStorage.setItem(dismissKey, '1');
