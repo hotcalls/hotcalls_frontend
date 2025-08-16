@@ -771,10 +771,7 @@ export default function Settings() {
                             {member.email}
                             {(() => {
                               const ws: any = workspaceDetails || {};
-                              const isWorkspaceAdmin =
-                                (ws.admin_user_id && member.id === ws.admin_user_id) ||
-                                (ws.creator_id && member.id === ws.creator_id) ||
-                                (profile?.email === member.email && isAdmin);
+                              const isWorkspaceAdmin = Boolean(ws.admin_user_id && member.id === ws.admin_user_id);
                               return isWorkspaceAdmin ? (
                                 <span className="ml-2 inline-flex items-center text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 border border-orange-200">
                                   Workspace Admin
@@ -790,7 +787,7 @@ export default function Settings() {
                           <>
                             {(() => {
                               const ws: any = workspaceDetails || {};
-                              const isAlreadyAdmin = (ws.admin_user_id && member.id === ws.admin_user_id) || (ws.creator_id && member.id === ws.creator_id);
+                              const isAlreadyAdmin = Boolean(ws.admin_user_id && member.id === ws.admin_user_id);
                               if (isAlreadyAdmin) return null;
                               return (
                                 <Button
