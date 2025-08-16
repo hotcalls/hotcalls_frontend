@@ -414,6 +414,15 @@ export const workspaceAPI = {
       body: JSON.stringify({ user_ids: userIds }),
     });
   },
+
+  /**
+   * Delete a workspace (admin only)
+   */
+  async deleteWorkspace(workspaceId: string): Promise<void> {
+    await apiCall<void>(`/api/workspaces/workspaces/${workspaceId}/`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Agent API calls
