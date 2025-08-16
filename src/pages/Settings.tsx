@@ -781,34 +781,6 @@ export default function Settings() {
                     <Plus className={iconSizes.small} />
                     <span>Mitglied einladen</span>
                   </Button>
-                  {isAdmin && (
-                    <Button
-                      variant="destructive"
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={async () => {
-                        if (!primaryWorkspace?.id) return;
-                        const sure = window.confirm(
-                          'Bist du dir sicher, dass du diesen Workspace löschen möchtest?\n\nAlle deine Daten werden aus unserem System entfernt. Dein Plan läuft somit aus.'
-                        );
-                        if (!sure) return;
-                        try {
-                          await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
-                          toast({ title: 'Workspace gelöscht' });
-                          // Clean local selection and redirect
-                          try {
-                            const key = `selected_workspace_id:${profile?.id || ''}`;
-                            localStorage.removeItem(key);
-                            localStorage.removeItem('welcomeCompleted');
-                          } catch {}
-                          window.location.href = '/';
-                        } catch (e: any) {
-                          toast({ title: 'Löschen fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
-                        }
-                      }}
-                    >
-                      Workspace löschen
-                    </Button>
-                  )}
                 </div>
               </div>
             </CardHeader>
@@ -875,6 +847,35 @@ export default function Settings() {
                   </div>
                 )}
               </div>
+              {isAdmin && (
+                <div className="flex justify-end pt-4">
+                  <Button
+                    variant="destructive"
+                    className="h-8 px-3 text-xs bg-red-600 hover:bg-red-700 text-white"
+                    onClick={async () => {
+                      if (!primaryWorkspace?.id) return;
+                      const sure = window.confirm(
+                        'Bist du dir sicher, dass du diesen Workspace löschen möchtest?\n\nAlle deine Daten werden aus unserem System entfernt. Dein Plan läuft somit aus.'
+                      );
+                      if (!sure) return;
+                      try {
+                        await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
+                        toast({ title: 'Workspace gelöscht' });
+                        try {
+                          const key = `selected_workspace_id:${profile?.id || ''}`;
+                          localStorage.removeItem(key);
+                          localStorage.removeItem('welcomeCompleted');
+                        } catch {}
+                        window.location.href = '/';
+                      } catch (e: any) {
+                        toast({ title: 'Löschen fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Workspace löschen
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
