@@ -733,6 +733,55 @@ export default function Settings() {
           {/* Entfernt: Firmen-Informationen (werden im Stripe-Portal verwaltet) */}
 
           {/* Entfernt: E-Mail Einstellungen (derzeit ohne Backend-Anbindung) */}
+          {/* Konto löschen Button + Dialog */}
+          <div className="flex justify-end pt-2">
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="h-8 px-3 text-xs bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Konto endgültig löschen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Konto wirklich löschen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Alle deine Daten werden deaktiviert/entfernt. Du wirst sofort ausgeloggt. Dieser Vorgang kann nicht rückgängig gemacht werden.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      try {
+                        const base = apiConfig.API_BASE_URL || 'http://localhost:8000';
+                        await fetch(`${base}/api/users/users/delete_me/`, {
+                          method: 'DELETE',
+                          headers: {
+                            'Authorization': `Token ${localStorage.getItem('authToken') || ''}`,
+                            'Content-Type': 'application/json'
+                          },
+                          credentials: 'include'
+                        });
+                        try { localStorage.removeItem('authToken'); } catch {}
+                        window.location.href = '/';
+                      } catch (e: any) {
+                        const message = (e?.detail || e?.message || 'Konto konnte nicht gelöscht werden.');
+                        toast({ title: 'Löschen fehlgeschlagen', description: message, variant: 'destructive' });
+                      } finally {
+                        setShowDeleteConfirm(false);
+                      }
+                    }}
+                  >
+                    Endgültig löschen
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </TabsContent>
 
         {/* Workspace Tab - NUR Team Mitglieder */}
