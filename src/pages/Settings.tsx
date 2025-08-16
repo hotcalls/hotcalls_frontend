@@ -49,7 +49,6 @@ export default function Settings() {
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<null | { type: 'make_admin' | 'remove_user'; member: any }>(null);
-  const [showDeleteWorkspaceConfirm, setShowDeleteWorkspaceConfirm] = useState(false);
   
   // Generate current plan data from API
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
@@ -770,10 +769,40 @@ export default function Settings() {
                     {workspaceLoading ? "Wird geladen..." : `${teamMembers.length} / ${currentPlan.maxUsers} User verwendet`}
                   </p>
                 </div>
-                <Button onClick={() => setShowInviteModal(true)} className="bg-[#FE5B25] hover:bg-[#E5501F] text-white">
-                  <Plus className={iconSizes.small} />
-                  <span>Mitglied einladen</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => setShowInviteModal(true)} className="bg-[#FE5B25] hover:bg-[#E5501F] text-white">
+                    <Plus className={iconSizes.small} />
+                    <span>Mitglied einladen</span>
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="destructive"
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={async () => {
+                        if (!primaryWorkspace?.id) return;
+                        const sure = window.confirm(
+                          'Bist du dir sicher, dass du diesen Workspace löschen möchtest?\n\nAlle deine Daten werden aus unserem System entfernt. Dein Plan läuft somit aus.'
+                        );
+                        if (!sure) return;
+                        try {
+                          await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
+                          toast({ title: 'Workspace gelöscht' });
+                          // Clean local selection and redirect
+                          try {
+                            const key = `selected_workspace_id:${profile?.id || ''}`;
+                            localStorage.removeItem(key);
+                            localStorage.removeItem('welcomeCompleted');
+                          } catch {}
+                          window.location.href = '/';
+                        } catch (e: any) {
+                          toast({ title: 'Löschen fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
+                        }
+                      }}
+                    >
+                      Workspace löschen
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -845,19 +874,6 @@ export default function Settings() {
           {/* Workspace-Administration-Bereich entfernt – Aktionen direkt pro Mitglied */}
 
           {/* Advanced Feld entfernt */}
-
-          {/* Delete Workspace Button - bottom right (admin only) */}
-          {isAdmin && (
-            <div className="flex justify-end">
-              <Button
-                variant="destructive"
-                className="bg-red-600 hover:bg-red-700 text-white"
-                onClick={() => setShowDeleteWorkspaceConfirm(true)}
-              >
-                Workspace löschen
-              </Button>
-            </div>
-          )}
         </TabsContent>
 
         {/* Pläne & Guthaben Tab (nur Admin) */}
@@ -1259,47 +1275,6 @@ export default function Settings() {
           <AlertDialogFooter>
             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmAction}>OK</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirm delete workspace */}
-      <AlertDialog open={showDeleteWorkspaceConfirm} onOpenChange={setShowDeleteWorkspaceConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Workspace wirklich löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bist du dir sicher, dass du diesen Workspace löschen möchtest? Alle deine Daten werden aus unserem System entfernt. Dein Plan läuft somit aus.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={async () => {
-                try {
-                  if (!primaryWorkspace?.id) return;
-                  await workspaceAPI.deleteWorkspace(String(primaryWorkspace.id));
-                  setShowDeleteWorkspaceConfirm(false);
-                  toast({ title: 'Workspace gelöscht' });
-                  // After deletion: try to switch to another workspace if exists
-                  const myWorkspaces = await workspaceAPI.getMyWorkspaces();
-                  if (Array.isArray(myWorkspaces) && myWorkspaces.length > 0) {
-                    // store first workspace id for selection hook to pick it up on reload
-                    const key = `selectedWorkspace:${profile?.id || 'me'}`;
-                    localStorage.setItem(key, String(myWorkspaces[0].id));
-                    window.location.href = '/dashboard';
-                  } else {
-                    localStorage.removeItem('welcomeCompleted');
-                    window.location.href = '/';
-                  }
-                } catch (e: any) {
-                  toast({ title: 'Löschen fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
-                }
-              }}
-            >
-              Ja, Workspace löschen
-            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

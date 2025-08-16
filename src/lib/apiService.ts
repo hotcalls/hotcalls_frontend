@@ -416,10 +416,10 @@ export const workspaceAPI = {
   },
 
   /**
-   * Delete a workspace (admin only)
+   * Delete a workspace (admin or superuser only)
    */
   async deleteWorkspace(workspaceId: string): Promise<void> {
-    await apiCall<void>(`/api/workspaces/workspaces/${workspaceId}/`, {
+    return apiCall<void>(`/api/workspaces/workspaces/${workspaceId}/`, {
       method: 'DELETE',
     });
   },
