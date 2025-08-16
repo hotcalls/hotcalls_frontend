@@ -14,7 +14,7 @@ import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsI
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webhookAPI, MakeTestCallRequest } from "@/lib/apiService";
+import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webhookAPI, MakeTestCallRequest, knowledgeAPI } from "@/lib/apiService";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -27,6 +27,11 @@ export default function AgentConfig() {
   const { id } = useParams();
   const isEdit = !!id;
   const [activeTab, setActiveTab] = useState("personality");
+  // Knowledge Base state
+  const [kb, setKb] = useState<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> } | null>(null);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbUploading, setKbUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // Debug logging
   console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
@@ -185,6 +190,13 @@ export default function AgentConfig() {
   };
 
   const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-gradient-to-br from-[#FE7A2B] to-[#FE5B25] shadow-sm hover:from-[#FE6A2F] hover:to-[#E14A12] transition";
+  const formatBytes = (bytes: number): string => {
+    if (!bytes && bytes !== 0) return "-";
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
+    const value = bytes / Math.pow(1024, i);
+    return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${sizes[i]}`;
+  };
   const renderPreview = (content: string) => {
     const parts = content.split(/(\{\{[^}]+\}\})/g);
     return (
@@ -325,13 +337,9 @@ export default function AgentConfig() {
         // Load the funnel ID that's assigned to this agent
         let assignedFunnelId = "";
         if (agentData.lead_funnel) {
-          // Agent has a directly assigned funnel (API returns object with id, name, is_active)
-          assignedFunnelId = agentData.lead_funnel.id;
-          console.log('📋 Agent has assigned funnel:', {
-            id: agentData.lead_funnel.id,
-            name: agentData.lead_funnel.name,
-            is_active: agentData.lead_funnel.is_active
-          });
+          // Backend returns funnel ID (string). Store directly.
+          assignedFunnelId = agentData.lead_funnel as unknown as string;
+          console.log('📋 Agent has assigned funnel ID:', assignedFunnelId);
         }
         
         setConfig({
@@ -687,6 +695,88 @@ export default function AgentConfig() {
     // Now just opens the popover - the actual test happens in handleStartTestCall
     setTestPopoverOpen(true);
   };
+
+  // Knowledge Base helpers
+  const loadKnowledge = async () => {
+    if (!isEdit || !id) return;
+    setKbLoading(true);
+    try {
+      const data = await knowledgeAPI.listDocuments(id);
+      setKb(data);
+    } catch (e: any) {
+      console.error("❌ KB list failed", e);
+      toast.error(e?.message || "Fehler beim Laden der Knowledge Base");
+      setKb({ version: 1, files: [] });
+    } finally {
+      setKbLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "knowledge") {
+      loadKnowledge();
+    }
+  }, [activeTab, isEdit, id]);
+
+  const handleKBUpload = async (files: FileList | File[]) => {
+    if (!id) return;
+    const maxSize = 20 * 1024 * 1024;
+    const arr = Array.from(files);
+    if (arr.length === 0) return;
+    setKbUploading(true);
+    try {
+      for (const f of arr) {
+        if (f.type !== "application/pdf") {
+          toast.error(`${f.name}: Nur PDF erlaubt`);
+          continue;
+        }
+        if (f.size > maxSize) {
+          toast.error(`${f.name}: Max. 20 MB überschritten`);
+          continue;
+        }
+        try {
+          await knowledgeAPI.upload(id, f);
+          toast.success(`${f.name} hochgeladen`);
+        } catch (e: any) {
+          toast.error(`${f.name}: ${e?.message || "Upload fehlgeschlagen"}`);
+        }
+      }
+      await loadKnowledge();
+    } finally {
+      setKbUploading(false);
+    }
+  };
+
+  const handleKBDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (e.dataTransfer?.files?.length) {
+      handleKBUpload(e.dataTransfer.files);
+    }
+  };
+
+  const handleKBDelete = async (filename: string) => {
+    if (!id) return;
+    const ok = window.confirm(`"${filename}" wirklich löschen?`);
+    if (!ok) return;
+    try {
+      await knowledgeAPI.delete(id, filename);
+      toast.success("Dokument gelöscht");
+      await loadKnowledge();
+    } catch (e: any) {
+      toast.error(e?.message || "Löschen fehlgeschlagen");
+    }
+  };
+
+  const handleKBCopyLink = async (filename: string) => {
+    if (!id) return;
+    try {
+      const { url } = await knowledgeAPI.presign(id, filename);
+      await navigator.clipboard.writeText(url);
+      toast.success("Link kopiert");
+    } catch (e: any) {
+      toast.error(e?.message || "Link konnte nicht erzeugt werden");
+    }
+  };
   
   const handleStartTestCall = async () => {
     if (!userProfile?.phone) {
@@ -841,6 +931,21 @@ export default function AgentConfig() {
             </button>
             
             <button
+              onClick={() => setActiveTab("knowledge")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "knowledge"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <FileText className={iconSizes.small} />
+                <span className="ml-2">Knowledge Base</span>
+              </div>
+            </button>
+            
+            <button
               onClick={() => setActiveTab("script")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "script"
@@ -886,6 +991,76 @@ export default function AgentConfig() {
             </button>
           </nav>
         </div>
+
+        {/* Knowledge Base Tab */}
+        <TabsContent value="knowledge" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className={textStyles.sectionTitle}>Knowledge Base (PDF)</CardTitle>
+            </CardHeader>
+            <CardContent className={layoutStyles.cardContent}>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleKBDrop}
+                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#FE5B25] transition"
+              >
+                <p className="text-sm text-gray-600">PDF-only, max 20 MB – pro Agent ist nur ein Dokument erlaubt</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!isEdit || kbUploading || (kb && kb.files && kb.files.length >= 1)}
+                  >
+                    {kbUploading ? "Lade hoch..." : "Datei wählen"}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => e.target.files && handleKBUpload(e.target.files)}
+                    className="hidden"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">Oder Datei hierher ziehen</p>
+              </div>
+
+              <div className="mt-6">
+                {kbLoading ? (
+                  <div className="p-4 border rounded-md text-gray-500">Lade Dokumente…</div>
+                ) : !kb || kb.files.length === 0 ? (
+                  <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500">
+                          <th className="py-2 pr-4">Name</th>
+                          <th className="py-2 pr-4">Größe</th>
+                          <th className="py-2 pr-4">Hochgeladen am</th>
+                          <th className="py-2">Aktionen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {kb.files
+                          .slice()
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((f) => (
+                          <tr key={f.name} className="border-t">
+                            <td className="py-2 pr-4 break-all">{f.name}</td>
+                            <td className="py-2 pr-4 text-gray-600">{formatBytes(f.size)}</td>
+                            <td className="py-2 pr-4 text-gray-600">{new Date(f.updated_at).toLocaleString()}</td>
+                            <td className="py-2 flex gap-2">
+                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.name)}>Löschen</Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Personality Tab */}
         <TabsContent value="personality" className="space-y-6">
@@ -1063,46 +1238,26 @@ export default function AgentConfig() {
                    onDragOver={(e) => e.preventDefault()}
               >
                 <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
-                {(() => {
-                  const CORE = new Set(['first_name','last_name','full_name','email','phone']);
-                  const selected = (availableLeadForms as any[]).find((f:any) => f.id === config.selectedLeadForm);
-                  const isMeta = !!selected?.meta_lead_form;
-                  const hasSelection = !!config.selectedLeadForm;
-                  const hasCustom = Array.isArray(funnelVariables) && funnelVariables.some(v => !CORE.has(v.key));
-                  const showMetaHint = hasSelection && isMeta && !hasCustom;
-                  return (
-                    <>
-                      {showMetaHint && (
-                        <div className="mt-2">
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                            Noch keine Variablen erkannt. Sende einen Test‑Lead aus deinem Meta‑Formular, um die Variablen hier anzuzeigen.
-                          </span>
-                        </div>
-                      )}
-                      {!showMetaHint && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {(!funnelVariables || funnelVariables.length === 0) && (
-                            <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
-                          )}
-                          {Array.isArray(funnelVariables) && funnelVariables.map(v => (
-                            <span
-                              key={v.key}
-                              role="button"
-                              tabIndex={0}
-                              className={`${tokenPillClass} cursor-pointer select-none`}
-                              draggable
-                              onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
-                              onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                            >
-                              {v.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {funnelVariables.length === 0 ? (
+                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                  ) : (
+                    funnelVariables.map(v => (
+                      <span
+                        key={v.key}
+                        role="button"
+                        tabIndex={0}
+                        className={`${tokenPillClass} cursor-pointer select-none`}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
+                        onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                      >
+                        {v.label}
+                      </span>
+                    ))
+                  )}
+                </div>
               </div>
               <div>
                 <Label htmlFor="script">Skript</Label>
@@ -1358,20 +1513,11 @@ export default function AgentConfig() {
                 ) : (
                   <Select 
                     value={config.selectedLeadForm || "none"} 
-                    onValueChange={async (value) => {
-                      const nextFunnelId = value === "none" ? "" : value;
-                      setConfig(prev => ({ ...prev, selectedLeadForm: nextFunnelId }));
-                      // Instant refresh of variables for better UX
-                      if (nextFunnelId) {
-                        try {
-                          const vars = await funnelAPI.getFunnelVariables(nextFunnelId);
-                          setFunnelVariables(Array.isArray(vars) ? vars : []);
-                        } catch (e) {
-                          setFunnelVariables([]);
-                        }
-                      } else {
-                        setFunnelVariables([]);
-                      }
+                    onValueChange={(value) => {
+                      setConfig(prev => ({ 
+                        ...prev, 
+                        selectedLeadForm: value === "none" ? "" : value
+                      }));
                     }}
                   >
                     <SelectTrigger>
