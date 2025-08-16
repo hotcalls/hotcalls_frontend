@@ -49,6 +49,13 @@ export default function Settings() {
   const { profile, loading: profileLoading, updating: isSavingProfile, updateProfile, getDisplayName, getInitials } = useUserProfile();
   const { toast } = useToast();
   const [confirm, setConfirm] = useState<null | { type: 'make_admin' | 'remove_user'; member: any }>(null);
+
+  // Ensure activeTab is valid for current role (non-admins cannot view billing)
+  useEffect(() => {
+    if (!isAdmin && activeTab === 'billing') {
+      setActiveTab('workspace');
+    }
+  }, [isAdmin, activeTab]);
   
   // Generate current plan data from API
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
