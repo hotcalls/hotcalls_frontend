@@ -1195,6 +1195,41 @@ export const plansAPI = {
   },
 };
 
+// Knowledge Base (per Agent) API calls
+export const knowledgeAPI = {
+  async listDocuments(agentId: string): Promise<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> }> {
+    return apiCall(`/api/knowledge/agents/${agentId}/documents/`, { method: 'GET' });
+  },
+
+  async presign(agentId: string, filename: string): Promise<{ url: string }> {
+    return apiCall(`/api/knowledge/agents/${agentId}/documents/${encodeURIComponent(filename)}/presign/`, { method: 'POST', body: JSON.stringify({}) });
+  },
+
+  async delete(agentId: string, filename: string): Promise<void> {
+    return apiCall<void>(`/api/knowledge/agents/${agentId}/documents/${encodeURIComponent(filename)}/`, { method: 'DELETE' });
+  },
+
+  async upload(agentId: string, file: File): Promise<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> }> {
+    const url = `${API_BASE_URL}/api/knowledge/agents/${agentId}/documents/`;
+    const form = new FormData();
+    form.append('file', file);
+    const headers: Record<string, string> = {};
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) headers['Authorization'] = `Token ${authToken}`;
+    const response = await fetch(url, { method: 'POST', body: form, headers, credentials: 'include' });
+    if (!response.ok) {
+      let message = `HTTP ${response.status}: ${response.statusText}`;
+      try { const data = await response.json(); message = data?.detail || data?.error || message; } catch {}
+      throw new Error(message);
+    }
+    return response.json();
+  },
+
+  async rebuild(agentId: string): Promise<{ version: number; updated_at: string }> {
+    return apiCall(`/api/knowledge/agents/${agentId}/rebuild/`, { method: 'POST', body: JSON.stringify({}) });
+  },
+};
+
 // Export all APIs
 
 // Calendar API Types
