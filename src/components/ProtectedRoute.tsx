@@ -32,27 +32,71 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       
       const primaryWorkspace = workspaces[0];
       console.log('🏢 Checking subscription for workspace:', primaryWorkspace.workspace_name);
-      
-      // Check subscription status using the correct endpoint
-      const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
-      console.log('💳 Login subscription check result:', subscriptionData);
-      
-      const hasActiveSubscription = subscriptionData.has_subscription && 
-        subscriptionData.subscription?.status === 'active';
-      
-      console.log('💳 Login subscription details:', {
-        workspace_id: primaryWorkspace.id,
-        workspace_name: primaryWorkspace.workspace_name,
-        has_subscription: subscriptionData.has_subscription,
-        status: subscriptionData.subscription?.status,
-        plan: subscriptionData.subscription?.plan,
-        hasActiveSubscription
+
+      // Detect recent payment success (URL param or local flag)
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentSuccess = urlParams.get('payment') === 'success' || localStorage.getItem('selectedPlan');
+
+      // Retry window to absorb Stripe webhook latency
+      const maxAttempts = paymentSuccess ? 3 : 1;
+      const delayMs = 3000;
+      let activeBySubscription = false;
+      let lastResponse: any = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const sub = await paymentAPI.getSubscription(primaryWorkspace.id);
+          lastResponse = sub;
+          console.log(`💳 Login subscription check (attempt ${attempt}/${maxAttempts}):`, sub);
+          activeBySubscription = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
+          if (activeBySubscription) break;
+        } catch (e) {
+          console.warn(`⚠️ Subscription check failed on attempt ${attempt}/${maxAttempts}:`, e);
+        }
+        if (attempt < maxAttempts) {
+          await new Promise((res) => setTimeout(res, delayMs));
+        }
+      }
+
+      // Fallback: workspace details fields (server may expose different flags)
+      let activeByWorkspace = false;
+      if (!activeBySubscription) {
+        try {
+          const ws = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
+          activeByWorkspace = !!(
+            ws?.is_subscription_active ||
+            ws?.has_active_subscription ||
+            ws?.subscription_active ||
+            ws?.active_subscription ||
+            ws?.subscription_status === 'active' ||
+            ws?.plan_status === 'active'
+          );
+          console.log('🏢 Workspace subscription flags:', {
+            is_subscription_active: ws?.is_subscription_active,
+            has_active_subscription: ws?.has_active_subscription,
+            subscription_active: ws?.subscription_active,
+            active_subscription: ws?.active_subscription,
+            subscription_status: ws?.subscription_status,
+            plan_status: ws?.plan_status,
+            activeByWorkspace,
+          });
+        } catch (e) {
+          console.warn('⚠️ Workspace details fallback check failed:', e);
+        }
+      }
+
+      const finalActive = activeBySubscription || activeByWorkspace;
+
+      console.log('💳 Final subscription decision:', {
+        activeBySubscription,
+        activeByWorkspace,
+        finalActive,
+        lastResponse,
       });
-      
-      setHasActiveSubscription(hasActiveSubscription);
-      setShouldShowPlanSelection(!hasActiveSubscription);
-      
-      if (!hasActiveSubscription) {
+
+      setHasActiveSubscription(finalActive);
+      setShouldShowPlanSelection(!finalActive);
+      if (!finalActive) {
         console.log('🆕 No active subscription at login, will show plan selection');
       } else {
         console.log('✅ Active subscription confirmed at login, proceeding to dashboard');
