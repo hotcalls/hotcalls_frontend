@@ -786,6 +786,9 @@ export default function AgentConfig() {
     try {
       await knowledgeAPI.deleteById(id, kbDeleteTarget.id);
       toast.success("Dokument gelöscht");
+      // Sofortiges lokales UI-Update ohne warten
+      setKb(prev => ({ version: (prev?.version || 1) + 1, files: [] } as any));
+      // Danach frisch vom Server nachladen (mit Cache-Buster)
       await loadKnowledge();
     } catch (e: any) {
       toast.error(e?.message || "Löschen fehlgeschlagen");

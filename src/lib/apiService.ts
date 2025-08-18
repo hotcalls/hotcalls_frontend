@@ -1198,7 +1198,8 @@ export const plansAPI = {
 // Knowledge Base (per Agent) API calls
 export const knowledgeAPI = {
   async listDocuments(agentId: string): Promise<{ version: number; files: Array<{ id: string; name: string; size: number; updated_at: string }> }> {
-    return apiCall(`/api/knowledge/agents/${agentId}/documents/`, { method: 'GET' });
+    const ts = Date.now();
+    return apiCall(`/api/knowledge/agents/${agentId}/documents/?_t=${ts}`, { method: 'GET' });
   },
 
   async presign(agentId: string, filename: string): Promise<{ url: string }> {
