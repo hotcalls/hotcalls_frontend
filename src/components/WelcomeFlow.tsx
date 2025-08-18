@@ -202,12 +202,24 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         console.log('🏢 Workspace details response:', workspaceDetails);
         
         // Check if workspace has active subscription (check common field names)
-        const hasActiveSubscription = workspaceDetails.is_subscription_active ||
+        let hasActiveSubscription = workspaceDetails.is_subscription_active ||
                                     workspaceDetails.has_active_subscription || 
                                     workspaceDetails.subscription_active || 
                                     workspaceDetails.active_subscription ||
                                     (workspaceDetails.subscription_status === 'active') ||
                                     (workspaceDetails.plan_status === 'active');
+        
+        // If still false, verify via payments subscription endpoint (source of truth)
+        if (!hasActiveSubscription) {
+          try {
+            const sub = await paymentAPI.getSubscription(primaryWorkspace.id);
+            const activeByPayments = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
+            console.log('💳 Payment API verification (normal flow):', { activeByPayments, sub });
+            hasActiveSubscription = activeByPayments;
+          } catch (e) {
+            console.warn('⚠️ Payment API verification failed (normal flow):', e);
+          }
+        }
         
         console.log('💳 Subscription check result:', {
           workspace_id: primaryWorkspace.id,
