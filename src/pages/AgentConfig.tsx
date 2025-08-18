@@ -19,6 +19,16 @@ import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Real Event Types and Lead Forms will be loaded from API
 
@@ -32,6 +42,8 @@ export default function AgentConfig() {
   const [kbLoading, setKbLoading] = useState(false);
   const [kbUploading, setKbUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [kbDeleteOpen, setKbDeleteOpen] = useState(false);
+  const [kbDeleteTarget, setKbDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   
   // Debug logging
   console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
@@ -756,15 +768,12 @@ export default function AgentConfig() {
 
   const handleKBDelete = async (docIdOrFilename: string) => {
     if (!id) return;
-    const ok = window.confirm(`Dieses Dokument wirklich löschen?`);
-    if (!ok) return;
     try {
       const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
-      if (match) {
-        await knowledgeAPI.deleteById(id, match.id);
-      } else {
-        await knowledgeAPI.delete(id, docIdOrFilename);
+      if (!match) {
+        throw new Error("Dokument nicht gefunden");
       }
+      await knowledgeAPI.deleteById(id, match.id);
       toast.success("Dokument gelöscht");
       await loadKnowledge();
     } catch (e: any) {
@@ -772,13 +781,28 @@ export default function AgentConfig() {
     }
   };
 
+  const confirmKBDelete = async () => {
+    if (!id || !kbDeleteTarget) return;
+    try {
+      await knowledgeAPI.deleteById(id, kbDeleteTarget.id);
+      toast.success("Dokument gelöscht");
+      await loadKnowledge();
+    } catch (e: any) {
+      toast.error(e?.message || "Löschen fehlgeschlagen");
+    } finally {
+      setKbDeleteOpen(false);
+      setKbDeleteTarget(null);
+    }
+  };
+
   const handleKBCopyLink = async (docIdOrFilename: string) => {
     if (!id) return;
     try {
       const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
-      const { url } = match
-        ? await knowledgeAPI.presignById(id, match.id)
-        : await knowledgeAPI.presign(id, docIdOrFilename);
+      if (!match) {
+        throw new Error("Dokument nicht gefunden");
+      }
+      const { url } = await knowledgeAPI.presignById(id, match.id);
       await navigator.clipboard.writeText(url);
       toast.success("Link kopiert");
     } catch (e: any) {
@@ -1052,12 +1076,21 @@ export default function AgentConfig() {
                           .slice()
                           .sort((a, b) => a.name.localeCompare(b.name))
                           .map((f) => (
-                          <tr key={f.name} className="border-t">
+                          <tr key={f.id} className="border-t">
                             <td className="py-2 pr-4 break-all">{f.name}</td>
                             <td className="py-2 pr-4 text-gray-600">{formatBytes(f.size)}</td>
                             <td className="py-2 pr-4 text-gray-600">{new Date(f.updated_at).toLocaleString()}</td>
                             <td className="py-2 flex gap-2">
-                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.name)}>Löschen</Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setKbDeleteTarget({ id: f.id, name: f.name });
+                                  setKbDeleteOpen(true);
+                                }}
+                              >
+                                Löschen
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -1068,6 +1101,23 @@ export default function AgentConfig() {
               </div>
             </CardContent>
           </Card>
+          {/* Delete confirmation dialog for Knowledge Base */}
+          <AlertDialog open={kbDeleteOpen} onOpenChange={setKbDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bist du dir sicher?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {kbDeleteTarget
+                    ? `Willst du das Dokument "${kbDeleteTarget.name}" wirklich löschen?`
+                    : "Dieses Dokument wird dauerhaft gelöscht."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmKBDelete}>Löschen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* Personality Tab */}
