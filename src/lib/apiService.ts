@@ -1197,7 +1197,7 @@ export const plansAPI = {
 
 // Knowledge Base (per Agent) API calls
 export const knowledgeAPI = {
-  async listDocuments(agentId: string): Promise<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> }> {
+  async listDocuments(agentId: string): Promise<{ version: number; files: Array<{ id: string; name: string; size: number; updated_at: string }> }> {
     return apiCall(`/api/knowledge/agents/${agentId}/documents/`, { method: 'GET' });
   },
 
@@ -1205,11 +1205,21 @@ export const knowledgeAPI = {
     return apiCall(`/api/knowledge/agents/${agentId}/documents/${encodeURIComponent(filename)}/presign/`, { method: 'POST', body: JSON.stringify({}) });
   },
 
+  // New: presign by document id (recommended)
+  async presignById(agentId: string, docId: string): Promise<{ url: string }> {
+    return apiCall(`/api/knowledge/agents/${agentId}/documents/by-id/${docId}/presign/`, { method: 'POST', body: JSON.stringify({}) });
+  },
+
   async delete(agentId: string, filename: string): Promise<void> {
     return apiCall<void>(`/api/knowledge/agents/${agentId}/documents/${encodeURIComponent(filename)}/`, { method: 'DELETE' });
   },
 
-  async upload(agentId: string, file: File): Promise<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> }> {
+  // New: delete by document id (recommended)
+  async deleteById(agentId: string, docId: string): Promise<void> {
+    return apiCall<void>(`/api/knowledge/agents/${agentId}/documents/by-id/${docId}/`, { method: 'DELETE' });
+  },
+
+  async upload(agentId: string, file: File): Promise<{ version: number; files: Array<{ id: string; name: string; size: number; updated_at: string }> }> {
     const url = `${API_BASE_URL}/api/knowledge/agents/${agentId}/documents/`;
     const form = new FormData();
     form.append('file', file);

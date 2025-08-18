@@ -28,7 +28,7 @@ export default function AgentConfig() {
   const isEdit = !!id;
   const [activeTab, setActiveTab] = useState("personality");
   // Knowledge Base state
-  const [kb, setKb] = useState<{ version: number; files: Array<{ name: string; size: number; updated_at: string }> } | null>(null);
+  const [kb, setKb] = useState<{ version: number; files: Array<{ id: string; name: string; size: number; updated_at: string }> } | null>(null);
   const [kbLoading, setKbLoading] = useState(false);
   const [kbUploading, setKbUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -754,12 +754,17 @@ export default function AgentConfig() {
     }
   };
 
-  const handleKBDelete = async (filename: string) => {
+  const handleKBDelete = async (docIdOrFilename: string) => {
     if (!id) return;
-    const ok = window.confirm(`"${filename}" wirklich löschen?`);
+    const ok = window.confirm(`Dieses Dokument wirklich löschen?`);
     if (!ok) return;
     try {
-      await knowledgeAPI.delete(id, filename);
+      const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
+      if (match) {
+        await knowledgeAPI.deleteById(id, match.id);
+      } else {
+        await knowledgeAPI.delete(id, docIdOrFilename);
+      }
       toast.success("Dokument gelöscht");
       await loadKnowledge();
     } catch (e: any) {
@@ -767,10 +772,13 @@ export default function AgentConfig() {
     }
   };
 
-  const handleKBCopyLink = async (filename: string) => {
+  const handleKBCopyLink = async (docIdOrFilename: string) => {
     if (!id) return;
     try {
-      const { url } = await knowledgeAPI.presign(id, filename);
+      const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
+      const { url } = match
+        ? await knowledgeAPI.presignById(id, match.id)
+        : await knowledgeAPI.presign(id, docIdOrFilename);
       await navigator.clipboard.writeText(url);
       toast.success("Link kopiert");
     } catch (e: any) {
