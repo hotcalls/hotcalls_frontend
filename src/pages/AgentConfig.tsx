@@ -44,6 +44,7 @@ export default function AgentConfig() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [kbDeleteOpen, setKbDeleteOpen] = useState(false);
   const [kbDeleteTarget, setKbDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [pendingKbFile, setPendingKbFile] = useState<File | null>(null);
   
   // Debug logging
   console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
@@ -665,6 +666,21 @@ export default function AgentConfig() {
         }
       }
       
+      // Upload vorgemerkter Knowledge-Base-Datei nach erfolgreicher Agent-Erstellung
+      if (agentId && pendingKbFile) {
+        try {
+          await knowledgeAPI.upload(agentId, pendingKbFile);
+          setPendingKbFile(null);
+          if (activeTab === "knowledge") {
+            await loadKnowledge();
+          }
+          toast.success('Knowledge Base hochgeladen');
+        } catch (e: any) {
+          console.error('❌ KB Upload nach Agent-Create fehlgeschlagen:', e);
+          toast.error(e?.message || 'Knowledge-Upload fehlgeschlagen');
+        }
+      }
+
       // Handle funnel assignment after successful agent save (silent background operation)
       if (agentId && config.selectedLeadForm) {
         console.log('🔗 Agent saved successfully, starting funnel assignment...');
@@ -761,8 +777,17 @@ export default function AgentConfig() {
 
   const handleKBDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (e.dataTransfer?.files?.length) {
-      handleKBUpload(e.dataTransfer.files);
+    const files = e.dataTransfer?.files;
+    if (!files || !files.length) return;
+    if (isEdit && id) {
+      handleKBUpload(files);
+    } else {
+      const f = files[0];
+      const maxSize = 20 * 1024 * 1024;
+      if (f.type !== "application/pdf") { toast.error(`${f.name}: Nur PDF erlaubt`); return; }
+      if (f.size > maxSize) { toast.error(`${f.name}: Max. 20 MB überschritten`); return; }
+      setPendingKbFile(f);
+      toast.success(`${f.name} wird mit dem Agent gespeichert`);
     }
   };
 
@@ -1043,7 +1068,7 @@ export default function AgentConfig() {
                 <div className="mt-3 flex items-center gap-3">
                   <Button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={!isEdit || kbUploading || (kb && kb.files && kb.files.length >= 1)}
+                    disabled={kbUploading || (isEdit ? Boolean(kb && kb.files && kb.files.length >= 1) : false)}
                   >
                     {kbUploading ? "Lade hoch..." : "Datei wählen"}
                   </Button>
@@ -1051,7 +1076,20 @@ export default function AgentConfig() {
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf"
-                    onChange={(e) => e.target.files && handleKBUpload(e.target.files)}
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (!files || files.length === 0) return;
+                      if (isEdit && id) {
+                        handleKBUpload(files);
+                      } else {
+                        const f = files[0];
+                        const maxSize = 20 * 1024 * 1024;
+                        if (f.type !== "application/pdf") { toast.error(`${f.name}: Nur PDF erlaubt`); return; }
+                        if (f.size > maxSize) { toast.error(`${f.name}: Max. 20 MB überschritten`); return; }
+                        setPendingKbFile(f);
+                        toast.success(`${f.name} wird mit dem Agent gespeichert`);
+                      }
+                    }}
                     className="hidden"
                   />
                 </div>
@@ -1062,7 +1100,32 @@ export default function AgentConfig() {
                 {kbLoading ? (
                   <div className="p-4 border rounded-md text-gray-500">Lade Dokumente…</div>
                 ) : !kb || kb.files.length === 0 ? (
-                  <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
+                  pendingKbFile ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-gray-500">
+                            <th className="py-2 pr-4">Name</th>
+                            <th className="py-2 pr-4">Größe</th>
+                            <th className="py-2 pr-4">Status</th>
+                            <th className="py-2">Aktionen</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t">
+                            <td className="py-2 pr-4 break-all">{pendingKbFile.name}</td>
+                            <td className="py-2 pr-4 text-gray-600">{formatBytes(pendingKbFile.size)}</td>
+                            <td className="py-2 pr-4 text-gray-600">Wird beim Speichern hochgeladen</td>
+                            <td className="py-2 flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setPendingKbFile(null)}>Entfernen</Button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
+                  )
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
