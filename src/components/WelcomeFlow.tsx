@@ -134,7 +134,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               // Try workspace details as fallback
               console.log('🔄 Subscription API returned false, trying workspace details...');
               const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
-              const hasActiveSubscription = workspaceDetails.has_active_subscription || 
+              const hasActiveSubscription = workspaceDetails.is_subscription_active ||
+                                          workspaceDetails.has_active_subscription || 
                                           workspaceDetails.subscription_active || 
                                           workspaceDetails.active_subscription ||
                                           (workspaceDetails.subscription_status === 'active') ||
@@ -201,7 +202,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         console.log('🏢 Workspace details response:', workspaceDetails);
         
         // Check if workspace has active subscription (check common field names)
-        const hasActiveSubscription = workspaceDetails.has_active_subscription || 
+        const hasActiveSubscription = workspaceDetails.is_subscription_active ||
+                                    workspaceDetails.has_active_subscription || 
                                     workspaceDetails.subscription_active || 
                                     workspaceDetails.active_subscription ||
                                     (workspaceDetails.subscription_status === 'active') ||
