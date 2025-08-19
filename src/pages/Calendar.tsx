@@ -1178,6 +1178,16 @@ export default function Calendar() {
     }
   }, [location.state, navigate]); // connectedCalendars und googleConnections NICHT als Dependencies!
 
+  // Respond to calendar delete events to refresh lists
+  useEffect(() => {
+    const onUpdated = () => {
+      loadCalendarsFromBackend();
+      loadEventTypes();
+    };
+    window.addEventListener('hotcalls-calendars-updated', onUpdated as EventListener);
+    return () => window.removeEventListener('hotcalls-calendars-updated', onUpdated as EventListener);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1704,6 +1714,21 @@ function CalendarCard({
   isDisconnecting: boolean;
   onDisconnect: (connectionId: string) => void;
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteCalendar = async () => {
+    try {
+      setIsDeleting(true);
+      const [{ calendarAPI }] = await Promise.all([import("@/lib/apiService")]);
+      await calendarAPI.deleteCalendar(calendar.id);
+      // Optimistic UI: remove from local state by reloading calendars/events in parent via storage/event
+      window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
+    } catch (e) {
+      console.error('❌ Kalender löschen fehlgeschlagen', e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   return (
     <Card className={calendar.isConnected ? "border-green-200" : "border-muted"}>
       <CardHeader>
@@ -1747,6 +1772,12 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
+        <div className="mt-4 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={handleDeleteCalendar} disabled={isDeleting}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50">
+            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

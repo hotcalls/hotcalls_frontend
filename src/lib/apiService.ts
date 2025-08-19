@@ -1386,6 +1386,12 @@ export const calendarAPI = {
     }
   },
 
+  /** Delete a calendar (and cascade delete its event types) */
+  async deleteCalendar(calendarId: string): Promise<void> {
+    console.log(`🗑️ DELETE /api/calendars/${calendarId}/ - Deleting calendar`);
+    await apiCall(`/api/calendars/${calendarId}/`, { method: 'DELETE' });
+  },
+
   /**
    * Get Google Calendar connections
    */
