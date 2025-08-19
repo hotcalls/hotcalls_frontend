@@ -787,7 +787,39 @@ export default function Calendar() {
   const [allBackendCalendars, setAllBackendCalendars] = useState<BackendCalendar[]>([]);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
+  // Calendar delete confirmation (single, top-level)
+  const [calendarToDelete, setCalendarToDelete] = useState<CalendarType | null>(null);
+  const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
   
+  // Map backend calendars to UI calendars with real calendar IDs (for proper deletion)
+  const displayCalendars = React.useMemo(() => {
+    try {
+      return (allBackendCalendars || []).map((cal: any) => {
+        return {
+          id: cal.id,
+          connectionId: '',
+          name: cal.name,
+          email: cal.name,
+          provider: cal.provider,
+          isConnected: !!cal.active,
+          isDefault: false,
+          isPrimary: false,
+          eventTypesCount: Number(cal.config_count || 0),
+          totalBookings: 0,
+          bookingsThisWeek: 0,
+          subCalendars: [],
+          accessRole: 'owner' as const,
+          timeZone: 'Europe/Berlin',
+          active: !!cal.active,
+          createdAt: cal.created_at ? new Date(cal.created_at) : new Date(),
+          lastSyncedAt: undefined,
+        } as CalendarType;
+      });
+    } catch {
+      return [] as CalendarType[];
+    }
+  }, [allBackendCalendars]);
+
   // Event Type Edit/Delete State
   const [showEditEventTypeModal, setShowEditEventTypeModal] = useState(false);
   const [editingEventType, setEditingEventType] = useState<any>(null);
@@ -1188,6 +1220,23 @@ export default function Calendar() {
     return () => window.removeEventListener('hotcalls-calendars-updated', onUpdated as EventListener);
   }, []);
 
+  // Confirm delete selected calendar
+  const confirmDeleteCalendar = async () => {
+    if (!calendarToDelete) return;
+    try {
+      setIsDeletingCalendar(true);
+      await calendarAPI.deleteCalendar(calendarToDelete.id);
+      window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
+      toast({ title: 'Kalender gelöscht', description: `"${calendarToDelete.name}" wurde entfernt.` });
+    } catch (e) {
+      console.error('❌ Kalender löschen fehlgeschlagen', e);
+      toast({ title: 'Fehler beim Löschen', description: 'Kalender konnte nicht gelöscht werden.', variant: 'destructive' });
+    } finally {
+      setIsDeletingCalendar(false);
+      setCalendarToDelete(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1262,6 +1311,24 @@ export default function Calendar() {
                         isDisconnecting={msDisconnectingConnectionId === conn.id}
                         onRefresh={() => handleRefreshMicrosoftConnection(conn.id)}
                         onDisconnect={() => handleDisconnectMicrosoftConnection(conn.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reale Kalenderliste (löschen auf Kalender-Ebene) */}
+              {displayCalendars.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Kalender</h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {displayCalendars.map((cal) => (
+                      <CalendarCard
+                        key={cal.id}
+                        calendar={cal}
+                        isDisconnecting={false}
+                        onDisconnect={() => {}}
+                        onRequestDelete={(c) => setCalendarToDelete(c)}
                       />
                     ))}
                   </div>
@@ -1523,6 +1590,35 @@ export default function Calendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete Calendar Confirmation Dialog (single, top-level) */}
+      <AlertDialog 
+        open={!!calendarToDelete}
+        onOpenChange={(open) => {
+          if (!open) setCalendarToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" /> Kalender löschen
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Kalender "{calendarToDelete?.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCalendar}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCalendar}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeletingCalendar}
+            >
+              {isDeletingCalendar ? 'Löscht…' : 'Löschen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1707,29 +1803,15 @@ function CalendarCard({
   calendar, 
   connection, 
   isDisconnecting, 
-  onDisconnect 
+  onDisconnect,
+  onRequestDelete
 }: {
   calendar: CalendarType;
   connection?: GoogleConnection;
   isDisconnecting: boolean;
   onDisconnect: (connectionId: string) => void;
+  onRequestDelete: (calendar: CalendarType) => void;
 }) {
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const handleDeleteCalendar = async () => {
-    try {
-      setIsDeleting(true);
-      const [{ calendarAPI }] = await Promise.all([import("@/lib/apiService")]);
-      await calendarAPI.deleteCalendar(calendar.id);
-      // Optimistic UI: remove from local state by reloading calendars/events in parent via storage/event
-      window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
-    } catch (e) {
-      console.error('❌ Kalender löschen fehlgeschlagen', e);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
   return (
     <Card className={calendar.isConnected ? "border-green-200" : "border-muted"}>
       <CardHeader>
@@ -1752,12 +1834,11 @@ function CalendarCard({
                 Verbunden
               </Badge>
             )}
-            {/* Ein klarer Löschen-Button ohne Hover-Konflikte */}
+            {/* Delete Button: delegates to top-level confirm */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setConfirmOpen(true)}
-              disabled={isDeleting}
+              onClick={() => onRequestDelete(calendar)}
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
               title="Kalender löschen"
             >
@@ -1784,29 +1865,6 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
-        {/* Bestätigungsdialog fürs Löschen */}
-        <AlertDialog open={confirmOpen} onOpenChange={(o) => !isDeleting && setConfirmOpen(o)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-                <AlertCircle className="h-5 w-5" /> Kalender löschen
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Möchten Sie den Kalender "{calendar.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={async () => { setConfirmOpen(false); await handleDeleteCalendar(); }}
-                className="bg-red-600 hover:bg-red-700"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Löscht…' : 'Löschen'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </CardContent>
     </Card>
   );
