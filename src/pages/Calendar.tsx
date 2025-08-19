@@ -1649,6 +1649,8 @@ function CalendarCard({
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [affectedEventTypes, setAffectedEventTypes] = useState<Array<{ id: string; name: string }> | null>(null);
 
   const handleDeleteCalendar = async () => {
     try {
@@ -1663,6 +1665,31 @@ function CalendarCard({
       setIsDeleting(false);
     }
   };
+
+  // Load affected Event-Types when the confirm dialog opens
+  useEffect(() => {
+    const loadAffected = async () => {
+      try {
+        setIsPreviewLoading(true);
+        const [{ calendarAPI }] = await Promise.all([import("@/lib/apiService")]);
+        const resp: any = await calendarAPI.getCalendarConfigurations();
+        const items = Array.isArray(resp) ? resp : (resp?.results || []);
+        const affected = items
+          .filter((et: any) => String(et.calendar) === String(calendar.id))
+          .map((et: any) => ({ id: et.id, name: et.name || et.title || 'Unbenannter Event Type' }));
+        setAffectedEventTypes(affected);
+      } catch (e) {
+        setAffectedEventTypes([]);
+      } finally {
+        setIsPreviewLoading(false);
+      }
+    };
+    if (confirmOpen) {
+      loadAffected();
+    } else {
+      setAffectedEventTypes(null);
+    }
+  }, [confirmOpen, calendar.id]);
   return (
     <Card className={calendar.isConnected ? "border-green-200" : "border-muted"}>
       <CardHeader>
@@ -1717,7 +1744,7 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
-        {/* Bestätigungsdialog fürs Löschen */}
+        {/* Bestätigungsdialog fürs Löschen mit Vorschau der betroffenen Event‑Types */}
         <AlertDialog open={confirmOpen} onOpenChange={(o) => !isDeleting && setConfirmOpen(o)}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -1725,7 +1752,27 @@ function CalendarCard({
                 <AlertCircle className="h-5 w-5" /> Kalender löschen
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Möchten Sie den Kalender "{calendar.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
+                Möchten Sie den Kalender "{calendar.name}" wirklich löschen?
+                <br />
+                Folgende Event‑Types mit diesem Kalender würden gelöscht:
+                {isPreviewLoading ? (
+                  <div className="text-sm text-muted-foreground mt-2">Prüfe betroffene Event‑Types…</div>
+                ) : (
+                  <div className="mt-2">
+                    {affectedEventTypes && affectedEventTypes.length > 0 ? (
+                      <ul className="text-sm list-disc pl-5 space-y-1">
+                        {affectedEventTypes.slice(0, 8).map(et => (
+                          <li key={et.id}>{et.name}</li>
+                        ))}
+                        {affectedEventTypes.length > 8 && (
+                          <li className="text-xs text-muted-foreground">… und weitere {affectedEventTypes.length - 8}</li>
+                        )}
+                      </ul>
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Keine Event‑Types betroffen.</div>
+                    )}
+                  </div>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
