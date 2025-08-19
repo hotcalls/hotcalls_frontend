@@ -154,7 +154,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl w-[640px] max-w-[95vw]">
         <DialogHeader>
           <DialogTitle>Dokumentenversand konfigurieren</DialogTitle>
           <DialogDescription>SMTP konfigurieren und PDF festlegen, das der Agent versendet.</DialogDescription>
@@ -167,28 +167,28 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
+            <div className="min-w-0">
               <Label>From E‑Mail</Label>
-              <Input value={smtp.smtp_from_email} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_from_email: e.target.value }))} placeholder="you@domain.tld" />
+              <Input className="w-full" value={smtp.smtp_from_email} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_from_email: e.target.value }))} placeholder="you@domain.tld" />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>Host</Label>
-              <Input value={smtp.smtp_host} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_host: e.target.value }))} placeholder="smtp.domain.tld" />
+              <Input className="w-full" value={smtp.smtp_host} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_host: e.target.value }))} placeholder="smtp.domain.tld" />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>Port</Label>
-              <Input type="number" value={smtp.smtp_port} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_port: Number(e.target.value || 0) }))} />
+              <Input className="w-full" type="number" value={smtp.smtp_port} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_port: Number(e.target.value || 0) }))} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div>
+            <div className="min-w-0">
               <Label>Benutzername</Label>
-              <Input value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
+              <Input className="w-full" value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
             </div>
-            <div>
+            <div className="min-w-0">
               <Label>Passwort</Label>
-              <Input type="password" value={smtp.smtp_password} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_password: e.target.value }))} placeholder={smtp.smtp_password_set ? "••••••" : ""} />
+              <Input className="w-full" type="password" value={smtp.smtp_password} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_password: e.target.value }))} placeholder={smtp.smtp_password_set ? "••••••" : ""} />
             </div>
           </div>
 
@@ -202,16 +202,16 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
         <div className="space-y-3 mt-6">
           <div className="text-sm font-medium">Dokument</div>
           {docInfo.has_document ? (
-            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
-              <span className="text-gray-700">PDF: {docInfo.filename}</span>
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm gap-2">
+              <span className="text-gray-700 flex-1 min-w-0 truncate">PDF: {docInfo.filename}</span>
+              <div className="flex items-center gap-2 shrink-0">
                 <Button size="sm" variant="outline" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>Ersetzen</Button>
                 <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? "Entfernt…" : "Entfernen"}</Button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
-              <span className="text-gray-600">Kein Dokument vorhanden</span>
+            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm gap-2">
+              <span className="text-gray-600 flex-1 min-w-0 truncate">Kein Dokument vorhanden</span>
               <Button size="sm" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>{uploading ? "Lädt…" : "Upload"}</Button>
             </div>
           )}
