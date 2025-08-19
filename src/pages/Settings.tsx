@@ -24,6 +24,7 @@ import { subscriptionService } from "@/lib/subscriptionService";
 import { paymentAPI, workspaceAPI } from "@/lib/apiService";
 import { useToast } from "@/hooks/use-toast";
 import { apiConfig } from "@/lib/apiConfig";
+import PlanCards from "@/components/billing/PlanCards";
 
 // Minute packages will be loaded dynamically from database via @core module
 
@@ -925,337 +926,80 @@ export default function Settings() {
         {/* Pläne & Guthaben Tab (nur Admin) */}
         {isAdmin && (
         <TabsContent value="billing" className="space-y-6">
-          {/* Usage Overview Section */}
+          {/* Neue Darstellung: 3 Plan-Karten wie im Welcome Flow */}
+          <PlanCards
+            plans={[] as any}
+            currentPlanName={usage?.workspace?.plan || null}
+            onUpgrade={async (plan:any) => {
+              if (!primaryWorkspace?.id) return;
+              try {
+                const isEnterprise = ((plan.plan_name||plan.name||'') === 'Enterprise');
+                if (isEnterprise) {
+                  const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
+                  window.open(portal.url, '_blank');
+                  return;
+                }
+                const priceId = plan.stripe_price_id_monthly;
+                if (!priceId) {
+                  const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
+                  window.open(portal.url, '_blank');
+                  return;
+                }
+                const sub = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
+                if (!sub?.has_subscription) {
+                  const checkout = await subscriptionService.createCheckoutSession({ workspace_id: primaryWorkspace.id, price_id: priceId });
+                  window.location.href = checkout.checkout_url;
+                  return;
+                }
+                await subscriptionService.changePlan(primaryWorkspace.id, priceId);
+                toast({ title: 'Planwechsel gestartet', description: 'Abrechnung wird von Stripe automatisch angepasst.' });
+              } catch (e:any) {
+                toast({ title: 'Planaktion fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
+              }
+            }}
+          />
+
+          {/* Verfügbare Minuten */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className={textStyles.sectionTitle}>Current Usage & Quotas</CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {usage?.billing_period ? (
-                      <>
-                        Billing period: {new Date(usage.billing_period.start!).toLocaleDateString()} - {new Date(usage.billing_period.end!).toLocaleDateString()}
-                        {usage.billing_period.days_remaining !== null && (
-                          <span className="ml-2">({usage.billing_period.days_remaining} days remaining)</span>
-                        )}
-                      </>
-                    ) : (
-                      'Current usage for your workspace'
-                    )}
-                    {lastUpdated && (
-                      <span className="block text-xs mt-1">Last updated: {lastUpdated.toLocaleTimeString()}</span>
-                    )}
-                  </p>
-                </div>
-                {usageError && (
-                  <Badge variant="destructive" className="flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    Data Error
-                  </Badge>
-                )}
+                <CardTitle className={textStyles.sectionTitle}>Verfügbare Minuten</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
-              {usageLoading ? (
-                <div className="space-y-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                      <div className="h-2 bg-gray-200 rounded mb-1"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/6"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : usageError ? (
-                <div className="text-center py-8">
-                  <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load usage data</h3>
-                  <p className="text-gray-600 mb-4">{usageError}</p>
-                  <Button onClick={() => window.location.reload()} variant="outline">
-                    Try Again
-                  </Button>
-                </div>
-              ) : features.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-gray-500">No usage data available</div>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {features.map((feature) => (
-                    <div key={feature.name} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {feature.name === 'call_minutes' && <Clock className="h-4 w-4 text-gray-500" />}
-                          {feature.name === 'max_users' && <Users className="h-4 w-4 text-gray-500" />}
-                          {feature.name === 'max_agents' && <Building className="h-4 w-4 text-gray-500" />}
-                          <span className="font-medium text-sm">
-                            {feature.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </span>
-                        </div>
-                        {feature.isOverLimit && (
-                          <Badge variant="destructive" className="text-xs">Over Limit</Badge>
-                        )}
-                        {feature.isNearingLimit && !feature.isOverLimit && (
-                          <Badge variant="outline" className="text-xs border-orange-200 text-orange-600">Warning</Badge>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Used</span>
-                          <span className="font-medium">
-                            {feature.unlimited ? (
-                              <span className="flex items-center gap-1">
-                                {feature.used} {feature.unit === 'general_unit' ? '' : feature.unit} <Infinity className="h-3 w-3" />
-                              </span>
-                            ) : (
-                              feature.unit === 'general_unit' ? 
-                                `${feature.used} / ${feature.limit || 0}` :
-                                `${feature.used} / ${feature.limit || 0} ${feature.unit}`
-                            )}
-                          </span>
-                        </div>
-                        
-                        {!feature.unlimited && feature.limit && (
-                          <>
-                            <Progress 
-                              value={feature.percentage_used || 0} 
-                              className={`h-2 ${
-                                feature.isOverLimit ? 'text-red-500' : 
-                                feature.isNearingLimit ? 'text-orange-500' : 
-                                'text-green-500'
-                              }`}
-                            />
-                            <div className="text-xs text-gray-500 text-right">
-                              {feature.percentageText}
-                            </div>
-                          </>
-                        )}
-                        
-                        {feature.unlimited && (
-                          <div className="text-xs text-green-600 font-medium">Unlimited</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              {/* Cosmetic Features */}
-              {usage?.cosmetic_features && Object.keys(usage.cosmetic_features).length > 0 && (
-                <div className="mt-8 pt-6 border-t">
-                  <h4 className="font-semibold text-sm mb-4">Plan Features</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(usage.cosmetic_features).map(([feature, value]) => (
-                      <div key={feature} className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${value && value !== 'standard' ? 'bg-green-500' : 'bg-gray-300'}`} />
-                        <span className="text-sm">
-                          {feature === 'overage_rate_per_minute_euros' ? 'Minutenkosten' : 
-                           feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                        {/* Show overage rate value in German format (cents/min) */}
-                        {feature === 'overage_rate_per_minute_euros' && typeof value === 'number' && (
-                          <Badge variant="secondary" className="text-xs">{Math.round(value * 100)} Cent/Min</Badge>
-                        )}
-                        {/* Show other string values */}
-                        {feature !== 'overage_rate_per_minute_euros' && typeof value === 'string' && value !== 'true' && value !== 'false' && value !== 'standard' && (
-                          <Badge variant="secondary" className="text-xs">{value}</Badge>
-                        )}
-                      </div>
-                    ))}
+              <div className="text-center py-6">
+                {usageLoading ? (
+                  <div className="animate-pulse">
+                    <div className="h-12 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
                   </div>
-                </div>
-              )}
+                ) : usageError ? (
+                  <div>
+                    <div className="text-2xl text-red-500 mb-2">Error</div>
+                    <p className="text-gray-600">Unable to load balance</p>
+                  </div>
+                ) : callMinutesFeature?.unlimited ? (
+                  <div>
+                    <div className="text-4xl font-bold text-green-600 flex items-center justify-center gap-2">
+                      <Infinity className="h-10 w-10" />
+                      Unlimited
+                    </div>
+                    <p className="text-gray-600">Available Minutes</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-4xl font-bold text-gray-900">
+                      {Math.max(0, callMinutesFeature?.remaining || 0)}
+                    </div>
+                    <p className="text-gray-600">Remaining Minutes</p>
+                    {callMinutesFeature && callMinutesFeature.remaining !== null && callMinutesFeature.remaining < 50 && (
+                      <p className="text-orange-600 text-sm mt-2">⚠️ Low balance</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-          
-          {/* Aktueller Plan & Verfügbare Minuten - NEBENEINANDER */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Aktueller Plan */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className={textStyles.sectionTitle}>Aktueller Plan</CardTitle>
-                </div>
-                <div className="flex gap-2">
-                  {isAdmin && (
-                    <button className={buttonStyles.primary.default} onClick={async () => {
-                      if (!primaryWorkspace?.id) return;
-                      try {
-                        const current = (usage?.workspace?.plan || '').toLowerCase();
-                        const next = current === 'start' ? 'Pro' : current === 'pro' ? 'Enterprise' : null;
-                        if (!next) { toast({ title: 'Kein höherer Plan verfügbar' }); return; }
-                        const plans = await subscriptionService.getPlans();
-                        const nextPlan = plans.find((p:any) => p.plan_name === next);
-                        const priceId = nextPlan?.stripe_price_id_monthly;
-                        if (!priceId) { const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id); window.open(portal.url, '_blank'); return; }
-                        const sub = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
-                        if (!sub?.has_subscription) { const checkout = await subscriptionService.createCheckoutSession({ workspace_id: primaryWorkspace.id, price_id: priceId }); window.location.href = checkout.checkout_url; return; }
-                        await subscriptionService.changePlan(primaryWorkspace.id, priceId);
-                        toast({ title: 'Planwechsel gestartet', description: 'Abrechnung wird von Stripe automatisch angepasst.' });
-                        const refreshed = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
-                        setSubscriptionStatus(refreshed as any);
-                      } catch (e:any) { toast({ title: 'Planwechsel fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' }); }
-                    }}>Plan upgraden</button>
-                  )}
-                  <button className={buttonStyles.secondary.default} onClick={handleManageSubscription} disabled={isLoadingSubscription || !isAdmin}>
-                    <ExternalLink className={iconSizes.small} />
-                    <span>Abonnement verwalten</span>
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className={buttonStyles.info.panel}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className={textStyles.cardTitle}>
-                        {isLoadingSubscription 
-                          ? "Wird geladen..." 
-                          : currentPlan.name
-                        } Plan
-                      </h3>
-                      <p className={textStyles.cardSubtitle}>
-                        {currentPlan.price === 'Custom' ? 'Individuelle Preisgestaltung' : `${isLoadingSubscription ? "..." : currentPlan.price} pro Monat`}
-                      </p>
-                      <p className="text-xs text-gray-600 mt-1">{currentPlan.description}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge className={
-                        isLoadingSubscription ? "bg-gray-400" :
-                        subscriptionStatus?.has_subscription ? "bg-[#FE5B25] text-white" : "bg-red-500 text-white"
-                      }>
-                        {isLoadingSubscription 
-                          ? "Wird geladen..." 
-                          : subscriptionStatus?.has_subscription 
-                            ? (subscriptionStatus.subscription?.cancel_at_period_end ? "Läuft aus" : "Aktiv")
-                            : "Inaktiv"
-                        }
-                      </Badge>
-                      {currentPlan.name === 'Enterprise' && (
-                        <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
-                          Premium Features
-                        </Badge>
-                      )}
-                      {subscriptionStatus?.has_subscription &&
-                       subscriptionStatus.subscription?.cancel_at_period_end &&
-                       subscriptionStatus.subscription?.current_period_end ? (
-                        <p className="text-xs text-gray-500">
-                          Dein Plan läuft zum {new Date(subscriptionStatus.subscription.current_period_end * 1000).toLocaleDateString('de-DE')} aus
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  
-                  {/* Show Enterprise-specific features */}
-                  {currentPlan.name === 'Enterprise' && currentPlan.features && Object.keys(currentPlan.features).length > 0 && (
-                    <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                      <h4 className="text-sm font-semibold text-purple-800 mb-2">🚀 Enterprise Features</h4>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {currentPlan.features.whitelabel_solution && (
-                          <div className="flex items-center gap-1 text-purple-700">
-                            <Check className="h-3 w-3" />
-                            <span>Whitelabel Solution</span>
-                          </div>
-                        )}
-                        {currentPlan.features.custom_voice_cloning && (
-                          <div className="flex items-center gap-1 text-purple-700">
-                            <Check className="h-3 w-3" />
-                            <span>Custom Voice Cloning</span>
-                          </div>
-                        )}
-                        {currentPlan.features.priority_support === 'enterprise' && (
-                          <div className="flex items-center gap-1 text-purple-700">
-                            <Check className="h-3 w-3" />
-                            <span>Enterprise Support</span>
-                          </div>
-                        )}
-                        {currentPlan.features.advanced_analytics && (
-                          <div className="flex items-center gap-1 text-purple-700">
-                            <Check className="h-3 w-3" />
-                            <span>Advanced Analytics</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Call Minutes</span>
-                      <span>
-                        {currentPlan.unlimited ? (
-                          <span className="flex items-center gap-1">
-                            {currentPlan.usedMinutes} minutes <Infinity className="h-3 w-3" />
-                          </span>
-                        ) : (
-                          `${currentPlan.usedMinutes} / ${currentPlan.totalMinutes}`
-                        )}
-                      </span>
-                    </div>
-                    {!currentPlan.unlimited && currentPlan.totalMinutes > 0 && (
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-[#FE5B25] h-2 rounded-full" 
-                          style={{ width: `${Math.min((currentPlan.usedMinutes / currentPlan.totalMinutes) * 100, 100)}%` }}
-                        />
-                      </div>
-                    )}
-                    {currentPlan.unlimited && (
-                      <div className="text-xs text-green-600 font-medium">Unlimited usage</div>
-                    )}
-                  </div>
-
-                  {/* Cancel Subscription Button */}
-                  {/* Kündigungs-Buttons entfernt – Verwaltung nur im Stripe-Portal */}
-                </div>
-              </CardContent>
-            </Card>
-
-
-
-            {/* Verfügbare Minuten */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className={textStyles.sectionTitle}>Verfügbare Minuten</CardTitle>
-                  {/* Top-Up Button entfernt */}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-6">
-                  {usageLoading ? (
-                    <div className="animate-pulse">
-                      <div className="h-12 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
-                    </div>
-                  ) : usageError ? (
-                    <div>
-                      <div className="text-2xl text-red-500 mb-2">Error</div>
-                      <p className="text-gray-600">Unable to load balance</p>
-                    </div>
-                  ) : callMinutesFeature?.unlimited ? (
-                    <div>
-                      <div className="text-4xl font-bold text-green-600 flex items-center justify-center gap-2">
-                        <Infinity className="h-10 w-10" />
-                        Unlimited
-                      </div>
-                      <p className="text-gray-600">Available Minutes</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="text-4xl font-bold text-gray-900">
-                        {Math.max(0, callMinutesFeature?.remaining || 0)}
-                      </div>
-                      <p className="text-gray-600">Remaining Minutes</p>
-                      {callMinutesFeature && callMinutesFeature.remaining !== null && callMinutesFeature.remaining < 50 && (
-                        <p className="text-orange-600 text-sm mt-2">⚠️ Low balance</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
         )}
       </Tabs>
