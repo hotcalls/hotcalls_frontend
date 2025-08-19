@@ -69,6 +69,28 @@ export default function Settings() {
   const [planDetails, setPlanDetails] = useState<any>(null);
   const [loadingPlanDetails, setLoadingPlanDetails] = useState(false);
 
+  // Load all available plans for PlanCards (Welcome-Flow Stil)
+  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
+
+  useEffect(() => {
+    // Nur für Admins relevant; lade einmalig oder wenn Billing-Tab aktiv wird
+    if (!isAdmin) return;
+    if (availablePlans.length > 0) return;
+    if (activeTab !== 'billing') return;
+    (async () => {
+      try {
+        setLoadingPlans(true);
+        const plans = await subscriptionService.getPlans();
+        setAvailablePlans(Array.isArray(plans) ? plans : (plans?.results || []));
+      } catch (e) {
+        console.error('❌ Failed to load plans:', e);
+      } finally {
+        setLoadingPlans(false);
+      }
+    })();
+  }, [isAdmin, activeTab, availablePlans.length]);
+
   // Load plan details from database API
   useEffect(() => {
     const loadPlanDetails = async () => {
@@ -928,7 +950,7 @@ export default function Settings() {
         <TabsContent value="billing" className="space-y-6">
           {/* Neue Darstellung: 3 Plan-Karten wie im Welcome Flow */}
           <PlanCards
-            plans={[] as any}
+            plans={availablePlans as any}
             currentPlanName={usage?.workspace?.plan || null}
             onUpgrade={async (plan:any) => {
               if (!primaryWorkspace?.id) return;
