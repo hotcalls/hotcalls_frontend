@@ -15,6 +15,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webhookAPI, MakeTestCallRequest, knowledgeAPI } from "@/lib/apiService";
+import DocumentSendDialog from "@/components/integrations/DocumentSendDialog";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
@@ -130,6 +131,10 @@ export default function AgentConfig() {
   const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
   const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
+
+  // Document send UI state
+  const [docDialogOpen, setDocDialogOpen] = useState(false);
+  const [docStatus, setDocStatus] = useState<{ filename?: string | null; fromEmail?: string | null } | null>(null);
 
   // Load Event Types from Calendar API
   const loadEventTypes = async () => {
@@ -1588,11 +1593,13 @@ export default function AgentConfig() {
                   <Label>Dokument für E‑Mail‑Versand</Label>
                   <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
                     <span className="text-gray-600">
-                      {/* Placeholder-Status, echte Datenbindung folgt im nächsten Schritt */}
-                      Kein Dokumentenversand
+                      {docStatus?.filename ? `PDF: ${docStatus.filename}${docStatus?.fromEmail ? ` • Absender: ${docStatus.fromEmail}` : ''}` : 'Kein Dokumentenversand'}
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button variant="default">Dokumentenversand hinzufügen</Button>
+                      <Button variant="default" onClick={() => setDocDialogOpen(true)}
+                        title="SMTP konfigurieren, PDF hochladen – der Agent versendet später automatisch">
+                        Dokumentenversand hinzufügen
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -1600,6 +1607,29 @@ export default function AgentConfig() {
             </CardContent>
           </Card>
 
+          {/* Dialog für Dokumentenversand */}
+          {primaryWorkspace?.id && id && (
+            <DocumentSendDialog
+              open={docDialogOpen}
+              onOpenChange={setDocDialogOpen}
+              workspaceId={primaryWorkspace.id}
+              agentId={id}
+              onChanged={async () => {
+                try {
+                  // Nach Änderungen den sichtbaren Status aktualisieren (leichtgewichtiger GET)
+                  const [{ workspaceAPI }, { agentAPI }] = await Promise.all([
+                    import("@/lib/apiService"),
+                    import("@/lib/apiService"),
+                  ]);
+                  const [smtp, doc] = await Promise.all([
+                    workspaceAPI.getSmtpSettings(primaryWorkspace.id),
+                    agentAPI.getSendDocument(id),
+                  ]);
+                  setDocStatus({ filename: doc.filename, fromEmail: smtp?.smtp_from_email || null });
+                } catch {}
+              }}
+            />
+          )}
 
         </TabsContent>
       </Tabs>
