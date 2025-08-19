@@ -19,6 +19,16 @@ import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Real Event Types and Lead Forms will be loaded from API
 
@@ -765,6 +775,19 @@ export default function AgentConfig() {
     setKbDeleteOpen(true);
   };
 
+  const confirmKbDelete = async () => {
+    if (!id || !kbDeleteTarget) return;
+    try {
+      await knowledgeAPI.deleteById(id, kbDeleteTarget.id);
+      toast.success("Dokument gelöscht");
+      setKbDeleteOpen(false);
+      setKbDeleteTarget(null);
+      await loadKnowledge();
+    } catch (e: any) {
+      toast.error(e?.message || "Löschen fehlgeschlagen");
+    }
+  };
+
   const handleKBCopyLink = async (docIdOrFilename: string) => {
     if (!id) return;
     try {
@@ -1062,6 +1085,21 @@ export default function AgentConfig() {
               </div>
             </CardContent>
           </Card>
+          {/* Delete confirmation dialog for Knowledge Base */}
+          <AlertDialog open={kbDeleteOpen} onOpenChange={setKbDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Dokument wirklich löschen?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {kbDeleteTarget ? `"${kbDeleteTarget.name}" wird dauerhaft entfernt.` : 'Dieses Dokument wird dauerhaft gelöscht.'}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmKbDelete}>Löschen</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* Personality Tab */}
