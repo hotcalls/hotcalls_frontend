@@ -19,16 +19,6 @@ import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 // Real Event Types and Lead Forms will be loaded from API
 
@@ -41,10 +31,9 @@ export default function AgentConfig() {
   const [kb, setKb] = useState<{ version: number; files: Array<{ id: string; name: string; size: number; updated_at: string }> } | null>(null);
   const [kbLoading, setKbLoading] = useState(false);
   const [kbUploading, setKbUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [kbDeleteOpen, setKbDeleteOpen] = useState(false);
   const [kbDeleteTarget, setKbDeleteTarget] = useState<{ id: string; name: string } | null>(null);
-  const [pendingKbFile, setPendingKbFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   
   // Debug logging
   console.log('🔧 AgentConfig Debug:', { id, isEdit, urlParams: useParams() });
@@ -666,21 +655,6 @@ export default function AgentConfig() {
         }
       }
       
-      // Upload vorgemerkter Knowledge-Base-Datei nach erfolgreicher Agent-Erstellung
-      if (agentId && pendingKbFile) {
-        try {
-          await knowledgeAPI.upload(agentId, pendingKbFile);
-          setPendingKbFile(null);
-          if (activeTab === "knowledge") {
-            await loadKnowledge();
-          }
-          toast.success('Knowledge Base hochgeladen');
-        } catch (e: any) {
-          console.error('❌ KB Upload nach Agent-Create fehlgeschlagen:', e);
-          toast.error(e?.message || 'Knowledge-Upload fehlgeschlagen');
-        }
-      }
-
       // Handle funnel assignment after successful agent save (silent background operation)
       if (agentId && config.selectedLeadForm) {
         console.log('🔗 Agent saved successfully, starting funnel assignment...');
@@ -777,50 +751,18 @@ export default function AgentConfig() {
 
   const handleKBDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const files = e.dataTransfer?.files;
-    if (!files || !files.length) return;
-    if (isEdit && id) {
-      handleKBUpload(files);
-    } else {
-      const f = files[0];
-      const maxSize = 20 * 1024 * 1024;
-      if (f.type !== "application/pdf") { toast.error(`${f.name}: Nur PDF erlaubt`); return; }
-      if (f.size > maxSize) { toast.error(`${f.name}: Max. 20 MB überschritten`); return; }
-      setPendingKbFile(f);
-      toast.success(`${f.name} wird mit dem Agent gespeichert`);
+    if (e.dataTransfer?.files?.length) {
+      handleKBUpload(e.dataTransfer.files);
     }
   };
 
   const handleKBDelete = async (docIdOrFilename: string) => {
     if (!id) return;
-    try {
+    setKbDeleteTarget(() => {
       const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
-      if (!match) {
-        throw new Error("Dokument nicht gefunden");
-      }
-      await knowledgeAPI.deleteById(id, match.id);
-      toast.success("Dokument gelöscht");
-      await loadKnowledge();
-    } catch (e: any) {
-      toast.error(e?.message || "Löschen fehlgeschlagen");
-    }
-  };
-
-  const confirmKBDelete = async () => {
-    if (!id || !kbDeleteTarget) return;
-    try {
-      await knowledgeAPI.deleteById(id, kbDeleteTarget.id);
-      toast.success("Dokument gelöscht");
-      // Sofortiges lokales UI-Update ohne warten
-      setKb(prev => ({ version: (prev?.version || 1) + 1, files: [] } as any));
-      // Danach frisch vom Server nachladen (mit Cache-Buster)
-      await loadKnowledge();
-    } catch (e: any) {
-      toast.error(e?.message || "Löschen fehlgeschlagen");
-    } finally {
-      setKbDeleteOpen(false);
-      setKbDeleteTarget(null);
-    }
+      return match ? { id: match.id, name: match.name } : null;
+    });
+    setKbDeleteOpen(true);
   };
 
   const handleKBCopyLink = async (docIdOrFilename: string) => {
@@ -960,44 +902,6 @@ export default function AgentConfig() {
                   )}
                 </Button>
               </div>
-              {/* Calendar Functions Panel (same style as variables) */}
-              <div className="mb-3"
-                   onDragOver={(e) => e.preventDefault()}
-              >
-                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Kalenderfunktionen</div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {(!config.selectedEventTypes || config.selectedEventTypes.length === 0) ? (
-                    <span className="text-xs text-gray-500">Bitte füge einen Event Type zu deinem Agenten hinzu, damit dieser Termine buchen kann</span>
-                  ) : (
-                    <>
-                      <span
-                        key="check_slots"
-                        role="button"
-                        tabIndex={0}
-                        className={`${tokenPillClass} cursor-pointer select-none`}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{check_slots}}`)}
-                        onClick={() => insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                      >
-                        check_slots
-                      </span>
-                      <span
-                        key="book_appointment"
-                        role="button"
-                        tabIndex={0}
-                        className={`${tokenPillClass} cursor-pointer select-none`}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{book_appointment}}`)}
-                        onClick={() => insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                      >
-                        book_appointment
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
             </PopoverContent>
           </Popover>
           
@@ -1106,7 +1010,7 @@ export default function AgentConfig() {
                 <div className="mt-3 flex items-center gap-3">
                   <Button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={kbUploading || (isEdit ? Boolean(kb && kb.files && kb.files.length >= 1) : false)}
+                    disabled={!isEdit || kbUploading || (kb && kb.files && kb.files.length >= 1)}
                   >
                     {kbUploading ? "Lade hoch..." : "Datei wählen"}
                   </Button>
@@ -1114,20 +1018,7 @@ export default function AgentConfig() {
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (!files || files.length === 0) return;
-                      if (isEdit && id) {
-                        handleKBUpload(files);
-                      } else {
-                        const f = files[0];
-                        const maxSize = 20 * 1024 * 1024;
-                        if (f.type !== "application/pdf") { toast.error(`${f.name}: Nur PDF erlaubt`); return; }
-                        if (f.size > maxSize) { toast.error(`${f.name}: Max. 20 MB überschritten`); return; }
-                        setPendingKbFile(f);
-                        toast.success(`${f.name} wird mit dem Agent gespeichert`);
-                      }
-                    }}
+                    onChange={(e) => e.target.files && handleKBUpload(e.target.files)}
                     className="hidden"
                   />
                 </div>
@@ -1138,32 +1029,7 @@ export default function AgentConfig() {
                 {kbLoading ? (
                   <div className="p-4 border rounded-md text-gray-500">Lade Dokumente…</div>
                 ) : !kb || kb.files.length === 0 ? (
-                  pendingKbFile ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
-                        <thead>
-                          <tr className="text-left text-gray-500">
-                            <th className="py-2 pr-4">Name</th>
-                            <th className="py-2 pr-4">Größe</th>
-                            <th className="py-2 pr-4">Status</th>
-                            <th className="py-2">Aktionen</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-t">
-                            <td className="py-2 pr-4 break-all">{pendingKbFile.name}</td>
-                            <td className="py-2 pr-4 text-gray-600">{formatBytes(pendingKbFile.size)}</td>
-                            <td className="py-2 pr-4 text-gray-600">Wird beim Speichern hochgeladen</td>
-                            <td className="py-2 flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => setPendingKbFile(null)}>Entfernen</Button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
-                  )
+                  <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
@@ -1185,16 +1051,7 @@ export default function AgentConfig() {
                             <td className="py-2 pr-4 text-gray-600">{formatBytes(f.size)}</td>
                             <td className="py-2 pr-4 text-gray-600">{new Date(f.updated_at).toLocaleString()}</td>
                             <td className="py-2 flex gap-2">
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                  setKbDeleteTarget({ id: f.id, name: f.name });
-                                  setKbDeleteOpen(true);
-                                }}
-                              >
-                                Löschen
-                              </Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.id)}>Löschen</Button>
                             </td>
                           </tr>
                         ))}
@@ -1205,23 +1062,6 @@ export default function AgentConfig() {
               </div>
             </CardContent>
           </Card>
-          {/* Delete confirmation dialog for Knowledge Base */}
-          <AlertDialog open={kbDeleteOpen} onOpenChange={setKbDeleteOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Bist du dir sicher?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {kbDeleteTarget
-                    ? `Willst du das Dokument "${kbDeleteTarget.name}" wirklich löschen?`
-                    : "Dieses Dokument wird dauerhaft gelöscht."}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmKBDelete}>Löschen</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </TabsContent>
 
         {/* Personality Tab */}
@@ -1395,71 +1235,30 @@ export default function AgentConfig() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Variables + Buchungsfunktion side-by-side (stack on mobile) */}
-              <div className="md:flex md:gap-6">
-                {/* Variables Panel (minimal, orange) */}
-                <div className="mb-3 md:mb-0 md:w-1/2"
-                     onDragOver={(e) => e.preventDefault()}
-                >
-                  <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {funnelVariables.length === 0 ? (
-                      <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
-                    ) : (
-                      funnelVariables.map(v => (
-                        <span
-                          key={v.key}
-                          role="button"
-                          tabIndex={0}
-                          className={`${tokenPillClass} cursor-pointer select-none`}
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
-                          onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                        >
-                          {v.label}
-                        </span>
-                      ))
-                    )}
-                  </div>
-                </div>
-                {/* Buchungsfunktion Panel */}
-                <div className="mb-3 md:mb-0 md:w-1/2"
-                     onDragOver={(e) => e.preventDefault()}
-                >
-                  <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Buchungsfunktion</div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(!config.selectedEventTypes || config.selectedEventTypes.length === 0) ? (
-                      <span className="text-xs text-gray-500">Füge Event Types hinzu, um Buchungen zu konfigurieren</span>
-                    ) : (
-                      <>
-                        <span
-                          key="check_slots"
-                          role="button"
-                          tabIndex={0}
-                          className={`${tokenPillClass} cursor-pointer select-none`}
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{check_slots}}`)}
-                          onClick={() => insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                        >
-                          check_slots
-                        </span>
-                        <span
-                          key="book_appointment"
-                          role="button"
-                          tabIndex={0}
-                          className={`${tokenPillClass} cursor-pointer select-none`}
-                          draggable
-                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{book_appointment}}`)}
-                          onClick={() => insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                        >
-                          book_appointment
-                        </span>
-                      </>
-                    )}
-                  </div>
+              {/* Variables Panel (minimal, orange) */}
+              <div className="mb-3"
+                   onDragOver={(e) => e.preventDefault()}
+              >
+                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {funnelVariables.length === 0 ? (
+                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                  ) : (
+                    funnelVariables.map(v => (
+                      <span
+                        key={v.key}
+                        role="button"
+                        tabIndex={0}
+                        className={`${tokenPillClass} cursor-pointer select-none`}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
+                        onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                      >
+                        {v.label}
+                      </span>
+                    ))
+                  )}
                 </div>
               </div>
               <div>
