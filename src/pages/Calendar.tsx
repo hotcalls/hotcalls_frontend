@@ -1022,6 +1022,7 @@ export default function Calendar() {
         delete map[id];
         setMsCalendarsByConnection(map);
         toast({ title: 'Verbindung getrennt', description: 'Microsoft 365 wurde getrennt.' });
+        try { await loadEventTypes(); } catch {}
       } else {
         throw new Error(res?.message || 'Trennen fehlgeschlagen');
       }
@@ -1115,6 +1116,8 @@ export default function Calendar() {
 
         // KEIN Backend reload - Backend gibt fälschlicherweise noch Kalender zurück
         console.log("✅ Disconnect completed - Frontend state updated, connection marked as deleted");
+        // Event-Types neu laden, damit gelöschte Configs sofort aus der Liste verschwinden
+        try { await loadEventTypes(); } catch {}
         
       } else {
         throw new Error(result.message || 'Fehler beim Trennen');
