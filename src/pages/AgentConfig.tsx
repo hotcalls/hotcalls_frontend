@@ -1346,9 +1346,6 @@ export default function AgentConfig() {
                   placeholder="Schreiben Sie hier das Gesprächsskript für Ihren Agent..."
                   className="min-h-[300px]"
                 />
-                <div className="mt-2">
-                  {renderPreview(config.script)}
-                </div>
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div>
                     <Label htmlFor="outgoingGreeting">Begrüßung (Ausgehende Anrufe)</Label>
@@ -1365,9 +1362,6 @@ export default function AgentConfig() {
                       placeholder="Wie soll der Agent ausgehende Gespräche beginnen?"
                       rows={3}
                     />
-                    <div className="mt-2">
-                      {renderPreview(config.outgoingGreeting || '')}
-                    </div>
                   </div>
                   <div>
                     <Label htmlFor="incomingGreeting">Begrüßung (Eingehende Anrufe)</Label>
@@ -1384,9 +1378,6 @@ export default function AgentConfig() {
                       placeholder="Wie soll der Agent eingehende Gespräche beginnen?"
                       rows={3}
                     />
-                    <div className="mt-2">
-                      {renderPreview(config.incomingGreeting || '')}
-                    </div>
                   </div>
                 </div>
               </div>
