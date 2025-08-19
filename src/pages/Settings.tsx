@@ -1066,8 +1066,8 @@ export default function Settings() {
             }}
           />
 
-          {/* Actions under cards */}
-          <div className="flex justify-end gap-3">
+          {/* Action unter Karten: nur Portal */}
+          <div className="flex justify-end">
             <Button
               variant="outline"
               onClick={async ()=>{
@@ -1081,29 +1081,6 @@ export default function Settings() {
               }}
             >
               Abonnement verwalten
-            </Button>
-            <Button
-              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
-              onClick={async ()=>{
-                if (!primaryWorkspace?.id) return;
-                try {
-                  const res = await fetch(`${apiConfig.baseUrl}/api/payments/stripe/minute-pack-checkout/`, {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Token ${localStorage.getItem('authToken')||''}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ workspace_id: primaryWorkspace.id })
-                  });
-                  if (!res.ok) throw new Error('Checkout konnte nicht erstellt werden');
-                  const data = await res.json();
-                  window.location.href = data.checkout_url;
-                } catch (e:any) {
-                  toast({ title:'Buchung fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant:'destructive' });
-                }
-              }}
-            >
-              Zusatzminuten buchen
             </Button>
           </div>
 
