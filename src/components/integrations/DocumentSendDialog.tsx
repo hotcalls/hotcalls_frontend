@@ -25,7 +25,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
   const [deleting, setDeleting] = useState(false);
 
   const [smtp, setSmtp] = useState({
-    smtp_enabled: false,
+    smtp_enabled: true,
     smtp_host: "",
     smtp_port: 587,
     smtp_use_tls: true,
@@ -74,7 +74,8 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
     try {
       setSavingSmtp(true);
       const payload: any = {
-        smtp_enabled: smtp.smtp_enabled,
+        // Immer aktiv speichern (kein UI-Switch mehr)
+        smtp_enabled: true,
         smtp_host: smtp.smtp_host,
         smtp_port: smtp.smtp_port,
         smtp_use_tls: tlsMode === "starttls",
@@ -161,12 +162,8 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
 
         {/* SMTP Section */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="text-sm font-medium">E‑Mail (SMTP)</div>
-              <div className="text-xs text-gray-500">Absender ist immer die Workspace‑E‑Mail</div>
-            </div>
-            <Switch checked={smtp.smtp_enabled} onCheckedChange={(v) => setSmtp(prev => ({ ...prev, smtp_enabled: v }))} />
+          <div className="space-y-1">
+            <div className="text-sm font-medium">E‑Mail (SMTP)</div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -211,7 +208,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
               <Input value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
             </div>
             <div>
-              <Label>Passwort (write‑only)</Label>
+              <Label>Passwort</Label>
               <Input type="password" value={smtp.smtp_password} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_password: e.target.value }))} placeholder={smtp.smtp_password_set ? "••••••" : ""} />
             </div>
           </div>
@@ -250,15 +247,11 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
             <div>
               <Label>Standard‑Text (optional)</Label>
               <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Kurzer Begleittext. Platzhalter: {current_date}, {lead_name}" />
-              <div className="text-xs text-gray-500 mt-1">Nur Platzhalter {"{current_date}"}, {"{lead_name}"} werden ersetzt.</div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          {!smtp.smtp_enabled && (
-            <div className="text-xs text-gray-500">SMTP nicht aktiv – Versand wird serverseitig blockiert.</div>
-          )}
+        <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Schließen</Button>
           </div>
