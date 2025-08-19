@@ -1577,6 +1577,29 @@ export default function AgentConfig() {
             </CardContent>
           </Card>
 
+          {/* Dokumentenversand (minimal, gleicher Stil wie Kalender-Zeile) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className={textStyles.sectionTitle}>Dokumentenversand</CardTitle>
+            </CardHeader>
+            <CardContent className={layoutStyles.cardContent}>
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <Label>Dokument für E‑Mail‑Versand</Label>
+                  <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
+                    <span className="text-gray-600">
+                      {/* Placeholder-Status, echte Datenbindung folgt im nächsten Schritt */}
+                      Kein Dokumentenversand
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="default">Dokumentenversand hinzufügen</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
 
         </TabsContent>
       </Tabs>

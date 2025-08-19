@@ -353,6 +353,52 @@ export const workspaceAPI = {
     });
   },
 
+  /** SMTP Settings (workspace-wide) */
+  async getSmtpSettings(workspaceId: string): Promise<{
+    smtp_enabled: boolean;
+    smtp_host: string;
+    smtp_port: number;
+    smtp_use_tls: boolean;
+    smtp_use_ssl: boolean;
+    smtp_username: string;
+    smtp_from_email: string;
+    smtp_password_set: boolean;
+  }> {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/smtp-settings/`, { method: 'GET' });
+  },
+
+  async updateSmtpSettings(workspaceId: string, data: Partial<{
+    smtp_enabled: boolean;
+    smtp_host: string;
+    smtp_port: number;
+    smtp_use_tls: boolean;
+    smtp_use_ssl: boolean;
+    smtp_username: string;
+    smtp_password: string; // write-only
+    smtp_from_email: string;
+  }>): Promise<{
+    smtp_enabled: boolean;
+    smtp_host: string;
+    smtp_port: number;
+    smtp_use_tls: boolean;
+    smtp_use_ssl: boolean;
+    smtp_username: string;
+    smtp_from_email: string;
+    smtp_password_set: boolean;
+  }> {
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/smtp-settings/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  async testSmtp(workspaceId: string, to_email: string): Promise<{ success: boolean; error?: string }>{
+    return apiCall(`/api/workspaces/workspaces/${workspaceId}/smtp-test/`, {
+      method: 'POST',
+      body: JSON.stringify({ to_email }),
+    });
+  },
+
   /**
    * Get workspace statistics including agent count
    */
@@ -528,6 +574,45 @@ export const agentAPI = {
     });
     
     console.log('✅ Agent deleted successfully');
+  },
+
+  /** Agent send-document API */
+  async getSendDocument(agentId: string): Promise<{
+    has_document: boolean;
+    filename: string | null;
+    url: string | null;
+    email_default_subject: string | null;
+    email_default_body: string | null;
+  }>{
+    return apiCall(`/api/agents/agents/${agentId}/send-document/`, { method: 'GET' });
+  },
+
+  async uploadSendDocument(agentId: string, payload: { file: File; email_default_subject?: string; email_default_body?: string }): Promise<{
+    has_document: boolean;
+    filename: string | null;
+    url: string | null;
+    email_default_subject: string | null;
+    email_default_body: string | null;
+  }>{
+    const url = `${API_BASE_URL}/api/agents/agents/${agentId}/send-document/`;
+    const form = new FormData();
+    form.append('file', payload.file);
+    if (payload.email_default_subject !== undefined) form.append('email_default_subject', payload.email_default_subject);
+    if (payload.email_default_body !== undefined) form.append('email_default_body', payload.email_default_body);
+    const headers: Record<string, string> = {};
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) headers['Authorization'] = `Token ${authToken}`;
+    const res = await fetch(url, { method: 'POST', body: form, headers, credentials: 'include' });
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}: ${res.statusText}`;
+      try { const d = await res.json(); msg = d?.error || d?.detail || msg; } catch {}
+      throw new Error(msg);
+    }
+    return res.json();
+  },
+
+  async deleteSendDocument(agentId: string): Promise<{ deleted: boolean }>{
+    return apiCall(`/api/agents/agents/${agentId}/send-document/`, { method: 'DELETE' });
   },
 };
 
