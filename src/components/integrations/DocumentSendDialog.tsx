@@ -187,7 +187,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
               <RadioGroup
                 value={tlsMode}
                 onValueChange={(v) => setSmtp(prev => ({ ...prev, smtp_use_ssl: v === "ssl", smtp_use_tls: v === "starttls" }))}
-                className="flex gap-4 mt-2"
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="starttls" id="tls-starttls" />
