@@ -84,7 +84,31 @@ export default function Settings() {
         console.log('📋 Loading plans for Settings Billing tab...');
         // Nutze denselben Weg wie im Welcome-Flow (plansAPI)
         const response = await plansAPI.getPlans();
-        const list = Array.isArray(response) ? response : (response?.results || []);
+        let list = Array.isArray(response) ? response : (response?.results || []);
+        // Enterprise Karte hart kodieren (ab 1.290€/Monat) mit gewünschten Features
+        const enterpriseCard = {
+          plan_name: 'Enterprise',
+          name: 'Enterprise',
+          id: 'enterprise',
+          price_monthly: null,
+          description: 'Individuelle Lösungen für große Unternehmen',
+          features: [],
+          _custom_features: [
+            'Individuelle Preiskonditionen',
+            'CSV Upload',
+            'Voice Cloning',
+            'White Labeling',
+          ],
+          _custom_price_prefix: 'ab ',
+          _custom_price_number: 1290,
+          _custom_price_suffix: 'im Monat',
+          stripe_price_id_monthly: null,
+        } as any;
+        // Stelle sicher: Enterprise existiert immer als Karte
+        const hasEnterprise = list.some((p:any)=> (p.plan_name||p.name)==='Enterprise');
+        if (!hasEnterprise) {
+          list = [...list, enterpriseCard];
+        }
         console.log('✅ Plans loaded:', list);
         setAvailablePlans(list);
       } catch (e) {
@@ -955,19 +979,56 @@ export default function Settings() {
           {/* Exakt das Layout aus dem Welcome Flow */}
           <WelcomePlanCards
             plans={(availablePlans && availablePlans.length > 0
-              ? availablePlans.map((p:any)=>({
-                  id: (p.plan_name||p.name||p.id||'').toString().toLowerCase(),
-                  name: p.plan_name || p.name || '',
-                  price_monthly: p.price_monthly ? (typeof p.price_monthly === 'string' ? parseFloat(p.price_monthly) : p.price_monthly) : null,
-                  description: p.description,
-                  features: undefined,
-                  is_popular: (p.plan_name||p.name)==='Pro',
-                  is_contact: (p.plan_name||p.name)==='Enterprise',
-                }))
+              ? availablePlans.map((p:any)=>{
+                  const name = p.plan_name || p.name || '';
+                  // Extrahiere Limits aus Features (nur Start/Pro); Enterprise bekommt Custom-Liste
+                  let features:string[]|undefined = undefined;
+                  const apiFeatures = (p.features || []) as any[];
+                  if (name === 'Start' || name === 'Pro') {
+                    const getLimit = (key:string) => {
+                      const f = apiFeatures.find(ff => (ff.feature_name||ff.name)===key);
+                      if (!f) return null;
+                      const raw = f.limit ?? f.value ?? null;
+                      if (raw === null || raw === undefined) return null;
+                      const n = Number.parseFloat(String(raw).replace(',', '.'));
+                      if (!Number.isFinite(n)) return null;
+                      return Math.round(n);
+                    };
+                    const minutes = getLimit('call_minutes');
+                    const agents = getLimit('max_agents');
+                    const funnels = getLimit('max_funnels');
+                    const users = getLimit('max_users');
+                    const fmt = (v:number|null)=> v===null? 'Unbegrenzt' : v.toLocaleString('de-DE');
+                    features = [
+                      `Inkludierte Minuten: ${fmt(minutes)}`,
+                      `Inkludierte Agents: ${fmt(agents)}`,
+                      `Inkludierte Funnels: ${fmt(funnels)}`,
+                      `Workspace-Mitglieder: ${fmt(users)}`,
+                    ];
+                  } else if (name === 'Enterprise') {
+                    features = p._custom_features || [
+                      'Individuelle Preiskonditionen',
+                      'CSV Upload',
+                      'Voice Cloning',
+                      'White Labeling',
+                    ];
+                  }
+                  return {
+                    id: (name||'').toString().toLowerCase(),
+                    name,
+                    price_monthly: name==='Enterprise' ? (p._custom_price_number ?? null) : (p.price_monthly ? (typeof p.price_monthly === 'string' ? parseFloat(p.price_monthly) : p.price_monthly) : null),
+                    price_prefix: p._custom_price_prefix,
+                    price_suffix: p._custom_price_suffix || '/Monat',
+                    description: p.description,
+                    features,
+                    is_popular: name==='Pro',
+                    is_contact: name==='Enterprise',
+                  };
+                })
               : [
-                  { id:'start', name:'Start', price_monthly:199, description:'Ideal für Einzelpersonen und kleine Teams', features:['Inkl. 250 Minuten, dann 0,49€/Min.','Unbegrenzte Anzahl an Agenten','Automatisierte KI-Telefonate','Anbindung von Leadfunnels'], is_popular:false },
-                  { id:'pro', name:'Pro', price_monthly:549, description:'Ideal für Unternehmen mit höherem Volumen', features:['Alle Start-Features plus:','Inkl. 1000 Minuten, dann 0,29€/Min.','Priority Support','Advanced Analytics','CRM Integrationen'], is_popular:true },
-                  { id:'enterprise', name:'Enterprise', price_monthly:null, description:'Individuelle Lösungen für große Unternehmen', features:['Alle Pro-Features plus:','Unbegrenzte Agenten & Minuten','White Label Lösung','Dedizierter Account Manager','Custom Integrationen'], is_contact:true },
+                  { id:'start', name:'Start', price_monthly:199, description:'Ideal für Einzelpersonen und kleine Teams', features:['Inkludierte Minuten: 250','Inkludierte Agents: 1','Inkludierte Funnels: 1','Workspace-Mitglieder: 3'], is_popular:false },
+                  { id:'pro', name:'Pro', price_monthly:549, description:'Ideal für Unternehmen mit höherem Volumen', features:['Inkludierte Minuten: 1000','Inkludierte Agents: 3','Inkludierte Funnels: 3','Workspace-Mitglieder: 5'], is_popular:true },
+                  { id:'enterprise', name:'Enterprise', price_monthly:1290, price_prefix:'ab ', price_suffix:'im Monat', description:'Individuelle Lösungen für große Unternehmen', features:['Individuelle Preiskonditionen','CSV Upload','Voice Cloning','White Labeling'], is_contact:true },
                 ])}
             currentPlanName={usage?.workspace?.plan || null}
             onSelect={async (plan:any) => {
@@ -1006,47 +1067,7 @@ export default function Settings() {
             }}
           />
 
-          {/* Verfügbare Minuten */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className={textStyles.sectionTitle}>Verfügbare Minuten</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-6">
-                {usageLoading ? (
-                  <div className="animate-pulse">
-                    <div className="h-12 bg-gray-200 rounded w-24 mx-auto mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-32 mx-auto"></div>
-                  </div>
-                ) : usageError ? (
-                  <div>
-                    <div className="text-2xl text-red-500 mb-2">Error</div>
-                    <p className="text-gray-600">Unable to load balance</p>
-                  </div>
-                ) : callMinutesFeature?.unlimited ? (
-                  <div>
-                    <div className="text-4xl font-bold text-green-600 flex items-center justify-center gap-2">
-                      <Infinity className="h-10 w-10" />
-                      Unlimited
-                    </div>
-                    <p className="text-gray-600">Available Minutes</p>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="text-4xl font-bold text-gray-900">
-                      {Math.max(0, callMinutesFeature?.remaining || 0)}
-                    </div>
-                    <p className="text-gray-600">Remaining Minutes</p>
-                    {callMinutesFeature && callMinutesFeature.remaining !== null && callMinutesFeature.remaining < 50 && (
-                      <p className="text-orange-600 text-sm mt-2">⚠️ Low balance</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Hinweis: Verfügbare Minuten Card entfernt wie gewünscht */}
         </TabsContent>
         )}
       </Tabs>

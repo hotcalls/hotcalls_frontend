@@ -241,9 +241,22 @@ class SubscriptionService {
   /**
    * Format price for display
    */
-  formatPrice(amount: number | null, currency: string = 'EUR'): string {
-    if (amount === null) return 'Custom';
-    return `${(amount / 100).toFixed(0)}€`;
+  formatPrice(amount: number | string | null, currency: string = 'EUR'): string {
+    if (amount === null || amount === undefined) return 'Custom';
+    let n: number;
+    if (typeof amount === 'string') {
+      // Extract numeric part, accept both "," and "." decimals, strip symbols
+      const cleaned = amount.replace(/[^0-9.,-]/g, '').replace(',', '.');
+      n = Number.parseFloat(cleaned);
+    } else {
+      n = amount;
+    }
+    if (!Number.isFinite(n)) return 'Custom';
+    try {
+      return `${(n / 100).toFixed(0)}€`;
+    } catch {
+      return 'Custom';
+    }
   }
 
   /**

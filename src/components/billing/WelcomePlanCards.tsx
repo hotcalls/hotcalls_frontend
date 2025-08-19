@@ -5,6 +5,8 @@ type WelcomePlan = {
   id: string;
   name: string;
   price_monthly: number | null; // euros or null for Enterprise
+  price_prefix?: string; // e.g. "ab "
+  price_suffix?: string; // e.g. "im Monat"
   description?: string;
   features?: string[];
   is_popular?: boolean;
@@ -53,10 +55,12 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
               </div>
               <div>
                 <div className="text-4xl font-bold text-gray-900">
-                  {plan.price_monthly !== null ? `${plan.price_monthly}€` : 'Individuell'}
+                  {plan.price_monthly !== null
+                    ? `${plan.price_prefix || ''}${(plan.price_monthly as number).toLocaleString('de-DE')}€`
+                    : 'Individuell'}
                 </div>
                 <p className="text-sm text-gray-500">
-                  {plan.price_monthly !== null ? '/Monat' : 'Preis auf Anfrage'}
+                  {plan.price_monthly !== null ? (plan.price_suffix || '/Monat') : 'Preis auf Anfrage'}
                 </p>
               </div>
               {plan.features && plan.features.length > 0 && (
