@@ -1715,6 +1715,7 @@ function CalendarCard({
   onDisconnect: (connectionId: string) => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleDeleteCalendar = async () => {
     try {
@@ -1755,12 +1756,12 @@ function CalendarCard({
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDeleteCalendar}
+              onClick={() => setConfirmOpen(true)}
               disabled={isDeleting}
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
               title="Kalender löschen"
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -1783,7 +1784,29 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
-        {/* Actions bereits im Header – keine zweite Button-Leiste */}
+        {/* Bestätigungsdialog fürs Löschen */}
+        <AlertDialog open={confirmOpen} onOpenChange={(o) => !isDeleting && setConfirmOpen(o)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" /> Kalender löschen
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Möchten Sie den Kalender "{calendar.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => { setConfirmOpen(false); await handleDeleteCalendar(); }}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Löscht…' : 'Löschen'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
