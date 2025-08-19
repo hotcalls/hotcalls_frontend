@@ -89,7 +89,7 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
               >
                 {isContact ? (
                   <>
-                    <Phone className="mr-2 h-5 w-5" /> Kontakt
+                    <Phone className="mr-2 h-5 w-5" /> Jetzt mit Team sprechen
                   </>
                 ) : isActive ? (
                   <>Aktiver Plan</>

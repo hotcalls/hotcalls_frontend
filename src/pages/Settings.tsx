@@ -1036,8 +1036,7 @@ export default function Settings() {
               try {
                 const isEnterprise = ((plan.name||'') === 'Enterprise');
                 if (isEnterprise) {
-                  const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
-                  window.open(portal.url, '_blank');
+                  window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
                   return;
                 }
                 // Ziehe Price-ID aus der Plans-API (gleiches Verhalten wie Welcome Flow)
@@ -1066,6 +1065,47 @@ export default function Settings() {
               }
             }}
           />
+
+          {/* Actions under cards */}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={async ()=>{
+                if (!primaryWorkspace?.id) return;
+                try {
+                  const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
+                  window.open(portal.url, '_blank');
+                } catch (e:any) {
+                  toast({ title:'Portal konnte nicht geöffnet werden', description: e?.message || 'Bitte später erneut versuchen', variant:'destructive' });
+                }
+              }}
+            >
+              Abonnement verwalten
+            </Button>
+            <Button
+              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
+              onClick={async ()=>{
+                if (!primaryWorkspace?.id) return;
+                try {
+                  const res = await fetch(`${apiConfig.baseUrl}/api/payments/stripe/minute-pack-checkout/`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Token ${localStorage.getItem('authToken')||''}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ workspace_id: primaryWorkspace.id })
+                  });
+                  if (!res.ok) throw new Error('Checkout konnte nicht erstellt werden');
+                  const data = await res.json();
+                  window.location.href = data.checkout_url;
+                } catch (e:any) {
+                  toast({ title:'Buchung fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant:'destructive' });
+                }
+              }}
+            >
+              Zusatzminuten buchen
+            </Button>
+          </div>
 
           {/* Hinweis: Verfügbare Minuten Card entfernt wie gewünscht */}
         </TabsContent>
