@@ -1608,28 +1608,27 @@ export default function AgentConfig() {
           </Card>
 
           {/* Dialog für Dokumentenversand */}
-          {primaryWorkspace?.id && id && (
-            <DocumentSendDialog
-              open={docDialogOpen}
-              onOpenChange={setDocDialogOpen}
-              workspaceId={primaryWorkspace.id}
-              agentId={id}
-              onChanged={async () => {
-                try {
-                  // Nach Änderungen den sichtbaren Status aktualisieren (leichtgewichtiger GET)
-                  const [{ workspaceAPI }, { agentAPI }] = await Promise.all([
-                    import("@/lib/apiService"),
-                    import("@/lib/apiService"),
-                  ]);
-                  const [smtp, doc] = await Promise.all([
-                    workspaceAPI.getSmtpSettings(primaryWorkspace.id),
-                    agentAPI.getSendDocument(id),
-                  ]);
-                  setDocStatus({ filename: doc.filename, fromEmail: smtp?.smtp_from_email || null });
-                } catch {}
-              }}
-            />
-          )}
+          <DocumentSendDialog
+            open={docDialogOpen}
+            onOpenChange={setDocDialogOpen}
+            workspaceId={primaryWorkspace?.id || ""}
+            agentId={id || ""}
+            onChanged={async () => {
+              try {
+                if (!primaryWorkspace?.id || !id) return;
+                // Nach Änderungen den sichtbaren Status aktualisieren (leichtgewichtiger GET)
+                const [{ workspaceAPI }, { agentAPI }] = await Promise.all([
+                  import("@/lib/apiService"),
+                  import("@/lib/apiService"),
+                ]);
+                const [smtp, doc] = await Promise.all([
+                  workspaceAPI.getSmtpSettings(primaryWorkspace.id),
+                  agentAPI.getSendDocument(id),
+                ]);
+                setDocStatus({ filename: doc.filename, fromEmail: smtp?.smtp_from_email || null });
+              } catch {}
+            }}
+          />
 
         </TabsContent>
       </Tabs>
