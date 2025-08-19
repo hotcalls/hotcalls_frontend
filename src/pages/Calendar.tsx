@@ -6,7 +6,6 @@ import {
   AlertCircle, 
   Calendar as CalendarIcon, 
   Check, 
-  ChevronRight, 
   Clock, 
   ExternalLink, 
   Loader2, 
@@ -787,39 +786,7 @@ export default function Calendar() {
   const [allBackendCalendars, setAllBackendCalendars] = useState<BackendCalendar[]>([]);
   const [eventTypes, setEventTypes] = useState<any[]>([]);
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
-  // Calendar delete confirmation (single, top-level)
-  const [calendarToDelete, setCalendarToDelete] = useState<CalendarType | null>(null);
-  const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
   
-  // Map backend calendars to UI calendars with real calendar IDs (for proper deletion)
-  const displayCalendars = React.useMemo(() => {
-    try {
-      return (allBackendCalendars || []).map((cal: any) => {
-        return {
-          id: cal.id,
-          connectionId: '',
-          name: cal.name,
-          email: cal.name,
-          provider: cal.provider,
-          isConnected: !!cal.active,
-          isDefault: false,
-          isPrimary: false,
-          eventTypesCount: Number(cal.config_count || 0),
-          totalBookings: 0,
-          bookingsThisWeek: 0,
-          subCalendars: [],
-          accessRole: 'owner' as const,
-          timeZone: 'Europe/Berlin',
-          active: !!cal.active,
-          createdAt: cal.created_at ? new Date(cal.created_at) : new Date(),
-          lastSyncedAt: undefined,
-        } as CalendarType;
-      });
-    } catch {
-      return [] as CalendarType[];
-    }
-  }, [allBackendCalendars]);
-
   // Event Type Edit/Delete State
   const [showEditEventTypeModal, setShowEditEventTypeModal] = useState(false);
   const [editingEventType, setEditingEventType] = useState<any>(null);
@@ -958,7 +925,6 @@ export default function Calendar() {
         ? calendars.filter((c: any) => String(c.workspace) === wsId || String((c as any)?.workspace_id) === wsId)
         : calendars;
       // MINIMALISTIC: Use Google Connections directly - like Lead Sources
-      // Show only account_email and calendar_count as subCalendars
       const convertedCalendars: CalendarType[] = filteredConnections.map((connection: any) => {
         return {
           id: connection.id,
@@ -972,14 +938,7 @@ export default function Calendar() {
           eventTypesCount: 0,
           totalBookings: 0,
           bookingsThisWeek: 0,
-          subCalendars: [{
-            id: `${connection.id}-count`,
-            name: `${connection.calendar_count} Kalender`,
-            color: "#1a73e8",
-            isPublic: false,
-            isWritable: true,
-            description: `${connection.calendar_count} Kalender verbunden`
-          }],
+          subCalendars: [],
           accessRole: ("owner" as const),
           color: "#1a73e8",
           isPublic: false,
@@ -1134,10 +1093,7 @@ export default function Calendar() {
         
         // 2. ALLE Kalender die zu dieser Connection gehören entfernen
         setConnectedCalendars(prev => prev.filter(cal => {
-          // Entferne Kalender die zu dieser Connection gehören
-          const belongsToConnection = cal.email.includes(connection.account_email) || 
-                                     connection.account_email === 'mmmalmachen@gmail.com' ||
-                                     cal.email === connection.account_email;
+          const belongsToConnection = cal.email.includes(connection.account_email) || cal.email === connection.account_email;
           return !belongsToConnection;
         }));
 
@@ -1220,23 +1176,6 @@ export default function Calendar() {
     return () => window.removeEventListener('hotcalls-calendars-updated', onUpdated as EventListener);
   }, []);
 
-  // Confirm delete selected calendar
-  const confirmDeleteCalendar = async () => {
-    if (!calendarToDelete) return;
-    try {
-      setIsDeletingCalendar(true);
-      await calendarAPI.deleteCalendar(calendarToDelete.id);
-      window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
-      toast({ title: 'Kalender gelöscht', description: `"${calendarToDelete.name}" wurde entfernt.` });
-    } catch (e) {
-      console.error('❌ Kalender löschen fehlgeschlagen', e);
-      toast({ title: 'Fehler beim Löschen', description: 'Kalender konnte nicht gelöscht werden.', variant: 'destructive' });
-    } finally {
-      setIsDeletingCalendar(false);
-      setCalendarToDelete(null);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1287,8 +1226,7 @@ export default function Calendar() {
                         key={connection.id} 
                         connection={connection} 
                         calendars={connectedCalendars.filter(cal => 
-                          cal.email.includes(connection.account_email) || 
-                          connection.account_email === 'mmmalmachen@gmail.com'
+                          cal.email.includes(connection.account_email)
                         )}
                         isDisconnecting={disconnectingConnectionId === connection.id}
                         onDisconnect={() => handleDisconnectGoogleCalendar(connection.id)}
@@ -1298,42 +1236,7 @@ export default function Calendar() {
                 </div>
               )}
 
-              {/* Microsoft Connections */}
-              {microsoftConnections.length > 0 && (
-                <div>
-                  <h2 className="text-lg font-semibold mb-4">Microsoft 365 Verbindungen</h2>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {microsoftConnections.map((conn) => (
-                      <MicrosoftConnectionCard
-                        key={conn.id}
-                        connection={conn}
-                        calendars={(msCalendarsByConnection[conn.id] || []).map(c => ({ id: c.id, name: c.name, isPrimary: c.is_primary }))}
-                        isDisconnecting={msDisconnectingConnectionId === conn.id}
-                        onRefresh={() => handleRefreshMicrosoftConnection(conn.id)}
-                        onDisconnect={() => handleDisconnectMicrosoftConnection(conn.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Reale Kalenderliste (löschen auf Kalender-Ebene) */}
-              {displayCalendars.length > 0 && (
-                <div>
-                  <h2 className="text-lg font-semibold mb-4">Kalender</h2>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {displayCalendars.map((cal) => (
-                      <CalendarCard
-                        key={cal.id}
-                        calendar={cal}
-                        isDisconnecting={false}
-                        onDisconnect={() => {}}
-                        onRequestDelete={(c) => setCalendarToDelete(c)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Microsoft Connections hidden: show only Google Calendar connections */}
 
               {/* Show "Noch keine Kalender verbunden" only if no connections */}
               {googleConnections.length === 0 && microsoftConnections.length === 0 && (
@@ -1590,35 +1493,6 @@ export default function Calendar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Delete Calendar Confirmation Dialog (single, top-level) */}
-      <AlertDialog 
-        open={!!calendarToDelete}
-        onOpenChange={(open) => {
-          if (!open) setCalendarToDelete(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertCircle className="h-5 w-5" /> Kalender löschen
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Möchten Sie den Kalender "{calendarToDelete?.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingCalendar}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteCalendar}
-              className="bg-red-600 hover:bg-red-700"
-              disabled={isDeletingCalendar}
-            >
-              {isDeletingCalendar ? 'Löscht…' : 'Löschen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -1635,10 +1509,7 @@ function GoogleConnectionCard({
   isDisconnecting: boolean;
   onDisconnect: () => void;
 }) {
-  const [showSubCalendars, setShowSubCalendars] = useState(false);
-  
-  const mainCalendar = calendars.find(cal => cal.isPrimary);
-  const subCalendars = calendars.filter(cal => !cal.isPrimary);
+  // Showing only the connection card without sub-calendars
 
   return (
     <Card>
@@ -1671,41 +1542,7 @@ function GoogleConnectionCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-center mb-4">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-[#FE5B25]">{connection.calendar_count}</p>
-            <p className="text-sm text-muted-foreground">Verbundene Sub-Kalender</p>
-          </div>
-        </div>
-
-
-
-        {/* Sub-Calendars Dropdown */}
-        {subCalendars.length > 0 && (
-          <div>
-            <Button
-              variant="outline"
-              onClick={() => setShowSubCalendars(!showSubCalendars)}
-              className="w-full justify-between"
-              size="sm"
-            >
-              <span>{subCalendars.length} Sub-Kalender</span>
-              <ChevronRight className={`h-4 w-4 transition-transform ${showSubCalendars ? 'rotate-90' : ''}`} />
-            </Button>
-            
-            {showSubCalendars && (
-              <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-                {subCalendars.map((cal) => (
-                  <div key={cal.id} className="flex items-center gap-2 p-2 text-sm bg-muted/50 rounded">
-                    <div className="w-2 h-2 bg-muted-foreground rounded-full" />
-                    <span className="truncate flex-1">{cal.name}</span>
-                    <span className="text-xs text-muted-foreground">{cal.timeZone?.split('/')[1] || 'Berlin'}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Only show the connection; no sub-calendar count or dropdown */}
       </CardContent>
     </Card>
   );
@@ -1803,15 +1640,29 @@ function CalendarCard({
   calendar, 
   connection, 
   isDisconnecting, 
-  onDisconnect,
-  onRequestDelete
+  onDisconnect 
 }: {
   calendar: CalendarType;
   connection?: GoogleConnection;
   isDisconnecting: boolean;
   onDisconnect: (connectionId: string) => void;
-  onRequestDelete: (calendar: CalendarType) => void;
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleDeleteCalendar = async () => {
+    try {
+      setIsDeleting(true);
+      const [{ calendarAPI }] = await Promise.all([import("@/lib/apiService")]);
+      await calendarAPI.deleteCalendar(calendar.id);
+      // Optimistic UI: remove from local state by reloading calendars/events in parent via storage/event
+      window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
+    } catch (e) {
+      console.error('❌ Kalender löschen fehlgeschlagen', e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   return (
     <Card className={calendar.isConnected ? "border-green-200" : "border-muted"}>
       <CardHeader>
@@ -1834,11 +1685,12 @@ function CalendarCard({
                 Verbunden
               </Badge>
             )}
-            {/* Delete Button: delegates to top-level confirm */}
+            {/* Ein klarer Löschen-Button ohne Hover-Konflikte */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onRequestDelete(calendar)}
+              onClick={() => setConfirmOpen(true)}
+              disabled={isDeleting}
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
               title="Kalender löschen"
             >
@@ -1865,6 +1717,29 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
+        {/* Bestätigungsdialog fürs Löschen */}
+        <AlertDialog open={confirmOpen} onOpenChange={(o) => !isDeleting && setConfirmOpen(o)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertCircle className="h-5 w-5" /> Kalender löschen
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Möchten Sie den Kalender "{calendar.name}" wirklich löschen? Alle zugehörigen Event‑Types werden entfernt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => { setConfirmOpen(false); await handleDeleteCalendar(); }}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Löscht…' : 'Löschen'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
