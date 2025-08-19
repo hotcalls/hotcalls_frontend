@@ -1751,6 +1751,17 @@ function CalendarCard({
                 Verbunden
               </Badge>
             )}
+            {/* Ein klarer Löschen-Button ohne Hover-Konflikte */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteCalendar}
+              disabled={isDeleting}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              title="Kalender löschen"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -1772,12 +1783,7 @@ function CalendarCard({
             <span>Sync: {format(calendar.lastSyncedAt, 'dd.MM. HH:mm')}</span>
           </p>
         )}
-        <div className="mt-4 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={handleDeleteCalendar} disabled={isDeleting}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50">
-            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-          </Button>
-        </div>
+        {/* Actions bereits im Header – keine zweite Button-Leiste */}
       </CardContent>
     </Card>
   );
