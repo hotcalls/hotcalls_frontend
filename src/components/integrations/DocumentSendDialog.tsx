@@ -47,7 +47,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
   const [subject, setSubject] = useState<string>("");
   const [body, setBody] = useState<string>("");
 
-  const tlsMode = useMemo(() => (smtp.smtp_use_ssl ? "ssl" : smtp.smtp_use_tls ? "starttls" : "none"), [smtp]);
+  const tlsMode = useMemo(() => "starttls", []);
 
   useEffect(() => {
     if (!open) return;
@@ -182,27 +182,6 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div className="md:col-span-1">
-              <Label>Verschlüsselung</Label>
-              <RadioGroup
-                value={tlsMode}
-                onValueChange={(v) => setSmtp(prev => ({ ...prev, smtp_use_ssl: v === "ssl", smtp_use_tls: v === "starttls" }))}
-                className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="starttls" id="tls-starttls" />
-                  <Label htmlFor="tls-starttls">STARTTLS</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="ssl" id="tls-ssl" />
-                  <Label htmlFor="tls-ssl">SSL/TLS</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="none" id="tls-none" />
-                  <Label htmlFor="tls-none">Keine</Label>
-                </div>
-              </RadioGroup>
-            </div>
             <div>
               <Label>Benutzername</Label>
               <Input value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
