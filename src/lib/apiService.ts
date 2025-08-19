@@ -594,7 +594,8 @@ export const agentAPI = {
     email_default_subject: string | null;
     email_default_body: string | null;
   }>{
-    const url = `${API_BASE_URL}/api/agents/agents/${agentId}/send-document/`;
+    // Backend expects POST at send_document (underscore), GET/DELETE at send-document (dash)
+    const url = `${API_BASE_URL}/api/agents/agents/${agentId}/send_document/`;
     const form = new FormData();
     form.append('file', payload.file);
     if (payload.email_default_subject !== undefined) form.append('email_default_subject', payload.email_default_subject);

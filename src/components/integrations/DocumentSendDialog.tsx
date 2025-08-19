@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -156,6 +156,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Dokumentenversand konfigurieren</DialogTitle>
+          <DialogDescription>SMTP konfigurieren und PDF festlegen, das der Agent versendet.</DialogDescription>
         </DialogHeader>
 
         {/* SMTP Section */}
