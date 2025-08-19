@@ -924,32 +924,29 @@ export default function Calendar() {
       const filteredCalendars = wsId
         ? calendars.filter((c: any) => String(c.workspace) === wsId || String((c as any)?.workspace_id) === wsId)
         : calendars;
-      // MINIMALISTIC: Use Google Connections directly - like Lead Sources
-      const convertedCalendars: CalendarType[] = filteredConnections.map((connection: any) => {
+      // Use REAL calendars from backend so we hold the correct Calendar IDs for delete
+      const convertedCalendars: CalendarType[] = filteredCalendars.map((c: any) => {
+        const isGoogle = (c.provider === 'google');
+        const providerDetails = (c as any)?.provider_details || {};
         return {
-          id: connection.id,
-          connectionId: connection.account_email,
-          name: connection.account_email, // Minimalistic: just the email
-          email: connection.account_email,
-          provider: "Google Calendar",
-          isConnected: connection.status === "connected",
-          isDefault: true,
-          isPrimary: true,
-          eventTypesCount: 0,
+          id: c.id, // REAL Calendar ID
+          connectionId: '',
+          name: c.name,
+          email: '', // not used for rendering; avoid mis-filtering by connection email
+          provider: isGoogle ? 'Google Calendar' : 'Microsoft 365',
+          isConnected: !!c.active,
+          isDefault: false,
+          isPrimary: !!providerDetails.primary,
+          eventTypesCount: typeof c.config_count === 'number' ? c.config_count : 0,
           totalBookings: 0,
           bookingsThisWeek: 0,
           subCalendars: [],
           accessRole: ("owner" as const),
-          color: "#1a73e8",
-          isPublic: false,
-          isWritable: true,
-          description: `${connection.calendar_count} Kalender`,
-          lastSynced: null, // Remove last sync - not needed
-          nextAvailableTime: null,
-          timeZone: "Europe/Berlin",
-          active: connection.active,
-          createdAt: new Date(connection.created_at),
-          lastSyncedAt: null // Remove last sync - not needed
+          color: isGoogle ? "#1a73e8" : "#2563eb",
+          timeZone: providerDetails.time_zone || 'Europe/Berlin',
+          active: !!c.active,
+          createdAt: new Date(c.created_at),
+          lastSyncedAt: null
         };
       });
 
