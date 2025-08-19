@@ -1085,17 +1085,30 @@ export default function Settings() {
             <Button
               className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
               onClick={async ()=>{
-                // Direkt zu Stripe Payment Link (keine eigene Checkout-Erstellung)
-                const link = (import.meta as any).env?.VITE_STRIPE_MINUTE_PACK_PAYMENT_LINK_URL;
-                if (typeof link === 'string' && link.startsWith('http')) {
-                  window.location.href = link;
-                  return;
+                if (!primaryWorkspace?.id) return;
+                try {
+                  const base = apiConfig.baseUrl || '';
+                  const res = await fetch(`${base}/api/payments/stripe/minute-pack-checkout/`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Token ${localStorage.getItem('authToken')||''}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ workspace_id: primaryWorkspace.id })
+                  });
+                  if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || 'Checkout konnte nicht erstellt werden');
+                  }
+                  const data = await res.json();
+                  if (data?.checkout_url) {
+                    window.location.href = data.checkout_url;
+                  } else {
+                    throw new Error('Ungültige Antwort vom Server');
+                  }
+                } catch (e:any) {
+                  toast({ title:'Buchung fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant:'destructive' });
                 }
-                toast({
-                  title: 'Payment Link fehlt',
-                  description: 'Bitte VITE_STRIPE_MINUTE_PACK_PAYMENT_LINK_URL konfigurieren.',
-                  variant: 'destructive'
-                });
               }}
             >
               Zusatzminuten buchen
