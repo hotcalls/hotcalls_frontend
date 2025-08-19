@@ -960,6 +960,44 @@ export default function AgentConfig() {
                   )}
                 </Button>
               </div>
+              {/* Calendar Functions Panel (same style as variables) */}
+              <div className="mb-3"
+                   onDragOver={(e) => e.preventDefault()}
+              >
+                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Kalenderfunktionen</div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(!config.selectedEventTypes || config.selectedEventTypes.length === 0) ? (
+                    <span className="text-xs text-gray-500">Bitte füge einen Event Type zu deinem Agenten hinzu, damit dieser Termine buchen kann</span>
+                  ) : (
+                    <>
+                      <span
+                        key="check_slots"
+                        role="button"
+                        tabIndex={0}
+                        className={`${tokenPillClass} cursor-pointer select-none`}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{check_slots}}`)}
+                        onClick={() => insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                      >
+                        check_slots
+                      </span>
+                      <span
+                        key="book_appointment"
+                        role="button"
+                        tabIndex={0}
+                        className={`${tokenPillClass} cursor-pointer select-none`}
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{book_appointment}}`)}
+                        onClick={() => insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                      >
+                        book_appointment
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
           
@@ -1357,30 +1395,71 @@ export default function AgentConfig() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Variables Panel (minimal, orange) */}
-              <div className="mb-3"
-                   onDragOver={(e) => e.preventDefault()}
-              >
-                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {funnelVariables.length === 0 ? (
-                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
-                  ) : (
-                    funnelVariables.map(v => (
-                      <span
-                        key={v.key}
-                        role="button"
-                        tabIndex={0}
-                        className={`${tokenPillClass} cursor-pointer select-none`}
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
-                        onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
-                      >
-                        {v.label}
-                      </span>
-                    ))
-                  )}
+              {/* Variables + Buchungsfunktion side-by-side (stack on mobile) */}
+              <div className="md:flex md:gap-6">
+                {/* Variables Panel (minimal, orange) */}
+                <div className="mb-3 md:mb-0 md:w-1/2"
+                     onDragOver={(e) => e.preventDefault()}
+                >
+                  <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {funnelVariables.length === 0 ? (
+                      <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                    ) : (
+                      funnelVariables.map(v => (
+                        <span
+                          key={v.key}
+                          role="button"
+                          tabIndex={0}
+                          className={`${tokenPillClass} cursor-pointer select-none`}
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{${v.key}}}`)}
+                          onClick={() => insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{${v.key}}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                        >
+                          {v.label}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+                {/* Buchungsfunktion Panel */}
+                <div className="mb-3 md:mb-0 md:w-1/2"
+                     onDragOver={(e) => e.preventDefault()}
+                >
+                  <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Buchungsfunktion</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {(!config.selectedEventTypes || config.selectedEventTypes.length === 0) ? (
+                      <span className="text-xs text-gray-500">Füge Event Types hinzu, um Buchungen zu konfigurieren</span>
+                    ) : (
+                      <>
+                        <span
+                          key="check_slots"
+                          role="button"
+                          tabIndex={0}
+                          className={`${tokenPillClass} cursor-pointer select-none`}
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{check_slots}}`)}
+                          onClick={() => insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{check_slots}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                        >
+                          check_slots
+                        </span>
+                        <span
+                          key="book_appointment"
+                          role="button"
+                          tabIndex={0}
+                          className={`${tokenPillClass} cursor-pointer select-none`}
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', `{{book_appointment}}`)}
+                          onClick={() => insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); insertTokenAtCursor(`{{book_appointment}}`, val => setConfig(prev => ({...prev, script: val})), config.script); }}}
+                        >
+                          book_appointment
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
               <div>
