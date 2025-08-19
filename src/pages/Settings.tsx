@@ -1066,8 +1066,8 @@ export default function Settings() {
             }}
           />
 
-          {/* Action unter Karten: nur Portal */}
-          <div className="flex justify-end">
+          {/* Aktionen unter Karten: Portal und Zusatzminuten */}
+          <div className="flex justify-end gap-3">
             <Button
               variant="outline"
               onClick={async ()=>{
@@ -1081,6 +1081,24 @@ export default function Settings() {
               }}
             >
               Abonnement verwalten
+            </Button>
+            <Button
+              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
+              onClick={async ()=>{
+                // Direkt zu Stripe Payment Link (keine eigene Checkout-Erstellung)
+                const link = (import.meta as any).env?.VITE_STRIPE_MINUTE_PACK_PAYMENT_LINK_URL;
+                if (typeof link === 'string' && link.startsWith('http')) {
+                  window.location.href = link;
+                  return;
+                }
+                toast({
+                  title: 'Payment Link fehlt',
+                  description: 'Bitte VITE_STRIPE_MINUTE_PACK_PAYMENT_LINK_URL konfigurieren.',
+                  variant: 'destructive'
+                });
+              }}
+            >
+              Zusatzminuten buchen
             </Button>
           </div>
 
