@@ -1097,9 +1097,26 @@ export default function Calendar() {
           return !belongsToConnection;
         }));
 
+        // 3. Nach dem erfolgreichen Trennen: Alle Google‑Kalender im Workspace serverseitig LÖSCHEN
+        //    (inkl. Sub‑Kalender). Das Backend löscht dabei per Cascade die verknüpften Event‑Types.
+        try {
+          const allCalendars = await calendarAPI.getCalendars();
+          const googleCalendars = (Array.isArray(allCalendars) ? allCalendars : (allCalendars as any)?.results || [])
+            .filter((c: any) => c.provider === 'google');
+          for (const cal of googleCalendars) {
+            try {
+              await calendarAPI.deleteCalendar(cal.id);
+            } catch (e) {
+              console.warn('Kalender löschen fehlgeschlagen (übersprungen):', cal?.id, e);
+            }
+          }
+        } catch (e) {
+          console.warn('Kalenderliste konnte nicht geladen werden – Löschen übersprungen:', e);
+        }
+
         toast({
           title: "Verbindung getrennt",
-          description: `Google Calendar für ${connection.account_email} wurde getrennt. Alle Kalender entfernt.`,
+          description: `Google Calendar für ${connection.account_email} wurde getrennt. Alle Kalender und Event‑Types entfernt.`,
         });
 
         // KEIN Backend reload - Backend gibt fälschlicherweise noch Kalender zurück
