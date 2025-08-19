@@ -136,6 +136,32 @@ export default function AgentConfig() {
   const [docDialogOpen, setDocDialogOpen] = useState(false);
   const [docStatus, setDocStatus] = useState<{ filename?: string | null; fromEmail?: string | null } | null>(null);
 
+  // Load document-send status (SMTP from-email + current PDF) for the card
+  const refreshDocStatus = async () => {
+    try {
+      if (!primaryWorkspace?.id || !id) return;
+      const [{ workspaceAPI }, { agentAPI }] = await Promise.all([
+        import("@/lib/apiService"),
+        import("@/lib/apiService"),
+      ]);
+      const [smtp, doc] = await Promise.all([
+        workspaceAPI.getSmtpSettings(primaryWorkspace.id),
+        agentAPI.getSendDocument(id),
+      ]);
+      setDocStatus({ filename: doc.filename, fromEmail: smtp?.smtp_from_email || null });
+    } catch (e) {
+      // Silent fail – card stays in default state
+    }
+  };
+
+  // When Integrationen tab is opened (or ids become available), fetch status once
+  useEffect(() => {
+    if (activeTab === "integrations") {
+      refreshDocStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, id, primaryWorkspace?.id]);
+
   // Load Event Types from Calendar API
   const loadEventTypes = async () => {
     setIsLoadingEventTypes(true);
