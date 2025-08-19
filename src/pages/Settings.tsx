@@ -21,7 +21,7 @@ import { useUserProfile } from "@/hooks/use-user-profile";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { subscriptionService } from "@/lib/subscriptionService";
-import { paymentAPI, workspaceAPI } from "@/lib/apiService";
+import { paymentAPI, workspaceAPI, plansAPI } from "@/lib/apiService";
 import { useToast } from "@/hooks/use-toast";
 import { apiConfig } from "@/lib/apiConfig";
 import PlanCards from "@/components/billing/PlanCards";
@@ -81,8 +81,12 @@ export default function Settings() {
     (async () => {
       try {
         setLoadingPlans(true);
-        const plans = await subscriptionService.getPlans();
-        setAvailablePlans(Array.isArray(plans) ? plans : (plans?.results || []));
+        console.log('📋 Loading plans for Settings Billing tab...');
+        // Nutze denselben Weg wie im Welcome-Flow (plansAPI)
+        const response = await plansAPI.getPlans();
+        const list = Array.isArray(response) ? response : (response?.results || []);
+        console.log('✅ Plans loaded:', list);
+        setAvailablePlans(list);
       } catch (e) {
         console.error('❌ Failed to load plans:', e);
       } finally {
@@ -949,8 +953,13 @@ export default function Settings() {
         {isAdmin && (
         <TabsContent value="billing" className="space-y-6">
           {/* Neue Darstellung: 3 Plan-Karten wie im Welcome Flow */}
+          {/* Falls API (noch) nichts liefert, zeige fallback Karten wie im Welcome-Flow */}
           <PlanCards
-            plans={availablePlans as any}
+            plans={(availablePlans && availablePlans.length > 0 ? availablePlans : [
+              { plan_name: 'Start', price_monthly: 19900, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'start' },
+              { plan_name: 'Pro', price_monthly: 54900, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'pro' },
+              { plan_name: 'Enterprise', price_monthly: null, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'enterprise' },
+            ]) as any}
             currentPlanName={usage?.workspace?.plan || null}
             onUpgrade={async (plan:any) => {
               if (!primaryWorkspace?.id) return;
