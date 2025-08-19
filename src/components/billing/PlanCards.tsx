@@ -9,10 +9,12 @@ type Props = {
   onUpgrade: (plan: PlanInfo) => void;
 };
 
-function formatMonthly(price: number | null) {
-  if (price === null) return "Individuell";
-  // price in cents from API; display in €/Monat if value looks like cents
-  const euro = price >= 1000 ? (price / 100).toFixed(2) : price.toFixed(2);
+function formatMonthly(price: number | string | null | undefined) {
+  if (price === null || price === undefined) return "Individuell";
+  const num = typeof price === 'string' ? Number(price) : price;
+  if (!Number.isFinite(num)) return "Individuell";
+  // price may be returned in cents (e.g., 19900) or euros (e.g., 199.00)
+  const euro = (num as number) >= 1000 ? ((num as number) / 100).toFixed(2) : (num as number).toFixed(2);
   return `${euro}€/Monat`;
 }
 
@@ -67,7 +69,7 @@ export default function PlanCards({ plans, currentPlanName, onUpgrade }: Props) 
         const name = ((plan as any).plan_name || (plan as any).name || plan.name) as string;
         const isCurrent = currentPlanName && name === currentPlanName;
         const isEnterprise = name === 'Enterprise';
-        const price = isEnterprise ? null : (plan.price_monthly ?? null);
+        const price = isEnterprise ? null : ((plan as any).price_monthly ?? null);
 
         return (
           <Card key={name} className="relative">

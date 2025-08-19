@@ -24,7 +24,7 @@ import { subscriptionService } from "@/lib/subscriptionService";
 import { paymentAPI, workspaceAPI, plansAPI } from "@/lib/apiService";
 import { useToast } from "@/hooks/use-toast";
 import { apiConfig } from "@/lib/apiConfig";
-import PlanCards from "@/components/billing/PlanCards";
+import WelcomePlanCards from "@/components/billing/WelcomePlanCards";
 
 // Minute packages will be loaded dynamically from database via @core module
 
@@ -952,25 +952,41 @@ export default function Settings() {
         {/* Pläne & Guthaben Tab (nur Admin) */}
         {isAdmin && (
         <TabsContent value="billing" className="space-y-6">
-          {/* Neue Darstellung: 3 Plan-Karten wie im Welcome Flow */}
-          {/* Falls API (noch) nichts liefert, zeige fallback Karten wie im Welcome-Flow */}
-          <PlanCards
-            plans={(availablePlans && availablePlans.length > 0 ? availablePlans : [
-              { plan_name: 'Start', price_monthly: 19900, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'start' },
-              { plan_name: 'Pro', price_monthly: 54900, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'pro' },
-              { plan_name: 'Enterprise', price_monthly: null, price_yearly: null, stripe_product_id: null, stripe_price_id_monthly: null, stripe_price_id_yearly: null, cosmetic_features: {}, is_active: true, id: 'enterprise' },
-            ]) as any}
+          {/* Exakt das Layout aus dem Welcome Flow */}
+          <WelcomePlanCards
+            plans={(availablePlans && availablePlans.length > 0
+              ? availablePlans.map((p:any)=>({
+                  id: (p.plan_name||p.name||p.id||'').toString().toLowerCase(),
+                  name: p.plan_name || p.name || '',
+                  price_monthly: p.price_monthly ? (typeof p.price_monthly === 'string' ? parseFloat(p.price_monthly) : p.price_monthly) : null,
+                  description: p.description,
+                  features: undefined,
+                  is_popular: (p.plan_name||p.name)==='Pro',
+                  is_contact: (p.plan_name||p.name)==='Enterprise',
+                }))
+              : [
+                  { id:'start', name:'Start', price_monthly:199, description:'Ideal für Einzelpersonen und kleine Teams', features:['Inkl. 250 Minuten, dann 0,49€/Min.','Unbegrenzte Anzahl an Agenten','Automatisierte KI-Telefonate','Anbindung von Leadfunnels'], is_popular:false },
+                  { id:'pro', name:'Pro', price_monthly:549, description:'Ideal für Unternehmen mit höherem Volumen', features:['Alle Start-Features plus:','Inkl. 1000 Minuten, dann 0,29€/Min.','Priority Support','Advanced Analytics','CRM Integrationen'], is_popular:true },
+                  { id:'enterprise', name:'Enterprise', price_monthly:null, description:'Individuelle Lösungen für große Unternehmen', features:['Alle Pro-Features plus:','Unbegrenzte Agenten & Minuten','White Label Lösung','Dedizierter Account Manager','Custom Integrationen'], is_contact:true },
+                ])}
             currentPlanName={usage?.workspace?.plan || null}
-            onUpgrade={async (plan:any) => {
+            onSelect={async (plan:any) => {
               if (!primaryWorkspace?.id) return;
               try {
-                const isEnterprise = ((plan.plan_name||plan.name||'') === 'Enterprise');
+                const isEnterprise = ((plan.name||'') === 'Enterprise');
                 if (isEnterprise) {
                   const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
                   window.open(portal.url, '_blank');
                   return;
                 }
-                const priceId = plan.stripe_price_id_monthly;
+                // Ziehe Price-ID aus der Plans-API (gleiches Verhalten wie Welcome Flow)
+                let priceId: string | null = null;
+                try {
+                  const raw = await plansAPI.getPlans();
+                  const list = Array.isArray(raw) ? raw : (raw?.results || []);
+                  const match = list.find((p:any)=> (p.plan_name||p.name) === plan.name);
+                  priceId = match?.stripe_price_id_monthly || null;
+                } catch {}
                 if (!priceId) {
                   const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
                   window.open(portal.url, '_blank');
