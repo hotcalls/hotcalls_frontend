@@ -184,9 +184,7 @@ export default function Leads() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Leads</h1>
-        <p className="text-muted-foreground">
-          Verwalte und verfolge deine potenziellen Kunden
-        </p>
+        <p className="text-muted-foreground">Manage and track your prospects</p>
       </div>
 
       {/* Plan Calls - visible only when active CSV funnel exists */}
@@ -196,14 +194,14 @@ export default function Leads() {
             <div className="flex flex-col lg:flex-row items-center gap-4">
               <div className="flex-1 flex items-center gap-2">
                 <PhoneCall className="h-5 w-5 text-[#FE5B25]" />
-                <span className="font-medium">Anrufe planen für CSV-Leads</span>
+                <span className="font-medium">Schedule calls for CSV leads</span>
               </div>
               <Button
                 className="bg-[#FE5B25] hover:bg-[#e14a12]"
                 disabled={false}
                 onClick={() => setPlanOpen(true)}
               >
-                {isPlanning ? 'Plane…' : 'Anrufe planen'}
+                {isPlanning ? 'Planning…' : 'Schedule calls'}
               </Button>
             </div>
           </CardContent>
@@ -214,14 +212,14 @@ export default function Leads() {
       <Dialog open={planOpen} onOpenChange={setPlanOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Anrufe planen</DialogTitle>
-            <DialogDescription>Quelle, Agent und Zeitpunkt wählen. Planung erfolgt sofort und bestätigt mit einer Meldung.</DialogDescription>
+            <DialogTitle>Schedule calls</DialogTitle>
+            <DialogDescription>Select source, agent and time. Scheduling happens immediately with a confirmation.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <span className="w-28 text-sm text-muted-foreground">CSV-Quelle</span>
+              <span className="w-28 text-sm text-muted-foreground">CSV source</span>
               <Select value={selectedCsvFunnelId || csvFunnels[0]?.id || 'none'} onValueChange={(v) => setSelectedCsvFunnelId(v)}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="CSV-Quelle wählen" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select CSV source" /></SelectTrigger>
                 <SelectContent>
                   {csvFunnels.map((f: any) => (
                     <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
@@ -232,7 +230,7 @@ export default function Leads() {
             <div className="flex items-center gap-2">
               <span className="w-28 text-sm text-muted-foreground">Agent</span>
               <Select value={selectedAgentId || agents[0]?.agent_id || 'none'} onValueChange={(v) => setSelectedAgentId(v)}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Agent wählen" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select agent" /></SelectTrigger>
                 <SelectContent>
                   {agents.map((a: any) => (
                     <SelectItem key={a.agent_id || a.id} value={a.agent_id || a.id}>{a.name}</SelectItem>
@@ -243,11 +241,11 @@ export default function Leads() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <input type="radio" id="mode-now" checked={scheduleMode==='now'} onChange={() => setScheduleMode('now')} />
-                <label htmlFor="mode-now" className="text-sm">Jetzt</label>
+                <label htmlFor="mode-now" className="text-sm">Now</label>
               </div>
               <div className="flex items-center gap-2">
                 <input type="radio" id="mode-later" checked={scheduleMode==='later'} onChange={() => setScheduleMode('later')} />
-                <label htmlFor="mode-later" className="text-sm">Zeitpunkt</label>
+                <label htmlFor="mode-later" className="text-sm">Time</label>
                 <input type="datetime-local" className="border rounded px-2 py-1 text-sm" disabled={scheduleMode!=='later'} value={scheduleAt} onChange={(e)=>setScheduleAt(e.target.value)} />
               </div>
             </div>
@@ -282,17 +280,17 @@ export default function Leads() {
                     for (let i = 0; i < ids.length; i += 25) {
                       const slice = ids.slice(i, i + 25);
                       await Promise.all(slice.map(async (id) => {
-                        try { await callTaskAPI.createTask({ workspace: agent.workspace, agent: (agent.agent_id || agent.id), target_ref: `lead:${id}` }); } catch {}
+                        try { await callAPI.createCall({ workspace: agent.workspace, agent: (agent.agent_id || agent.id), target_ref: `lead:${id}` }); } catch {}
                       }));
                     }
                     setPlanOpen(false);
-                    toast({ title: 'Deine Anrufe wurden erfolgreich geplant' });
+                    toast({ title: 'Your calls have been scheduled successfully' });
                   } finally {
                     setIsPlanning(false);
                   }
                 }}
               >
-                {isPlanning ? 'Plane…' : 'Anrufe planen'}
+                {isPlanning ? 'Planning…' : 'Schedule calls'}
               </Button>
             </div>
           </div>
@@ -305,7 +303,7 @@ export default function Leads() {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <Input
-                placeholder="Leads durchsuchen..."
+                placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm"
@@ -315,10 +313,10 @@ export default function Leads() {
             <div className="flex gap-2">
               <Select value={filters.integration_provider} onValueChange={(value) => handleFilterChange('integration_provider', value)}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Quelle" />
+                  <SelectValue placeholder="Source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="alle">Alle Quellen</SelectItem>
+                  <SelectItem value="alle">All sources</SelectItem>
                   <SelectItem value="meta">Facebook</SelectItem>
                   <SelectItem value="manual">Manual</SelectItem>
                 </SelectContent>
@@ -333,12 +331,12 @@ export default function Leads() {
       {/* Leads Table */}
       <Card>
         <CardHeader>
-          <CardTitle>{pagination.count} Leads gefunden</CardTitle>
+          <CardTitle>{pagination.count} leads found</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">
-              <div className="text-muted-foreground">Lade Leads...</div>
+              <div className="text-muted-foreground">Loading leads...</div>
             </div>
           ) : error ? (
             <div className="text-center py-8 text-red-500">
@@ -346,7 +344,7 @@ export default function Leads() {
             </div>
           ) : leads.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-muted-foreground">Keine Leads gefunden</div>
+              <div className="text-muted-foreground">No leads found</div>
             </div>
           ) : (
             <div className="space-y-1">
@@ -354,9 +352,9 @@ export default function Leads() {
                <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-medium text-muted-foreground border-b">
                  <div className="col-span-3">LEAD NAME</div>
                  <div className="col-span-2">EMAIL</div>
-                 <div className="col-span-2">TELEFON</div>
-                 <div className="col-span-2">QUELLE</div>
-                 <div className="col-span-2">ERSTELLT</div>
+                 <div className="col-span-2">PHONE</div>
+                 <div className="col-span-2">SOURCE</div>
+                 <div className="col-span-2">CREATED</div>
                  <div className="col-span-1">INFO</div>
                </div>
               
@@ -413,7 +411,7 @@ export default function Leads() {
                        size="sm"
                        onClick={() => setSelectedLead(lead)}
                        className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary"
-                       title="Lead Details anzeigen"
+                       title="Show lead details"
                      >
                        <Eye className="h-4 w-4" />
                      </Button>
@@ -433,7 +431,7 @@ export default function Leads() {
               <SheetHeader className="pb-6">
                 <SheetTitle className="text-xl font-semibold flex items-center gap-2">
                   <Eye className="h-5 w-5" />
-                  Lead Details: {selectedLead.full_name}
+                  Lead details: {selectedLead.full_name}
                 </SheetTitle>
               </SheetHeader>
               
@@ -442,7 +440,7 @@ export default function Leads() {
                    
                    {/* Left Column: Contact Information */}
                    <div className="space-y-4">
-                     <h3 className="font-semibold text-lg">Kontaktinformationen</h3>
+                     <h3 className="font-semibold text-lg">Contact information</h3>
                      
                      <div className="space-y-4">
                       <Card>
@@ -465,7 +463,7 @@ export default function Leads() {
                             <Mail className="h-5 w-5 text-muted-foreground" />
                             <div>
                               <div className="font-medium">{selectedLead.email}</div>
-                              <div className="text-sm text-muted-foreground">E-Mail Adresse</div>
+                              <div className="text-sm text-muted-foreground">Email address</div>
                             </div>
                           </div>
                         </CardContent>
@@ -478,7 +476,7 @@ export default function Leads() {
                               <Phone className="h-5 w-5 text-muted-foreground" />
                               <div>
                                 <div className="font-medium">{selectedLead.phone}</div>
-                                <div className="text-sm text-muted-foreground">Telefonnummer</div>
+                                <div className="text-sm text-muted-foreground">Phone number</div>
                               </div>
                             </div>
                           </CardContent>
@@ -487,7 +485,7 @@ export default function Leads() {
                                          </div>
                      
                      {/* Lead Details in same column */}
-                     <h3 className="font-semibold text-lg mt-6">Lead-Details</h3>
+                     <h3 className="font-semibold text-lg mt-6">Lead details</h3>
                      <div className="grid grid-cols-1 gap-4">
                       
                       {/* Source */}
@@ -497,7 +495,7 @@ export default function Leads() {
                             <div className="text-lg font-bold">
                               {formatIntegrationProvider(selectedLead)}
                             </div>
-                            <p className="text-sm text-muted-foreground">Quelle</p>
+                            <p className="text-sm text-muted-foreground">Source</p>
                           </div>
                         </CardContent>
                       </Card>
@@ -509,7 +507,7 @@ export default function Leads() {
                             <div className="text-lg font-bold">
                               {formatDateTime(selectedLead.created_at)}
                             </div>
-                            <p className="text-sm text-muted-foreground">Erstellt am</p>
+                            <p className="text-sm text-muted-foreground">Created at</p>
                           </div>
                         </CardContent>
                                              </Card>
@@ -520,7 +518,7 @@ export default function Leads() {
                    <div className="space-y-4">
                      {Object.keys(selectedLead.variables || {}).length > 0 && (
                        <>
-                         <h3 className="font-semibold text-lg">Formular-Felder</h3>
+                         <h3 className="font-semibold text-lg">Form fields</h3>
                         <div className="space-y-3">
                           {Object.entries(selectedLead.variables || {}).map(([key, value]) => (
                             <Card key={key}>
@@ -546,7 +544,7 @@ export default function Leads() {
                       {/* Meta Data (Additional Technical Information) */}
                       {Object.keys(selectedLead.meta_data || {}).length > 0 && (
                         <>
-                          <h3 className="font-semibold text-lg mt-6">Zusätzliche Daten</h3>
+                          <h3 className="font-semibold text-lg mt-6">Additional data</h3>
                           <Card>
                             <CardContent className="p-4">
                               <pre className="text-sm text-muted-foreground whitespace-pre-wrap overflow-auto">

@@ -575,8 +575,8 @@ export default function Dashboard() {
   // Metriken-Definitionen
   const metricConfig = {
     leads: { key: 'leads', name: 'Leads', icon: Users },
-    calls: { key: 'calls', name: 'Erreichte Leads', icon: Phone },
-    appointments: { key: 'appointments', name: 'Vereinbarte Termine', icon: CalendarIcon },
+    calls: { key: 'calls', name: 'Reached Leads', icon: Phone },
+    appointments: { key: 'appointments', name: 'Appointments', icon: CalendarIcon },
     conversion: { key: 'conversion', name: 'Conversion Rate', icon: TrendingUp, suffix: '%' }
   };
 
@@ -618,7 +618,7 @@ export default function Dashboard() {
       },
       {
         id: 'calls',
-        title: "Erreichte Leads", 
+        title: "Reached Leads", 
         value: callsLoading ? "..." : callsError ? "Error" : totalCalls.toLocaleString('de-DE'),
         change: callsLoading ? "" : callsError ? "" : calculateChange(totalCalls, prevTotalCalls),
         icon: Phone,
@@ -628,7 +628,7 @@ export default function Dashboard() {
       },
       {
         id: 'appointments',
-        title: "Vereinbarte Termine",
+        title: "Appointments",
         value: appointmentsLoading ? "..." : appointmentsError ? "Error" : totalAppointments.toLocaleString('de-DE'),
         change: appointmentsLoading ? "" : appointmentsError ? "" : calculateChange(totalAppointments, prevTotalAppointments),
         icon: CalendarIcon,
@@ -680,7 +680,7 @@ export default function Dashboard() {
       <div className={layoutStyles.pageHeader}>
         <div>
           <h1 className={textStyles.pageTitle}>Dashboard</h1>
-          <p className={textStyles.pageSubtitle}>Übersicht über deine KI-Agenten Performance</p>
+          <p className={textStyles.pageSubtitle}>Overview of your AI agents' performance</p>
         </div>
       </div>
 
@@ -740,12 +740,12 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg border p-6 h-[416px] flex flex-col">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <h2 className="text-xl font-semibold">Performance Übersicht</h2>
+                  <h2 className="text-xl font-semibold">Performance overview</h2>
                   <p className="text-sm text-muted-foreground mt-1">{metricConfig[selectedMetric].name}</p>
                 </div>
                 
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">Zeitraum</span>
+                  <span className="text-sm text-muted-foreground">Period</span>
                   <div className="[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
                     <DateRangePicker 
                       dateRange={dateRange}
@@ -779,17 +779,9 @@ export default function Dashboard() {
                       tickFormatter={(value) => {
                         const date = new Date(value);
                         if (isSingleDay) {
-                          return format(date, "HH:mm");
+                          return format(date, "dd. MMM yyyy, HH:mm 'h'", { locale: de });
                         } else {
-                          const totalDays = Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24));
-                          
-                          if (totalDays <= 7) {
-                            return format(date, "EEE", { locale: de });
-                          } else if (totalDays <= 31) {
-                            return format(date, "dd");
-                          } else {
-                            return format(date, "MMM", { locale: de });
-                          }
+                          return format(date, "dd. MMM yyyy", { locale: de });
                         }
                       }}
                     />
@@ -851,23 +843,21 @@ export default function Dashboard() {
           <div className="col-span-2">
                         <div className="bg-white rounded-lg border p-6 h-[416px]">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold">Neue Termine</h2>
+                <h2 className="text-xl font-semibold">New appointments</h2>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">
-                    {staticAppointments.length} Termine
-                  </span>
+                  <span className="text-sm text-muted-foreground">{staticAppointments.length} appointments</span>
                 </div>
               </div>
               
               {appointmentListLoading ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">Termine werden geladen...</div>
+                  <div className="text-sm">Loading appointments...</div>
                 </div>
               ) : appointmentListError ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">Fehler beim Laden der Termine</div>
+                  <div className="text-sm">Failed to load appointments</div>
                   <div className="text-xs">{appointmentListError}</div>
                 </div>
               ) : staticAppointments.length > 0 ? (
@@ -911,7 +901,7 @@ export default function Dashboard() {
                                         {staticAppointments.length > 5 && (
                       <div className="text-center py-2">
                         <Button variant="outline" size="sm">
-                          <span>+{staticAppointments.length - 5} weitere Termine</span>
+                          <span>+{staticAppointments.length - 5} more appointments</span>
                         </Button>
                       </div>
                     )}
@@ -919,7 +909,7 @@ export default function Dashboard() {
                 ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">Keine neuen Termine</div>
+                  <div className="text-sm">No new appointments</div>
                 </div>
               )}
             </div>
@@ -930,12 +920,12 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg border">
           {/* Header mit Suche und Aktionen */}
           <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-2xl font-semibold">Letzte Anrufe</h2>
+            <h2 className="text-2xl font-semibold">Recent calls</h2>
             <div className="flex items-center gap-3">
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Suchen"
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -959,13 +949,13 @@ export default function Dashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontakt Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -1028,20 +1018,20 @@ export default function Dashboard() {
           ) : recentCallsLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-              <div className="text-sm text-muted-foreground mt-2">Lade Anrufe...</div>
+              <div className="text-sm text-muted-foreground mt-2">Loading calls...</div>
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <PhoneCall className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <div className="text-base font-medium mb-1">Keine neuen Anrufe</div>
+              <div className="text-base font-medium mb-1">No new calls</div>
               {searchQuery && (
                 <div className="text-sm opacity-70">
-                  Keine Ergebnisse für "{searchQuery}"
+                  No results for "{searchQuery}"
                 </div>
               )}
               {!searchQuery && (
                 <div className="text-sm opacity-70">
-                  Keine Anrufe im gewählten Zeitraum gefunden
+                  No calls found for the selected period
                 </div>
               )}
             </div>
@@ -1055,7 +1045,7 @@ export default function Dashboard() {
             <>
               <SheetHeader>
                 <SheetTitle className="text-left text-lg font-semibold">
-                  Lead Details: {selectedLead}
+                  Lead details: {selectedLead}
                 </SheetTitle>
               </SheetHeader>
               
@@ -1063,9 +1053,7 @@ export default function Dashboard() {
                 <div className="space-y-6">
                   {/* Lead Informationen */}
                   <div className="space-y-3">
-                    <h3 className="text-lg font-medium mb-3">
-                      Kontaktinformationen
-                    </h3>
+                    <h3 className="text-lg font-medium mb-3">Contact information</h3>
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -1087,7 +1075,7 @@ export default function Dashboard() {
                   {/* Gesprächsstatistik */}
                   <div className="space-y-3">
                     <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      Gesprächsstatistik
+                      Conversation statistics
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Anrufe gesamt */}
@@ -1096,7 +1084,7 @@ export default function Dashboard() {
                           <div className="text-lg font-bold">
                             {leadDetails[selectedLead].callCount}
                           </div>
-                          <p className="text-xs text-muted-foreground">Anrufe gesamt</p>
+                          <p className="text-xs text-muted-foreground">Total calls</p>
                         </CardContent>
                       </Card>
                       
@@ -1109,7 +1097,7 @@ export default function Dashboard() {
                               return total + minutes;
                             }, 0)}
                           </div>
-                          <p className="text-xs text-muted-foreground">Minuten gesamt</p>
+                          <p className="text-xs text-muted-foreground">Total minutes</p>
                         </CardContent>
                       </Card>
                       
@@ -1119,7 +1107,7 @@ export default function Dashboard() {
                           <div className="text-lg font-bold">
                             {leadDetails[selectedLead].lastCall?.date || '-'}
                           </div>
-                          <p className="text-xs text-muted-foreground">Letzter Anruf</p>
+                          <p className="text-xs text-muted-foreground">Last call</p>
                         </CardContent>
                       </Card>
                       
@@ -1138,14 +1126,14 @@ export default function Dashboard() {
                                   <div className="text-lg font-bold">
                                     {leadAppointment.appointmentDate}
                                   </div>
-                                  <p className="text-xs text-muted-foreground">Nächster Anruf</p>
+                                  <p className="text-xs text-muted-foreground">Next call</p>
                                 </>
                               );
                             } else {
                               return (
                                 <>
                                   <div className="text-sm text-muted-foreground text-center leading-tight">
-                                    Kein Follow-up<br />geplant
+                                    No follow-up planned
                                   </div>
                                 </>
                               );
@@ -1160,9 +1148,7 @@ export default function Dashboard() {
 
                   {/* Gesprächshistorie */}
                   <div className="space-y-3">
-                    <h3 className="text-lg font-medium mb-3">
-                      Gesprächshistorie
-                    </h3>
+                    <h3 className="text-lg font-medium mb-3">Conversation history</h3>
                     <div className="space-y-3">
                       {leadDetails[selectedLead].allCalls.map((call: any) => (
                         <div key={call.id}>
@@ -1190,8 +1176,8 @@ export default function Dashboard() {
                               </div>
                             </div>
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Dauer: {call.duration}</span>
-                                <span>{expandedTranscript === call.id ? '▼ Transkript schließen' : '▶ Transkript anzeigen'}</span>
+                                <span>Duration: {call.duration}</span>
+                                <span>{expandedTranscript === call.id ? '▼ Hide transcript' : '▶ Show transcript'}</span>
                               </div>
                             </CardContent>
                           </Card>
