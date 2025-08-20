@@ -1345,7 +1345,7 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className={textStyles.sectionTitle}>Gesprächsskript</span>
+                <span className={textStyles.sectionTitle}>Conversation script</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
@@ -1370,10 +1370,10 @@ export default function AgentConfig() {
               <div className="mb-3"
                    onDragOver={(e) => e.preventDefault()}
               >
-                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
+                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Available variables</div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {funnelVariables.length === 0 ? (
-                    <span className="text-xs text-gray-500">Lead‑Quelle wählen, um Variablen zu sehen</span>
+                    <span className="text-xs text-gray-500">Select a lead source to see variables</span>
                   ) : (
                     funnelVariables.map(v => (
                       <span
@@ -1393,7 +1393,7 @@ export default function AgentConfig() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="script">Skript</Label>
+                <Label htmlFor="script">Script</Label>
                 <Textarea
                   id="script"
                   rows={12}
@@ -1405,7 +1405,7 @@ export default function AgentConfig() {
                     const token = e.dataTransfer.getData('text/plain');
                     insertTokenAtCursor(token, val => setConfig(prev => ({...prev, script: val})), config.script || '');
                   }}
-                  placeholder="Schreiben Sie hier das Gesprächsskript für Ihren Agent..."
+                  placeholder="Write the conversation script here..."
                   className="min-h-[300px]"
                 />
                 <div className="grid grid-cols-2 gap-4 mt-6">

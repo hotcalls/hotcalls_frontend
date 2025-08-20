@@ -377,7 +377,17 @@ export default function Agents() {
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
                       <p className={textStyles.metricLabel}>Character</p>
-                      <p className="text-sm font-normal text-gray-600">{agent.character}</p>
+                      <p className="text-sm font-normal text-gray-600">
+                        {(() => {
+                          const c = (agent.character || '').toString();
+                          const map: Record<string,string> = {
+                            'Enthusiastisch & Energetisch': 'Enthusiastic & Energetic',
+                            'Professionell & Direkt': 'Professional & Direct',
+                            'Ruhig & Sachlich': 'Calm & Factual'
+                          };
+                          return map[c] || c;
+                        })()}
+                      </p>
                     </div>
                     <div>
                       <p className={textStyles.metricLabel}>Voice</p>
