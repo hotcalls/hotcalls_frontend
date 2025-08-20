@@ -274,6 +274,20 @@ export default function AgentConfig() {
     );
   };
 
+  // Simple helper to translate common tone keywords to English
+  const translateTone = (t: string) => {
+    const map: Record<string, string> = {
+      freundlich: 'Friendly',
+      energisch: 'Energetic',
+      ruhig: 'Calm',
+      sachlich: 'Factual',
+      begeistert: 'Excited',
+      neutral: 'Neutral',
+    };
+    const key = (t || '').toLowerCase();
+    return map[key] || t;
+  };
+
   // Helper function to map personality to character
   const mapPersonalityToCharacter = (personality: string): string => {
     switch (personality) {
@@ -1184,7 +1198,7 @@ export default function AgentConfig() {
               </div>
               {/* UI-only: Agent language (demo) */}
               <div>
-                <Label htmlFor="ui-agent-language">Agent language (demo)</Label>
+                <Label htmlFor="ui-agent-language">Agent language</Label>
                 <Select value={uiAgentLanguage} onValueChange={setUiAgentLanguage}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select language" />
@@ -1256,7 +1270,7 @@ export default function AgentConfig() {
                                 <p className="font-medium">{voice.name}</p>
                                 <p className="text-sm text-gray-500">
                                   {voice.gender === 'female' ? 'Female' : voice.gender === 'male' ? 'Male' : 'Neutral'}
-                                  {voice.tone && `, ${voice.tone}`}
+                                  {voice.tone && `, ${translateTone(voice.tone)}`}
                                 </p>
                                 {/* Entferne Provider-Anzeige außer wenn es nicht elevenlabs ist */}
                                 {voice.provider && voice.provider.toLowerCase() !== 'elevenlabs' && (
@@ -1304,7 +1318,7 @@ export default function AgentConfig() {
               </div>
               {/* UI-only: Voice language (demo) */}
               <div>
-                <Label htmlFor="ui-voice-language">Voice language (demo)</Label>
+                <Label htmlFor="ui-voice-language">Voice language</Label>
                 <Select value={uiVoiceLanguage} onValueChange={setUiVoiceLanguage}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select language" />
