@@ -11,6 +11,7 @@ import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from
 import { agentAPI, AgentResponse } from "@/lib/apiService";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useVoices } from "@/hooks/use-voices";
+import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { toast } from "sonner";
 
 export default function Agents() {
@@ -26,6 +27,11 @@ export default function Agents() {
   
   // Get voices for lookup (names and pictures)
   const { getVoiceName, getVoicePicture, loading: voicesLoading } = useVoices();
+  const { usage, loading: usageLoading } = useAllFeaturesUsage(primaryWorkspace?.id || null);
+
+  const maxAgents = usage?.features?.max_agents?.limit || null;
+  const usedAgents = usage?.features?.max_agents?.used || 0;
+  const isAtAgentLimit = !!maxAgents && usedAgents >= (maxAgents as number);
 
   useEffect(() => {
     const loadAgents = async () => {
@@ -108,6 +114,10 @@ export default function Agents() {
   };
 
   const duplicateAgent = async (agentId: string, name: string) => {
+    if (isAtAgentLimit) {
+      toast.info("Dein Agenten-Limit ist aufgebraucht.");
+      return;
+    }
     try {
       console.log(`🔄 Duplicating agent ${agentId} (${name})`);
       setIsDuplicating(agentId);
@@ -190,11 +200,27 @@ export default function Agents() {
           </p>
         </div>
         
-        <button className={buttonStyles.create.default} onClick={() => navigate("/dashboard/agents/create")}>
+        <button
+          className={buttonStyles.create.default}
+          onClick={() => {
+            if (isAtAgentLimit) {
+              toast.info("Dein Agenten-Limit ist aufgebraucht.");
+              return;
+            }
+            navigate("/dashboard/agents/create");
+          }}
+          disabled={isAtAgentLimit || usageLoading}
+        >
           <Plus className={iconSizes.small} />
           <span>Neuen Agenten erstellen</span>
         </button>
       </div>
+
+      {isAtAgentLimit && (
+        <div className="mb-4 text-sm text-gray-600">
+          Agents: {usedAgents}/{maxAgents}
+        </div>
+      )}
 
       {/* Error State */}
       {error && (

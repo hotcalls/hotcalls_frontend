@@ -11,15 +11,15 @@ import { apiConfig } from "@/lib/apiConfig";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Agenten", url: "/dashboard/agents", icon: Users },
+  { title: "Agents", url: "/dashboard/agents", icon: Users },
   { title: "Leads", url: "/dashboard/leads", icon: FileText },
-  { title: "Kalender", url: "/dashboard/calendar", icon: Calendar },
-  { title: "Lead Quellen", url: "/dashboard/lead-sources", icon: Webhook },
+  { title: "Calendar", url: "/dashboard/calendar", icon: Calendar },
+  { title: "Lead Sources", url: "/dashboard/lead-sources", icon: Webhook },
 ];
 
 const PlanSection = () => {
-  const { primaryWorkspace, isAdmin } = useWorkspace();
-  // Always call hooks in the same order; pass null workspaceId for non-admins
+  const { primaryWorkspace } = useWorkspace();
+  // Always call hooks in the same order
   const {
     callMinutes, 
     loading, 
@@ -29,12 +29,7 @@ const PlanSection = () => {
     usageColor, 
     displayText, 
     percentage 
-  } = useCallMinutesUsage(isAdmin ? (primaryWorkspace?.id || null) : null);
-
-  // Hide plan/usage section for non-admin users
-  if (!isAdmin) {
-    return null;
-  }
+  } = useCallMinutesUsage(primaryWorkspace?.id || null);
 
   // Loading state
   if (loading) {
@@ -64,7 +59,7 @@ const PlanSection = () => {
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
-            <span>View Plan</span>
+            <span>View plan</span>
           </button>
         </div>
       </div>
@@ -106,7 +101,7 @@ const PlanSection = () => {
             {primaryWorkspace.workspace_name}
           </div>
           <div className="text-xs text-gray-500">
-            {callMinutes?.unlimited ? displayText : displayText}
+            {displayText}
           </div>
         </div>
         
@@ -142,7 +137,7 @@ const PlanSection = () => {
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <CreditCard className={iconSizes.small} />
-            <span>Upgrade Plan</span>
+            <span>Upgrade plan</span>
           </button>
         ) : (
           <button 
@@ -150,7 +145,7 @@ const PlanSection = () => {
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
-            <span>View Usage</span>
+            <span>View usage</span>
           </button>
         )}
       </div>
@@ -264,7 +259,7 @@ export function AppSidebar() {
         {/* Plan Section - über dem Account */}
         <PlanSection />
         
-        {/* Einstellungen - zwischen Plan und Account */}
+        {/* Settings link */}
         <div className="px-2 pb-3">
           <a
             href="/dashboard/settings"
@@ -277,7 +272,7 @@ export function AppSidebar() {
             `}
           >
             <Settings className={`${iconSizes.small} ${isActive("/dashboard/settings") ? "text-[#FE5B25]" : "text-gray-500"}`} />
-            <span>Einstellungen</span>
+            <span>Settings</span>
           </a>
         </div>
         

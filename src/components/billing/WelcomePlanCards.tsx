@@ -40,12 +40,12 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
                   <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
                   {isPopular && (
                     <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
-                      Am beliebtesten
+                      Most popular
                     </span>
                   )}
                   {isActive && (
                     <span className="ml-2 border border-green-600 text-green-700 bg-white text-xs px-2 py-1 rounded-md">
-                      Aktiver Plan
+                      Active plan
                     </span>
                   )}
                 </div>
@@ -60,7 +60,7 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
                     : 'Individuell'}
                 </div>
                 <p className="text-sm text-gray-500">
-                  {plan.price_monthly !== null ? (plan.price_suffix || '/Monat') : 'Preis auf Anfrage'}
+                  {plan.price_monthly !== null ? (plan.price_suffix || 'per month') : 'Price on request'}
                 </p>
               </div>
               {plan.features && plan.features.length > 0 && (
@@ -89,13 +89,13 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
               >
                 {isContact ? (
                   <>
-                    <Phone className="mr-2 h-5 w-5" /> Jetzt mit Team sprechen
+                    <Phone className="mr-2 h-5 w-5" /> Talk to our team
                   </>
                 ) : isActive ? (
-                  <>Aktiver Plan</>
+                  <>Active plan</>
                 ) : (
                   <>
-                    <CreditCard className="mr-2 h-5 w-5" /> Jetzt auswählen
+                    <CreditCard className="mr-2 h-5 w-5" /> Select
                   </>
                 )}
               </Button>

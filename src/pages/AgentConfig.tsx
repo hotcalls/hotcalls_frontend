@@ -18,6 +18,7 @@ import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webh
 import DocumentSendDialog from "@/components/integrations/DocumentSendDialog";
 import { useVoices } from "@/hooks/use-voices";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "sonner";
 import {
@@ -56,6 +57,18 @@ export default function AgentConfig() {
 
   // Get workspace, voices, and user profile
   const { primaryWorkspace } = useWorkspace();
+  const { usage, loading: usageLoading } = useAllFeaturesUsage(primaryWorkspace?.id || null);
+  const maxAgents = usage?.features?.max_agents?.limit || null;
+  const usedAgents = usage?.features?.max_agents?.used || 0;
+  const isAtAgentLimit = !!maxAgents && usedAgents >= (maxAgents as number);
+
+  // Guard for create mode only
+  useEffect(() => {
+    if (!isEdit && !usageLoading && isAtAgentLimit) {
+      toast.info("Dein Agenten-Limit ist aufgebraucht.");
+      navigate("/dashboard/agents");
+    }
+  }, [isEdit, usageLoading, isAtAgentLimit, navigate]);
   const { voices, loading: voicesLoading, getVoiceName, getVoicePicture, refresh: refreshVoices } = useVoices();
   const { profile: userProfile, loading: profileLoading } = useUserProfile();
 
@@ -117,6 +130,11 @@ export default function AgentConfig() {
     character: "",
     language: "de"
   });
+  // UI-only demo fields (no backend integration)
+  const [uiAgentLanguage, setUiAgentLanguage] = useState<string>("English");
+  const [uiVoiceLanguage, setUiVoiceLanguage] = useState<string>("English");
+
+  
 
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -883,14 +901,14 @@ export default function AgentConfig() {
     return (
       <div className={layoutStyles.pageContainer}>
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">Fehler: {error}</p>
+          <p className="text-red-600">Error: {error}</p>
           <Button 
             variant="outline" 
             size="sm" 
             className="mt-2"
             onClick={() => navigate('/dashboard/agents')}
           >
-            Zurück zu Agenten
+            Back to agents
           </Button>
         </div>
       </div>
@@ -903,7 +921,7 @@ export default function AgentConfig() {
       <div className="flex items-center space-x-2 mb-6">
         <button className={buttonStyles.navigation.back} onClick={() => navigate("/dashboard/agents")}>
           <ArrowLeft className={iconSizes.small} />
-          <span>Zurück zu Agenten</span>
+          <span>Back to agents</span>
         </button>
       </div>
 
@@ -911,9 +929,9 @@ export default function AgentConfig() {
       <div className={layoutStyles.pageHeader}>
         <div>
           <h1 className={textStyles.pageTitle}>
-            {isEdit ? `Agent "${config.name}" bearbeiten` : "Neuen Agent erstellen"}
+            {isEdit ? `Edit agent "${config.name}"` : "Create new agent"}
           </h1>
-          <p className={textStyles.pageSubtitle}>Konfiguriere Persönlichkeit, Skript und Integrationen</p>
+          <p className={textStyles.pageSubtitle}>Configure personality, script and integrations</p>
         </div>
         
         <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
@@ -921,21 +939,19 @@ export default function AgentConfig() {
             <PopoverTrigger asChild>
               <button className={buttonStyles.primary.default}>
                 <Phone className={iconSizes.small} />
-                <span>Testen</span>
+                <span>Test</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-80">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium text-base">Test-Anruf starten</h4>
-                  <p className="text-sm text-gray-600">
-                    Test-Anruf an Ihre registrierte Nummer.
-                  </p>
+                  <h4 className="font-medium text-base">Start test call</h4>
+                  <p className="text-sm text-gray-600">A test call will be made to your registered phone number.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="test-phone">Telefonnummer</Label>
+                  <Label htmlFor="test-phone">Phone number</Label>
                   <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-700">
-                    {profileLoading ? "Lade..." : userProfile?.phone || "Keine Nummer gefunden"}
+                    {profileLoading ? "Loading..." : userProfile?.phone || "No phone number found"}
                   </div>
                 </div>
                 <Button 
@@ -946,12 +962,12 @@ export default function AgentConfig() {
                   {isTestCalling ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Anruf wird gestartet...
+                      Starting call...
                     </>
                   ) : (
                     <>
                       <Phone className="h-4 w-4 mr-2" />
-                      Jetzt anrufen lassen
+                      Start call now
                     </>
                   )}
                 </Button>
@@ -961,7 +977,7 @@ export default function AgentConfig() {
           
           <button className={buttonStyles.create.default} onClick={handleSave}>
             <Save className={iconSizes.small} />
-            <span>Speichern</span>
+            <span>Save</span>
           </button>
         </div>
       </div>
@@ -982,7 +998,7 @@ export default function AgentConfig() {
             >
               <div className="flex items-center">
                 <User className={iconSizes.small} />
-                <span className="ml-2">Persönlichkeit</span>
+                <span className="ml-2">Personality</span>
               </div>
             </button>
             
@@ -997,7 +1013,7 @@ export default function AgentConfig() {
             >
               <div className="flex items-center">
                 <FileText className={iconSizes.small} />
-                <span className="ml-2">Knowledge Base</span>
+                <span className="ml-2">Knowledge base</span>
               </div>
             </button>
             
@@ -1012,7 +1028,7 @@ export default function AgentConfig() {
             >
               <div className="flex items-center">
                 <FileText className={iconSizes.small} />
-                <span className="ml-2">Skript</span>
+                <span className="ml-2">Script</span>
               </div>
             </button>
             
@@ -1027,7 +1043,7 @@ export default function AgentConfig() {
             >
               <div className="flex items-center">
                 <Phone className={iconSizes.small} />
-                <span className="ml-2">Anruflogik</span>
+                <span className="ml-2">Call logic</span>
               </div>
             </button>
             
@@ -1042,7 +1058,7 @@ export default function AgentConfig() {
             >
               <div className="flex items-center">
                 <SettingsIcon className={iconSizes.small} />
-                <span className="ml-2">Integrationen</span>
+                <span className="ml-2">Integrations</span>
               </div>
             </button>
           </nav>
@@ -1052,7 +1068,7 @@ export default function AgentConfig() {
         <TabsContent value="knowledge" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Knowledge Base (PDF)</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Knowledge base (PDF)</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div
@@ -1060,13 +1076,13 @@ export default function AgentConfig() {
                 onDrop={handleKBDrop}
                 className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#FE5B25] transition"
               >
-                <p className="text-sm text-gray-600">PDF-only, max 20 MB – pro Agent ist nur ein Dokument erlaubt</p>
+                <p className="text-sm text-gray-600">PDF only, max 20 MB – each agent can have one document</p>
                 <div className="mt-3 flex items-center gap-3">
                   <Button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={!isEdit || kbUploading || (kb && kb.files && kb.files.length >= 1)}
                   >
-                    {kbUploading ? "Lade hoch..." : "Datei wählen"}
+                    {kbUploading ? "Uploading..." : "Choose file"}
                   </Button>
                   <input
                     ref={fileInputRef}
@@ -1076,23 +1092,23 @@ export default function AgentConfig() {
                     className="hidden"
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">Oder Datei hierher ziehen</p>
+                <p className="mt-2 text-xs text-gray-500">Or drag file here</p>
               </div>
 
               <div className="mt-6">
                 {kbLoading ? (
-                  <div className="p-4 border rounded-md text-gray-500">Lade Dokumente…</div>
+                  <div className="p-4 border rounded-md text-gray-500">Loading documents…</div>
                 ) : !kb || kb.files.length === 0 ? (
-                  <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
+                  <div className="p-4 border rounded-md text-gray-500">No documents yet</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
                         <tr className="text-left text-gray-500">
                           <th className="py-2 pr-4">Name</th>
-                          <th className="py-2 pr-4">Größe</th>
-                          <th className="py-2 pr-4">Hochgeladen am</th>
-                          <th className="py-2">Aktionen</th>
+                          <th className="py-2 pr-4">Size</th>
+                          <th className="py-2 pr-4">Uploaded</th>
+                          <th className="py-2">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1105,7 +1121,7 @@ export default function AgentConfig() {
                             <td className="py-2 pr-4 text-gray-600">{formatBytes(f.size)}</td>
                             <td className="py-2 pr-4 text-gray-600">{new Date(f.updated_at).toLocaleString()}</td>
                             <td className="py-2 flex gap-2">
-                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.id)}>Löschen</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.id)}>Delete</Button>
                             </td>
                           </tr>
                         ))}
@@ -1137,42 +1153,56 @@ export default function AgentConfig() {
         <TabsContent value="personality" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Grundkonfiguration</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Basic configuration</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="name">Agent Name</Label>
+                <Label htmlFor="name">Agent name</Label>
                 <Input
                   id="name"
                   value={config.name}
                   onChange={(e) => setConfig(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="z.B. Sarah"
+                  placeholder="e.g., Sarah"
                 />
               </div>
               
               <div>
-                <Label htmlFor="personality">Persönlichkeit</Label>
+                <Label htmlFor="personality">Personality</Label>
                 <Select 
                   value={config.personality} 
                   onValueChange={(value) => setConfig(prev => ({ ...prev, personality: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Persönlichkeit auswählen" />
+                    <SelectValue placeholder="Select a personality" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="professional">Professionell & Direkt</SelectItem>
-                    <SelectItem value="energetic">Enthusiastisch & Energetisch</SelectItem>
-                    <SelectItem value="calm">Ruhig & Sachlich</SelectItem>
+                    <SelectItem value="professional">Professional & Direct</SelectItem>
+                    <SelectItem value="energetic">Enthusiastic & Energetic</SelectItem>
+                    <SelectItem value="calm">Calm & Factual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
+              {/* UI-only: Agent language (demo) */}
               <div>
-                <Label>Stimme</Label>
+                <Label htmlFor="ui-agent-language">Agent language (demo)</Label>
+                <Select value={uiAgentLanguage} onValueChange={setUiAgentLanguage}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="English">English</SelectItem>
+                    <SelectItem value="German">German</SelectItem>
+                    <SelectItem value="Spanish">Spanish</SelectItem>
+                    <SelectItem value="French">French</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Voice</Label>
                 {voices.length === 0 ? (
                   <div className="p-4 border rounded-lg text-center text-gray-500">
                     <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
-                    <p className="text-sm">Lade Stimmen...</p>
+                    <p className="text-sm">Loading voices...</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2 max-h-96 overflow-y-auto">
@@ -1186,11 +1216,11 @@ export default function AgentConfig() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="absolute top-2 right-2 bg-green-100 text-green-600 text-xs px-2 py-1 rounded">
-                                  Empfohlen
+                                  Recommended
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p className="text-sm">Von KI-Experten empfohlen</p>
+                                <p className="text-sm">Recommended by AI experts</p>
                               </TooltipContent>
                             </Tooltip>
                           )}
@@ -1225,7 +1255,7 @@ export default function AgentConfig() {
                               <div>
                                 <p className="font-medium">{voice.name}</p>
                                 <p className="text-sm text-gray-500">
-                                  {voice.gender === 'female' ? 'Weiblich' : voice.gender === 'male' ? 'Männlich' : 'Neutral'}
+                                  {voice.gender === 'female' ? 'Female' : voice.gender === 'male' ? 'Male' : 'Neutral'}
                                   {voice.tone && `, ${voice.tone}`}
                                 </p>
                                 {/* Entferne Provider-Anzeige außer wenn es nicht elevenlabs ist */}
@@ -1259,7 +1289,7 @@ export default function AgentConfig() {
                               voiceExternalId: voice.voice_external_id 
                             }))}
                           >
-                            {isSelected ? "Ausgewählt" : "Auswählen"}
+                            {isSelected ? "Selected" : "Select"}
                           </button>
                         </div>
                       );
@@ -1268,9 +1298,24 @@ export default function AgentConfig() {
                 )}
                 {voices.length > 12 && (
                   <p className="text-sm text-gray-500 mt-2">
-                    {voices.length - 12} weitere Stimmen verfügbar...
+                    {voices.length - 12} more voices available...
                   </p>
                 )}
+              </div>
+              {/* UI-only: Voice language (demo) */}
+              <div>
+                <Label htmlFor="ui-voice-language">Voice language (demo)</Label>
+                <Select value={uiVoiceLanguage} onValueChange={setUiVoiceLanguage}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="English">English</SelectItem>
+                    <SelectItem value="German">German</SelectItem>
+                    <SelectItem value="Spanish">Spanish</SelectItem>
+                    <SelectItem value="French">French</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
               {/* Begrüßungen ziehen wir in den Skript-Tab */}
@@ -1489,55 +1534,55 @@ export default function AgentConfig() {
         <TabsContent value="integrations" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Kalender & Event-Types</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Calendar & event types</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="eventType">Event-Type für Terminbuchungen</Label>
+                <Label htmlFor="eventType">Event type for bookings</Label>
                 {isLoadingEventTypes ? (
                   <Select disabled>
                     <SelectTrigger>
-                      <SelectValue placeholder="Event-Types werden geladen..." />
+                      <SelectValue placeholder="Loading event types..." />
                     </SelectTrigger>
                   </Select>
                 ) : availableEventTypes.length === 0 ? (
                   <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="Keine Event-Types verfügbar" />
+                        <SelectValue placeholder="No event types available" />
                       </SelectTrigger>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Event-Types können in der <button 
+                      Manage event types in the <button 
                         onClick={() => navigate('/dashboard/calendar')}
                         className="text-[#FE5B25] hover:underline"
                       >
-                        Kalender-Sektion
-                      </button> verwaltet werden.
+                        calendar section
+                      </button>.
                     </p>
                   </div>
                 ) : (
-                                     <Select 
-                     value={config.selectedEventTypes[0] || "none"} 
-                     onValueChange={(value) => {
-                       setConfig(prev => ({ 
-                         ...prev, 
-                         selectedEventTypes: value === "none" ? [] : [value]
-                       }));
-                     }}
-                   >
-                     <SelectTrigger>
-                       <SelectValue placeholder="Event-Type auswählen (optional)" />
-                     </SelectTrigger>
-                     <SelectContent>
-                       <SelectItem value="none">Kein Event-Type</SelectItem>
-                       {availableEventTypes.map((eventType) => (
-                         <SelectItem key={eventType.id} value={eventType.id}>
-                           {eventType.name} ({eventType.duration} Min)
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
+                  <Select 
+                    value={config.selectedEventTypes[0] || "none"} 
+                    onValueChange={(value) => {
+                      setConfig(prev => ({ 
+                        ...prev, 
+                        selectedEventTypes: value === "none" ? [] : [value]
+                      }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event type (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No event type</SelectItem>
+                      {availableEventTypes.map((eventType) => (
+                        <SelectItem key={eventType.id} value={eventType.id}>
+                          {eventType.name} ({eventType.duration} Min)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             </CardContent>
@@ -1545,31 +1590,31 @@ export default function AgentConfig() {
 
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Lead-Quellen</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Lead sources</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="leadForm">Lead-Quelle für automatische Anrufe</Label>
+                <Label htmlFor="leadForm">Lead source for outbound calls</Label>
                 {isLoadingLeadForms ? (
                   <Select disabled>
                     <SelectTrigger>
-                      <SelectValue placeholder="Lead-Formulare werden geladen..." />
+                      <SelectValue placeholder="Loading lead forms..." />
                     </SelectTrigger>
                   </Select>
                 ) : availableLeadForms.length === 0 ? (
                   <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="Keine Lead-Formulare verfügbar" />
+                        <SelectValue placeholder="No lead forms available" />
                       </SelectTrigger>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Lead-Formulare können in der <button 
+                      Manage lead forms in the <button 
                         onClick={() => navigate('/dashboard/lead-sources')}
                         className="text-[#FE5B25] hover:underline"
                       >
-                        Lead-Quellen Sektion
-                      </button> verwaltet werden.
+                        lead sources section
+                      </button>.
                     </p>
                   </div>
                 ) : (
@@ -1583,10 +1628,10 @@ export default function AgentConfig() {
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Lead-Quelle auswählen (optional)" />
+                      <SelectValue placeholder="Select lead source (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Keine Lead-Quelle</SelectItem>
+                      <SelectItem value="none">No lead source</SelectItem>
                       {availableLeadForms.map((form) => (
                         <SelectItem key={form.id} value={form.id}>
                           {form.name || form.meta_form_id} - {form.source_type_display || 'Meta Lead Ads'}
@@ -1602,20 +1647,20 @@ export default function AgentConfig() {
           {/* Dokumentenversand (minimal, gleicher Stil wie Kalender-Zeile) */}
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Dokumentenversand</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Document sending</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <Label>Dokument für E‑Mail‑Versand</Label>
+                  <Label>Document for email sending</Label>
                   <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
                     <span className="text-gray-600">
-                      {docStatus?.filename ? `PDF: ${docStatus.filename}${docStatus?.fromEmail ? ` • Absender: ${docStatus.fromEmail}` : ''}` : 'Kein Dokumentenversand'}
+                      {docStatus?.filename ? `PDF: ${docStatus.filename}${docStatus?.fromEmail ? ` • From: ${docStatus.fromEmail}` : ''}` : 'No document sending'}
                     </span>
                     <div className="flex items-center gap-2">
                       <Button variant="default" onClick={() => setDocDialogOpen(true)}
-                        title="SMTP konfigurieren, PDF hochladen – der Agent versendet später automatisch">
-                        Dokumentenversand hinzufügen
+                        title="Configure SMTP, upload PDF – the agent will send it automatically later">
+                        Add document sending
                       </Button>
                     </div>
                   </div>

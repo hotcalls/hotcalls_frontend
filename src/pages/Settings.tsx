@@ -53,17 +53,15 @@ export default function Settings() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
-  // Ensure activeTab is valid for current role (non-admins cannot view billing)
-  useEffect(() => {
-    if (!isAdmin && activeTab === 'billing') {
-      setActiveTab('workspace');
-    }
-  }, [isAdmin, activeTab]);
+  // Non-admins can also view the billing tab now
   
   // Generate current plan data from API
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
   const maxUsersFeature = features.find(f => f.name === 'max_users');
   const maxAgentsFeature = features.find(f => f.name === 'max_agents');
+  const usedUsers = maxUsersFeature?.used || 0;
+  const limitUsers = maxUsersFeature?.limit || null;
+  const isAtUserLimit = !!limitUsers && usedUsers >= (limitUsers as number);
   
   // State for plan details from API
   const [planDetails, setPlanDetails] = useState<any>(null);
@@ -74,8 +72,7 @@ export default function Settings() {
   const [loadingPlans, setLoadingPlans] = useState(false);
 
   useEffect(() => {
-    // Nur für Admins relevant; lade einmalig oder wenn Billing-Tab aktiv wird
-    if (!isAdmin) return;
+    // Lade einmalig, wenn Billing-Tab aktiv wird
     if (availablePlans.length > 0) return;
     if (activeTab !== 'billing') return;
     (async () => {
@@ -117,7 +114,7 @@ export default function Settings() {
         setLoadingPlans(false);
       }
     })();
-  }, [isAdmin, activeTab, availablePlans.length]);
+  }, [activeTab, availablePlans.length]);
 
   // Load plan details from database API
   useEffect(() => {
@@ -234,11 +231,10 @@ export default function Settings() {
     name: currentPlanDetails.name,
     price: currentPlanDetails.price,
     description: currentPlanDetails.description,
-    features: usage?.cosmetic_features || {}, // Real cosmetic features from database
+    features: {},
     usedMinutes: callMinutesFeature?.used || 0,
     totalMinutes: callMinutesFeature?.limit || 0,
-    // FIX: Only Enterprise should be unlimited, Start/Pro should show actual limits
-    unlimited: currentPlanDetails.name === 'Enterprise' ? (callMinutesFeature?.unlimited || false) : false,
+    unlimited: callMinutesFeature?.unlimited || false,
     currentUsers: maxUsersFeature?.used || 0,
     maxUsers: maxUsersFeature?.limit || 0,
     currentAgents: maxAgentsFeature?.used || 0,
@@ -248,7 +244,7 @@ export default function Settings() {
   
   // Calculate available minutes from usage data
   const currentBalance = callMinutesFeature ? 
-    (currentPlan.unlimited ? 'Unlimited' : (callMinutesFeature.remaining || 0)) : 
+    (callMinutesFeature.unlimited ? 'Unlimited' : (callMinutesFeature.remaining || 0)) : 
     'Loading...';
 
   // Plan changing function
@@ -641,8 +637,8 @@ export default function Settings() {
       {/* Page Header */}
       <div className={layoutStyles.pageHeader}>
         <div>
-          <h1 className={textStyles.pageTitle}>Einstellungen</h1>
-          <p className={textStyles.pageSubtitle}>Verwalte deinen Account und Workspace</p>
+          <h1 className={textStyles.pageTitle}>Settings</h1>
+          <p className={textStyles.pageSubtitle}>Manage your account and workspace</p>
         </div>
       </div>
 
@@ -680,22 +676,20 @@ export default function Settings() {
               </div>
             </button>
             
-            {isAdmin && (
-              <button
-                onClick={() => setActiveTab("billing")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                  activeTab === "billing"
-                    ? "border-[#FE5B25] text-[#FE5B25]"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-                role="tab"
-              >
-                <div className="flex items-center">
-                  <CreditCard className={iconSizes.small} />
-                  <span className="ml-2">Pläne & Guthaben</span>
-                </div>
-              </button>
-            )}
+            <button
+              onClick={() => setActiveTab("billing")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                activeTab === "billing"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+              role="tab"
+            >
+              <div className="flex items-center">
+                <CreditCard className={iconSizes.small} />
+                <span className="ml-2">Plans & balance</span>
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -879,7 +873,17 @@ export default function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button onClick={() => setShowInviteModal(true)} className="bg-[#FE5B25] hover:bg-[#E5501F] text-white">
+                  <Button
+                    onClick={() => {
+                      if (isAtUserLimit) {
+                        toast({ title: 'Hinweis', description: 'Dein Nutzer-Limit ist aufgebraucht.' });
+                        return;
+                      }
+                      setShowInviteModal(true);
+                    }}
+                    disabled={isAtUserLimit}
+                    className="bg-[#FE5B25] hover:bg-[#E5501F] text-white"
+                  >
                     <Plus className={iconSizes.small} />
                     <span>Mitglied einladen</span>
                   </Button>
@@ -973,8 +977,7 @@ export default function Settings() {
           {/* Advanced Feld entfernt */}
         </TabsContent>
 
-        {/* Pläne & Guthaben Tab (nur Admin) */}
-        {isAdmin && (
+        {/* Pläne & Guthaben Tab (sichtbar für alle) */}
         <TabsContent value="billing" className="space-y-6">
           {/* Exakt das Layout aus dem Welcome Flow */}
           <WelcomePlanCards
@@ -1039,27 +1042,9 @@ export default function Settings() {
                   window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
                   return;
                 }
-                // Ziehe Price-ID aus der Plans-API (gleiches Verhalten wie Welcome Flow)
-                let priceId: string | null = null;
-                try {
-                  const raw = await plansAPI.getPlans();
-                  const list = Array.isArray(raw) ? raw : (raw?.results || []);
-                  const match = list.find((p:any)=> (p.plan_name||p.name) === plan.name);
-                  priceId = match?.stripe_price_id_monthly || null;
-                } catch {}
-                if (!priceId) {
-                  const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
-                  window.open(portal.url, '_blank');
-                  return;
-                }
-                const sub = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
-                if (!sub?.has_subscription) {
-                  const checkout = await subscriptionService.createCheckoutSession({ workspace_id: primaryWorkspace.id, price_id: priceId });
-                  window.location.href = checkout.checkout_url;
-                  return;
-                }
-                await subscriptionService.changePlan(primaryWorkspace.id, priceId);
-                toast({ title: 'Planwechsel gestartet', description: 'Abrechnung wird von Stripe automatisch angepasst.' });
+                // Direkt zum Stripe-Kundenportal wie bei "Abonnement verwalten"
+                const portal = await paymentAPI.createPortalSession(primaryWorkspace.id);
+                window.open(portal.url, '_blank');
               } catch (e:any) {
                 toast({ title: 'Planaktion fehlgeschlagen', description: e?.message || 'Bitte später erneut versuchen', variant: 'destructive' });
               }
@@ -1117,7 +1102,6 @@ export default function Settings() {
 
           {/* Hinweis: Verfügbare Minuten Card entfernt wie gewünscht */}
         </TabsContent>
-        )}
       </Tabs>
 
       {/* Invite User Modal - Small & Centered */}
