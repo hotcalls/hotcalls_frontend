@@ -1452,7 +1452,7 @@ export default function AgentConfig() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className={textStyles.sectionTitle}>Anruflogik</span>
+                <span className={textStyles.sectionTitle}>Call logic</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
@@ -1472,7 +1472,7 @@ export default function AgentConfig() {
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="maxAttempts">Maximale Anrufversuche</Label>
+                  <Label htmlFor="maxAttempts">Maximum call attempts</Label>
                   <Input
                     id="maxAttempts"
                     type="number"
@@ -1484,7 +1484,7 @@ export default function AgentConfig() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="callInterval">Anrufintervall (Minuten)</Label>
+                  <Label htmlFor="callInterval">Call interval (minutes)</Label>
                   <Input
                     id="callInterval"
                     type="number"
@@ -1498,9 +1498,9 @@ export default function AgentConfig() {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <Label>Aktive Tage</Label>
+                  <Label>Active days</Label>
                   <div className="grid grid-cols-7 gap-2 mt-2">
-                    {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => (
+                    {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day, index) => (
                       <button
                         key={day}
                         className={`w-10 h-10 rounded-full border text-sm font-medium ${
@@ -1525,7 +1525,7 @@ export default function AgentConfig() {
                 </div>
 
                 <div>
-                  <Label>Uhrzeit</Label>
+                  <Label>Time window</Label>
                   <div className="flex items-center space-x-4 mt-2">
                     <Input
                       type="time"
