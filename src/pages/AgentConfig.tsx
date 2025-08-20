@@ -627,7 +627,7 @@ export default function AgentConfig() {
           incomingGreeting: config.incomingGreeting, 
           outgoingGreeting: config.outgoingGreeting 
         });
-        throw new Error('Begrüßungen sind erforderlich');
+        throw new Error('Greetings are required');
       }
       
       if (!config.script || config.script.trim() === '') {
@@ -1366,7 +1366,7 @@ export default function AgentConfig() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Variables Panel (minimal, orange) */}
+              {/* Variables panel (minimal, orange) */}
               <div className="mb-3"
                    onDragOver={(e) => e.preventDefault()}
               >
@@ -1410,7 +1410,7 @@ export default function AgentConfig() {
                 />
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div>
-                    <Label htmlFor="outgoingGreeting">Begrüßung (Ausgehende Anrufe)</Label>
+                    <Label htmlFor="outgoingGreeting">Greeting (outbound calls)</Label>
                     <Textarea
                       id="outgoingGreeting"
                       value={config.outgoingGreeting || ""}
@@ -1421,12 +1421,12 @@ export default function AgentConfig() {
                         const token = e.dataTransfer.getData('text/plain');
                         insertTokenAtCursor(token, val => setConfig(prev => ({...prev, outgoingGreeting: val})), config.outgoingGreeting || '');
                       }}
-                      placeholder="Wie soll der Agent ausgehende Gespräche beginnen?"
+                      placeholder="How should the agent start outbound calls?"
                       rows={3}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="incomingGreeting">Begrüßung (Eingehende Anrufe)</Label>
+                    <Label htmlFor="incomingGreeting">Greeting (inbound calls)</Label>
                     <Textarea
                       id="incomingGreeting"
                       value={config.incomingGreeting || ""}
@@ -1437,7 +1437,7 @@ export default function AgentConfig() {
                         const token = e.dataTransfer.getData('text/plain');
                         insertTokenAtCursor(token, val => setConfig(prev => ({...prev, incomingGreeting: val})), config.incomingGreeting || '');
                       }}
-                      placeholder="Wie soll der Agent eingehende Gespräche beginnen?"
+                      placeholder="How should the agent start inbound calls?"
                       rows={3}
                     />
                   </div>
