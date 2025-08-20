@@ -274,18 +274,21 @@ export default function AgentConfig() {
     );
   };
 
-  // Simple helper to translate common tone keywords to English
-  const translateTone = (t: string) => {
-    const map: Record<string, string> = {
+  // Translate tone words and compound phrases (e.g., "Jung & Energetisch")
+  const translateTone = (raw: string) => {
+    if (!raw) return raw;
+    const dict: Record<string, string> = {
+      jung: 'Young',
+      energetisch: 'Energetic',
       freundlich: 'Friendly',
-      energisch: 'Energetic',
       ruhig: 'Calm',
       sachlich: 'Factual',
-      begeistert: 'Excited',
       neutral: 'Neutral',
+      professionell: 'Professional'
     };
-    const key = (t || '').toLowerCase();
-    return map[key] || t;
+    const parts = raw.split(/\s*&\s*|,\s*/).map(p => p.trim()).filter(Boolean);
+    const mapped = parts.map(p => dict[p.toLowerCase()] || p.charAt(0).toUpperCase() + p.slice(1));
+    return mapped.join(' & ');
   };
 
   // Helper function to map personality to character

@@ -1079,8 +1079,23 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               ) : (
                 <div className="space-y-4">
                   {voices.map((voice, index) => {
-                    // Create preview text from voice properties
-                    const preview = `${voice.gender === 'male' ? 'Männlich' : voice.gender === 'female' ? 'Weiblich' : 'Neutral'}${voice.tone ? `, ${voice.tone}` : ''}`;
+                    // Create preview text from voice properties with English translation
+                    const mapToneWord = (w: string) => {
+                      const m: Record<string, string> = {
+                        'jung': 'Young',
+                        'energetisch': 'Energetic',
+                        'freundlich': 'Friendly',
+                        'ruhig': 'Calm',
+                        'sachlich': 'Factual',
+                        'neutral': 'Neutral',
+                        'professionell': 'Professional'
+                      };
+                      return m[w.toLowerCase()] || w;
+                    };
+                    const toneEn = voice.tone
+                      ? voice.tone.split(/\s*&\s*|,\s*/).map(mapToneWord).join(' & ')
+                      : '';
+                    const preview = `${voice.gender === 'male' ? 'Male' : voice.gender === 'female' ? 'Female' : 'Neutral'}${toneEn ? `, ${toneEn}` : ''}`;
                     
                     // Voice configuration with API picture support
                     const voiceConfig = {
