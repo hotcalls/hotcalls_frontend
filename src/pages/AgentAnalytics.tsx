@@ -305,7 +305,7 @@ export default function AgentAnalytics() {
             key={stat.title}
             className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
               selectedMetric === stat.id 
-                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
+                ? 'border-[#3d5097]/30 bg-[#3d5097]/5' 
                 : 'border-gray-200'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
@@ -314,7 +314,7 @@ export default function AgentAnalytics() {
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${
                   selectedMetric === stat.id 
-                    ? 'bg-[#FE5B25]/10 text-[#FE5B25]' 
+                    ? 'bg-[#3d5097]/10 text-[#3d5097]' 
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   <stat.icon className="h-6 w-6" />
@@ -372,8 +372,8 @@ export default function AgentAnalytics() {
               {/* Gradient Definition für Area */}
               <defs>
                 <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
-                  <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                  <stop offset="0%" stopColor="#3d5097" stopOpacity={0.15}/>
+                  <stop offset="100%" stopColor="#3d5097" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               
@@ -406,7 +406,7 @@ export default function AgentAnalytics() {
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   fontSize: '14px'
                 }}
-                cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
+                cursor={{ stroke: '#3d5097', strokeWidth: 1, strokeDasharray: '5 5' }}
               />
               
               {/* Area mit Gradient-Fill */}
@@ -422,11 +422,11 @@ export default function AgentAnalytics() {
               <Line 
                 type="monotone" 
                 dataKey={selectedMetric} 
-                stroke="#FE5B25" 
+                stroke="#3d5097" 
                 strokeWidth={2.5}
                 name={metricConfig[selectedMetric].name}
                 dot={false}
-                activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: "#3d5097", strokeWidth: 0 }}
               />
             </ComposedChart>
           </ResponsiveContainer>

@@ -295,7 +295,7 @@ export default function Agents() {
                       <Switch
                         checked={agent.status === "active"}
                         onCheckedChange={() => toggleAgentStatus(agent.agent_id, agent.status)}
-                        className="data-[state=checked]:bg-[#FE5B25] data-[state=unchecked]:bg-gray-200"
+                        className="data-[state=checked]:bg-[#3d5097] data-[state=unchecked]:bg-gray-200"
                       />
                       <button 
                         className={buttonStyles.cardAction.icon}

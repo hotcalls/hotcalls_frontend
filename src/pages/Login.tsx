@@ -117,7 +117,7 @@ const Login = () => {
           <div className="mx-auto mb-6">
             <img src="/hotcalls-logo.png" alt="hotcalls" className="h-12 w-auto" onError={(e) => { const img = e.target as HTMLImageElement; img.style.display = 'none'; const fallback = img.nextElementSibling as HTMLElement; if (fallback) fallback.style.display = 'flex'; }} />
             <div className="items-center gap-2 justify-center hidden">
-              <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
+              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
               <span className="text-2xl font-bold text-gray-900">hotcalls</span>
             </div>
           </div>

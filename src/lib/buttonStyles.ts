@@ -1,41 +1,41 @@
 // 🎯 EINHEITLICHES DESIGN-SYSTEM mit korrekter Markenfarbe
-// Markenfarbe: #FE5B25 (nicht orange-500!)
+// Markenfarbe: #3d5097 (nicht orange-500!)
 // Heller Hintergrund für Outline-Buttons: #FFE1D7
 
 export const brandColors = {
-  primary: "#FE5B25",        // Markenfarbe
-  primaryLight: "#FFE1D7",   // Heller Hintergrund für Buttons/Actions
-  primaryHover: "#E5501F",   // Hover-State für gefüllte Buttons
-  primaryLightHover: "#FFD4C4", // Hover für Outline-Buttons
-  infoLight: "#FEF5F1",      // SEHR heller orange Touch für Info-Flächen (fast weiß)
+  primary: "#3d5097",        // Markenfarbe
+  primaryLight: "#ffffff",   // Heller Hintergrund (nur Weiß)
+  primaryHover: "#3d5097",   // Hover-State für gefüllte Buttons
+  primaryLightHover: "#ffffff", // Hover für Outline-Buttons (Weiß)
+  infoLight: "#ffffff",      // Info-Flächen (nur Weiß)
 };
 
 export const buttonStyles = {
   // 1. CREATE/ADD BUTTONS (Voll in Markenfarbe)
   create: {
-    default: "px-4 py-2 bg-[#FE5B25] text-white text-sm font-medium rounded-md hover:bg-[#E5501F] transition-colors flex items-center space-x-2",
-    large: "px-6 py-3 bg-[#FE5B25] text-white text-base font-medium rounded-md hover:bg-[#E5501F] transition-colors flex items-center space-x-2",
+    default: "px-4 py-2 bg-[#3d5097] text-white text-sm font-medium rounded-md hover:bg-[#3d5097] transition-colors flex items-center space-x-2",
+    large: "px-6 py-3 bg-[#3d5097] text-white text-base font-medium rounded-md hover:bg-[#3d5097] transition-colors flex items-center space-x-2",
   },
 
   // 2. PRIMARY BUTTONS (Nur oranger Rand + weißer Hintergrund für Aktions-Buttons)
   primary: {
-    default: "px-4 py-2 border border-[#FE5B25] bg-white text-[#FE5B25] text-sm font-medium rounded-md hover:bg-[#FFE1D7] transition-colors flex items-center space-x-2",
-    large: "px-6 py-3 border border-[#FE5B25] bg-white text-[#FE5B25] text-base font-medium rounded-md hover:bg-[#FFE1D7] transition-colors flex items-center space-x-2",
-    fullWidth: "w-full px-4 py-2 border border-[#FE5B25] bg-white text-[#FE5B25] text-sm font-medium rounded-md hover:bg-[#FFE1D7] transition-colors flex items-center justify-center",
+    default: "px-4 py-2 border border-[#3d5097] bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
+    large: "px-6 py-3 border border-[#3d5097] bg-white text-[#3d5097] text-base font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
+    fullWidth: "w-full px-4 py-2 border border-[#3d5097] bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center justify-center",
   },
 
   // 3. HIGHLIGHT AREAS (Seichter orange Touch OHNE Rand für Pläne/Cards)
   highlight: {
-    card: "p-4 bg-[#FFE1D7] rounded-lg border border-gray-200", // Seichter orange Hintergrund + neutraler Rand
-    subtle: "bg-[#FFE1D7] text-[#FE5B25]", // Nur Hintergrund + Text für table cells etc
-    button: "px-4 py-2 bg-[#FFE1D7] text-[#FE5B25] text-sm font-medium rounded-md hover:bg-[#FFD4C4] transition-colors flex items-center space-x-2", // Button ohne orangen Rand
+    card: "p-4 bg-white rounded-lg border border-gray-200",
+    subtle: "bg-white text-[#3d5097]",
+    button: "px-4 py-2 bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
   },
 
   // 4. INFO AREAS (Sehr heller orange Touch für Informationsflächen - fast weiß)
   info: {
-    card: "p-4 bg-[#FEF5F1] rounded-lg", // SEHR heller Hintergrund, KEIN Rand
-    subtle: "bg-[#FEF5F1]", // Nur Hintergrund für Zellen etc
-    panel: "bg-[#FEF5F1] rounded-lg p-6", // Für größere Info-Bereiche
+    card: "p-4 bg-white rounded-lg", // SEHR heller Hintergrund, KEIN Rand
+    subtle: "bg-white", // Nur Hintergrund für Zellen etc
+    panel: "bg-white rounded-lg p-6", // Für größere Info-Bereiche
   },
 
   // 5. SECONDARY BUTTONS (Grau Outline)
@@ -62,7 +62,7 @@ export const buttonStyles = {
   dialog: {
     cancel: "px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors",
     destructive: "px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors",
-    confirm: "px-4 py-2 bg-[#FE5B25] text-white text-sm font-medium rounded-md hover:bg-[#E5501F] transition-colors",
+    confirm: "px-4 py-2 bg-[#3d5097] text-white text-sm font-medium rounded-md hover:bg-[#3d5097] transition-colors",
   }
 };
 

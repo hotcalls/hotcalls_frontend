@@ -30,8 +30,8 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
         return (
           <div
             key={plan.id}
-            className={`border-2 rounded-lg p-8 hover:border-[#FE5B25] transition-all ${
-              isPopular ? 'border-[#FE5B25] bg-[#FEF5F1] relative transform scale-105 shadow-lg' : 'border-gray-200'
+            className={`border-2 rounded-lg p-8 hover:border-[#3d5097] transition-all ${
+              isPopular ? 'border-[#3d5097] bg-white relative transform scale-105 shadow-lg' : 'border-gray-200'
             }`}
           >
             <div className="space-y-6">
@@ -39,7 +39,7 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
                   {isPopular && (
-                    <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
+                    <span className="border border-[#3d5097] text-[#3d5097] bg-white text-xs px-2 py-1 rounded-md">
                       Most popular
                     </span>
                   )}
@@ -73,7 +73,7 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
                       .slice(index > 0 && plan.features[0]?.includes('Features plus:') ? 1 : 0)
                       .map((feature, featureIndex) => (
                         <li key={featureIndex} className="flex items-center space-x-3">
-                          <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                          <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                           <span>{feature}</span>
                         </li>
                       ))}
@@ -82,7 +82,7 @@ export default function WelcomePlanCards({ plans, currentPlanName, onSelect }: P
               )}
               <Button
                 className={`w-full focus:ring-0 focus:ring-offset-0 ${
-                  isContact ? 'bg-gray-900 hover:bg-gray-800 text-white' : 'bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white'
+                  isContact ? 'bg-gray-900 hover:bg-gray-800 text-white' : 'bg-[#3d5097] hover:bg-[#3d5097]/90 text-white'
                 }`}
                 onClick={() => onSelect(plan)}
                 disabled={isActive && !isContact}

@@ -117,7 +117,7 @@ export function WelcomeOverlay({ isOpen, onComplete }: WelcomeOverlayProps) {
                   <div key={step.number} className="flex flex-col items-center space-y-3">
                     <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all ${
                       currentStep === step.number 
-                        ? 'border-[#FE5B25] text-[#FE5B25] bg-white' 
+                        ? 'border-[#3d5097] text-[#3d5097] bg-white' 
                         : step.completed
                         ? 'border-green-600 text-green-600 bg-white'
                         : 'border-gray-300 bg-white text-gray-400'
@@ -130,7 +130,7 @@ export function WelcomeOverlay({ isOpen, onComplete }: WelcomeOverlayProps) {
                     </div>
                     <span className={`text-sm font-medium text-center ${
                       currentStep === step.number 
-                        ? 'text-[#FE5B25]' 
+                        ? 'text-[#3d5097]' 
                         : step.completed
                         ? 'text-green-600'
                         : 'text-gray-400'
@@ -280,7 +280,7 @@ function Step1Content({ formData, onInputChange }: any) {
                   <button
                     className={`w-full py-2 px-3 rounded border text-sm font-medium ${
                       formData.voice === voice 
-                        ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
+                        ? "bg-white text-[#3d5097] border-[#3d5097]" 
                         : "border-gray-300 text-gray-700 hover:bg-gray-50"
                     }`}
                     onClick={() => onInputChange("voice", voice)}
@@ -383,18 +383,18 @@ function Step3Content({ formData, onInputChange, onConnectFacebook, onToggleLead
                     key={type.id} 
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-sm ${
                       isSelected 
-                        ? 'border-[#FE5B25]' 
+                        ? 'border-[#3d5097]' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => onInputChange("leadIntegrationType", type.id)}
                   >
                     <div className="text-center">
                       <div className={`w-12 h-12 mx-auto rounded-lg flex items-center justify-center mb-3 ${
-                        isSelected ? 'bg-[#FE5B25] text-white' : 'bg-gray-100 text-gray-600'
+                        isSelected ? 'bg-[#3d5097] text-white' : 'bg-gray-100 text-gray-600'
                       }`}>
                         <type.icon className="h-6 w-6" />
                       </div>
-                      <h3 className={`font-medium ${isSelected ? 'text-[#FE5B25]' : 'text-gray-900'}`}>
+                      <h3 className={`font-medium ${isSelected ? 'text-[#3d5097]' : 'text-gray-900'}`}>
                         {type.name}
                       </h3>
                       <p className="text-sm text-gray-500 mt-1">{type.description}</p>
@@ -452,14 +452,14 @@ function Step3Content({ formData, onInputChange, onConnectFacebook, onToggleLead
                           key={form.id} 
                           className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-sm ${
                             isSelected 
-                              ? 'border-[#FE5B25]' 
+                              ? 'border-[#3d5097]' 
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                           onClick={() => onToggleLeadForm(form.id)}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className={`font-medium ${isSelected ? 'text-[#FE5B25]' : 'text-gray-900'}`}>
+                              <h3 className={`font-medium ${isSelected ? 'text-[#3d5097]' : 'text-gray-900'}`}>
                                 {form.name}
                               </h3>
                               <p className="text-sm text-gray-500">{form.leads} Leads verfügbar</p>
@@ -473,10 +473,10 @@ function Step3Content({ formData, onInputChange, onConnectFacebook, onToggleLead
                             </div>
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                               isSelected 
-                                ? 'border-[#FE5B25]' 
+                                ? 'border-[#3d5097]' 
                                 : 'border-gray-300'
                             }`}>
-                              {isSelected && <div className="w-3 h-3 bg-[#FE5B25] rounded-full"></div>}
+                              {isSelected && <div className="w-3 h-3 bg-[#3d5097] rounded-full"></div>}
                             </div>
                           </div>
                         </div>
@@ -575,7 +575,7 @@ function Step4Content({ formData, onInputChange, onConnectGoogle }: any) {
                         key={calendar.id} 
                         className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:shadow-sm ${
                           isSelected 
-                            ? 'border-[#FE5B25]' 
+                            ? 'border-[#3d5097]' 
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                         onClick={() => onInputChange("selectedCalendar", calendar.id)}
@@ -583,12 +583,12 @@ function Step4Content({ formData, onInputChange, onConnectGoogle }: any) {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              isSelected ? 'bg-[#FE5B25] text-white' : 'bg-gray-100 text-gray-600'
+                              isSelected ? 'bg-[#3d5097] text-white' : 'bg-gray-100 text-gray-600'
                             }`}>
                               <Calendar className="h-5 w-5" />
                             </div>
                             <div>
-                              <h3 className={`font-medium ${isSelected ? 'text-[#FE5B25]' : 'text-gray-900'}`}>
+                              <h3 className={`font-medium ${isSelected ? 'text-[#3d5097]' : 'text-gray-900'}`}>
                                 {calendar.name}
                               </h3>
                               <p className="text-sm text-gray-500">{calendar.events} Termine</p>
@@ -596,10 +596,10 @@ function Step4Content({ formData, onInputChange, onConnectGoogle }: any) {
                           </div>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                             isSelected 
-                              ? 'border-[#FE5B25]' 
+                              ? 'border-[#3d5097]' 
                               : 'border-gray-300'
                           }`}>
-                            {isSelected && <div className="w-3 h-3 bg-[#FE5B25] rounded-full"></div>}
+                            {isSelected && <div className="w-3 h-3 bg-[#3d5097] rounded-full"></div>}
                           </div>
                         </div>
                       </div>

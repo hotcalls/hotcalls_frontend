@@ -159,23 +159,23 @@ export default function Plans() {
             
             <ul className="space-y-3 text-sm text-left">
               <li className="flex items-center space-x-3">
-                <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                 <span>Inkl. 250 Minuten, dann 0,49€/Min.</span>
               </li>
               <li className="flex items-center space-x-3">
-                <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                 <span>Unbegrenzte Anzahl an Agenten</span>
               </li>
               <li className="flex items-center space-x-3">
-                <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                 <span>Automatisierte KI-Telefonate</span>
               </li>
               <li className="flex items-center space-x-3">
-                <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                 <span>Anbindung von Leadfunnels</span>
               </li>
               <li className="flex items-center space-x-3">
-                <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                 <span>Kalenderintegration</span>
               </li>
             </ul>
@@ -186,7 +186,7 @@ export default function Plans() {
               </p>
               <Button 
                 variant="outline" 
-                className="w-full h-12 text-[#FE5B25] border-[#FE5B25] hover:bg-[#FEF5F1]"
+                className="w-full h-12 text-[#3d5097] border-[#3d5097] hover:bg-white"
                 onClick={() => {
                   const startPlan = plans.find(p => p.plan_name === "Start");
                   if (startPlan) handlePlanChange(startPlan);
@@ -200,12 +200,12 @@ export default function Plans() {
         </Card>
 
         {/* Pro Plan */}
-        <Card className="relative border-2 border-[#FE5B25] bg-[#FEF5F1] shadow-lg scale-105">
+        <Card className="relative border-2 border-[#3d5097] bg-white shadow-lg scale-105">
           <CardContent className="p-8 text-center space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-2xl font-bold text-gray-900 text-left">Pro</h3>
-                <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
+                <span className="border border-[#3d5097] text-[#3d5097] bg-white text-xs px-2 py-1 rounded-md">
                   Am beliebtesten
                 </span>
               </div>
@@ -220,19 +220,19 @@ export default function Plans() {
               <p className="text-sm font-medium text-gray-700 mb-3">Alle Start-Features plus:</p>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>Inkl. 1000 Minuten, dann 0,29€/Min.</span>
                 </li>
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>CSV-Upload</span>
                 </li>
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>CRM Integration</span>
                 </li>
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>Persönliches Onboarding</span>
                 </li>
               </ul>
@@ -243,12 +243,12 @@ export default function Plans() {
                 Jederzeit kündbar. Wir erinnern dich rechtzeitig vor Ablauf der Testphase.
               </p>
               {currentPlan === "Pro" ? (
-                <Button className="w-full h-12 bg-[#FE5B25] hover:bg-[#E5501F] text-white" disabled>
+                <Button className="w-full h-12 bg-[#3d5097] hover:bg-[#3d5097] text-white" disabled>
                   Aktueller Plan
                 </Button>
               ) : (
                 <Button 
-                  className="w-full h-12 bg-[#FE5B25] hover:bg-[#E5501F] text-white"
+                  className="w-full h-12 bg-[#3d5097] hover:bg-[#3d5097] text-white"
                   onClick={() => {
                     const proPlan = plans.find(p => (p as any).plan_name === "Pro");
                     if (proPlan) handlePlanChange(proPlan);
@@ -278,15 +278,15 @@ export default function Plans() {
               <p className="text-sm font-medium text-gray-700 mb-3">Alle Pro-Features plus:</p>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>Individuelle Minutenpreise</span>
                 </li>
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>Individuelle Integrationen & Funktionen</span>
                 </li>
                 <li className="flex items-center space-x-3">
-                  <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                  <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                   <span>Priorisierter Support</span>
                 </li>
               </ul>
@@ -298,7 +298,7 @@ export default function Plans() {
               </p>
               <Button 
                 variant="outline" 
-                className="w-full h-12 text-[#FE5B25] border-[#FE5B25] hover:bg-[#FEF5F1]"
+                className="w-full h-12 text-[#3d5097] border-[#3d5097] hover:bg-white"
               >
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Gespräch vereinbaren
@@ -325,7 +325,7 @@ export default function Plans() {
                  <tr className="border-b">
                    <th className="text-left p-4 font-medium">Feature</th>
                    <th className="text-center p-4 font-medium">Start</th>
-                   <th className="text-center p-4 font-medium bg-[#FEF5F1]">Pro</th>
+                   <th className="text-center p-4 font-medium bg-white">Pro</th>
                    <th className="text-center p-4 font-medium">Scale</th>
                  </tr>
                </thead>
@@ -337,19 +337,19 @@ export default function Plans() {
                 <tr className="border-b">
                   <td className="p-4">Monatliche Gebühr</td>
                   <td className="text-center p-4">199€</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">549€</td>
+                  <td className="text-center p-4 bg-white">549€</td>
                   <td className="text-center p-4">ab 1490€</td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Inkludierte Minuten pro Monat</td>
                   <td className="text-center p-4">250</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">1000</td>
+                  <td className="text-center p-4 bg-white">1000</td>
                   <td className="text-center p-4">Individuell</td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Extra Minuten</td>
                   <td className="text-center p-4">ab 0,49€/Min.</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">ab 0,29€/Min.</td>
+                  <td className="text-center p-4 bg-white">ab 0,29€/Min.</td>
                   <td className="text-center p-4">Individuell</td>
                 </tr>
                 
@@ -360,13 +360,13 @@ export default function Plans() {
                 <tr className="border-b">
                   <td className="p-4">Max User</td>
                   <td className="text-center p-4">1</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">5</td>
+                  <td className="text-center p-4 bg-white">5</td>
                   <td className="text-center p-4">Unlimited</td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Max aktive Agenten</td>
                   <td className="text-center p-4">3</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">12</td>
+                  <td className="text-center p-4 bg-white">12</td>
                   <td className="text-center p-4">Unlimited</td>
                 </tr>
 
@@ -376,27 +376,27 @@ export default function Plans() {
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Sofortanruf bei neuen Leads</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Verhalten des Agenten anpassbar</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Terminbuchung mit Lead</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Smarte Anruflogik</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
 
                 {/* Appfunktionen */}
@@ -405,21 +405,21 @@ export default function Plans() {
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Anrufhistorie einsehen</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Analytics & Gesprächsauswertung</td>
                   <td className="text-center p-4">Basic</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Wissensdatenbank</td>
                   <td className="text-center p-4">—</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
 
                 {/* Integrationen */}
@@ -428,20 +428,20 @@ export default function Plans() {
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Kalenderanbindung</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">CSV Upload</td>
                   <td className="text-center p-4">—</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Individuelle Systemanbindungen</td>
                   <td className="text-center p-4">—</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">Auf Anfrage</td>
+                  <td className="text-center p-4 bg-white">Auf Anfrage</td>
                   <td className="text-center p-4">Auf Anfrage</td>
                 </tr>
 
@@ -451,21 +451,21 @@ export default function Plans() {
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Chat-Support</td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Onboarding</td>
                   <td className="text-center p-4">Eigenständig</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]">Erste 30 Tage</td>
+                  <td className="text-center p-4 bg-white">Erste 30 Tage</td>
                   <td className="text-center p-4">Inbegriffen</td>
                 </tr>
                 <tr className="border-b">
                   <td className="p-4">Unterstützung bei Agentenkonfiguration</td>
                   <td className="text-center p-4">—</td>
-                  <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                  <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                  <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                 </tr>
               </tbody>
             </table>

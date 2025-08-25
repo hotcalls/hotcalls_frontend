@@ -91,11 +91,11 @@ export default function AgentConfig() {
     }
   }, []);
 
-  // Load Event Types and Lead Forms when component mounts
+  // Load Event Types and Lead Forms when workspace is available
   useEffect(() => {
     loadEventTypes();
     loadLeadForms();
-  }, []);
+  }, [primaryWorkspace?.id]);
 
   // Log when voices are loaded
   useEffect(() => {
@@ -196,13 +196,28 @@ export default function AgentConfig() {
     }
   };
 
-  // Load Lead Funnels from Funnel API  
+  // Load Lead Funnels from Funnel API (including CSV Sources)
   const loadLeadForms = async () => {
     setIsLoadingLeadForms(true);
     try {
-      const leadFunnelsData = await funnelAPI.getLeadFunnels();
-      setAvailableLeadForms(leadFunnelsData || []);
-      console.log(`✅ Loaded ${leadFunnelsData?.length || 0} Lead Funnels for Agent Config`);
+      const leadFunnelsData = await funnelAPI.getLeadFunnels({
+        workspace: primaryWorkspace?.id
+      });
+      
+      // Format all funnels (Meta + CSV) for the dropdown
+      const formattedForms = (leadFunnelsData || []).map(funnel => ({
+        id: funnel.id,
+        name: funnel.name,
+        meta_form_id: funnel.meta_lead_form?.meta_form_id || null,
+        source_type_display: funnel.meta_lead_form ? 'Meta Lead Ads' : 'CSV Import',
+        is_csv: !funnel.meta_lead_form && !funnel.webhook_source // CSV if no meta or webhook
+      }));
+      
+      setAvailableLeadForms(formattedForms);
+      console.log(`✅ Loaded ${formattedForms.length} Lead Sources for Agent Config:`, {
+        meta: formattedForms.filter(f => !f.is_csv).length,
+        csv: formattedForms.filter(f => f.is_csv).length
+      });
     } catch (error) {
       console.error('❌ Error loading Lead Funnels in Agent Config:', error);
       setAvailableLeadForms([]);
@@ -250,7 +265,7 @@ export default function AgentConfig() {
     requestAnimationFrame(() => el.setSelectionRange(start + token.length, start + token.length));
   };
 
-  const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-gradient-to-br from-[#FE7A2B] to-[#FE5B25] shadow-sm hover:from-[#FE6A2F] hover:to-[#E14A12] transition";
+  const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-[#3d5097] shadow-sm transition";
   const formatBytes = (bytes: number): string => {
     if (!bytes && bytes !== 0) return "-";
     const sizes = ["B", "KB", "MB", "GB"];
@@ -412,11 +427,17 @@ export default function AgentConfig() {
           retry_interval: agentData.retry_interval
         });
         
-        // Load the funnel ID that's assigned to this agent
+        // Load the funnel ID that's assigned to this agent (normalize to string ID)
         let assignedFunnelId = "";
-        if (agentData.lead_funnel) {
-          // Backend returns funnel ID (string). Store directly.
-          assignedFunnelId = agentData.lead_funnel as unknown as string;
+        const lf: any = (agentData as any).lead_funnel;
+        if (typeof lf === 'string') {
+          assignedFunnelId = lf;
+        } else if (lf && typeof lf === 'object' && lf.id) {
+          assignedFunnelId = lf.id as string;
+        } else if ((agentData as any).lead_funnel_id) {
+          assignedFunnelId = (agentData as any).lead_funnel_id as string;
+        }
+        if (assignedFunnelId) {
           console.log('📋 Agent has assigned funnel ID:', assignedFunnelId);
         }
         
@@ -515,9 +536,8 @@ export default function AgentConfig() {
       
       // Filter funnels that match selected lead forms
       const matchingFunnels = funnels.filter(funnel => {
-        // Match by MetaLeadForm primary ID (not meta_form_id)
-        return funnel.meta_lead_form &&
-               selectedLeadForms.includes(funnel.meta_lead_form.id);
+        // Match by funnel ID directly (works for both Meta and CSV funnels)
+        return selectedLeadForms.includes(funnel.id);
       });
       
       const funnelIds = matchingFunnels.map(funnel => funnel.id);
@@ -527,6 +547,7 @@ export default function AgentConfig() {
         matchingFunnels: matchingFunnels.map(f => ({
           id: f.id,
           name: f.name,
+          type: f.meta_lead_form ? 'Meta' : 'CSV',
           meta_form_id: f.meta_lead_form?.meta_form_id
         })),
         funnelIds
@@ -736,7 +757,13 @@ export default function AgentConfig() {
         console.log('🔗 Agent saved successfully, starting funnel assignment...');
         // The selectedLeadForm is actually a funnel ID from the lead-funnels API
         // This runs in background - no user error messages on failure
-        handleFunnelAssignment([config.selectedLeadForm], agentId);
+        await handleFunnelAssignment([config.selectedLeadForm], agentId);
+        // Refresh agent to reflect updated assignment in the UI
+        try {
+          const refreshed = await agentAPI.getAgent(agentId);
+          const refreshedFunnelId = (refreshed as any).lead_funnel || (refreshed as any).lead_funnel_id || (refreshed as any).lead_funnel?.id || "";
+          setConfig(prev => ({ ...prev, selectedLeadForm: refreshedFunnelId }));
+        } catch {}
       } else {
         console.log('ℹ️ No lead funnel selected, skipping funnel assignment');
       }
@@ -1008,7 +1035,7 @@ export default function AgentConfig() {
               onClick={() => setActiveTab("personality")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "personality"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -1023,7 +1050,7 @@ export default function AgentConfig() {
               onClick={() => setActiveTab("knowledge")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "knowledge"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -1038,7 +1065,7 @@ export default function AgentConfig() {
               onClick={() => setActiveTab("script")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "script"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -1053,7 +1080,7 @@ export default function AgentConfig() {
               onClick={() => setActiveTab("logic")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "logic"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -1068,7 +1095,7 @@ export default function AgentConfig() {
               onClick={() => setActiveTab("integrations")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "integrations"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -1091,7 +1118,7 @@ export default function AgentConfig() {
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleKBDrop}
-                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#FE5B25] transition"
+                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#3d5097] transition"
               >
                 <p className="text-sm text-gray-600">PDF only, max 20 MB – each agent can have one document</p>
                 <div className="mt-3 flex items-center gap-3">
@@ -1297,7 +1324,7 @@ export default function AgentConfig() {
                           <button
                             className={`w-full py-2 px-3 rounded border text-sm font-medium mt-auto ${
                               isSelected
-                                ? "bg-[#FEF5F1] text-[#FE5B25] border-[#FE5B25]" 
+                                ? "bg-white text-[#3d5097] border-[#3d5097]" 
                                 : "border-gray-300 text-gray-700 hover:bg-gray-50"
                             }`}
                             onClick={() => setConfig(prev => ({ 
@@ -1370,10 +1397,10 @@ export default function AgentConfig() {
               <div className="mb-3"
                    onDragOver={(e) => e.preventDefault()}
               >
-                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Available variables</div>
+                <div className="text-sm font-medium" style={{color: '#3d5097'}}>Available variables</div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {funnelVariables.length === 0 ? (
-                    <span className="text-xs text-gray-500">Select a lead source to see variables</span>
+                    <span className="text-xs text-gray-500">Select a CSV lead source to see variables</span>
                   ) : (
                     funnelVariables.map(v => (
                       <span
@@ -1393,6 +1420,24 @@ export default function AgentConfig() {
                 </div>
               </div>
               <div>
+                <Label htmlFor="greeting">Greeting</Label>
+                <Textarea
+                  id="greeting"
+                  value={(config.incomingGreeting || config.outgoingGreeting) || ""}
+                  onChange={(e) => setConfig(prev => ({ ...prev, incomingGreeting: e.target.value, outgoingGreeting: e.target.value }))}
+                  onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const token = e.dataTransfer.getData('text/plain');
+                    const apply = (val: string) => setConfig(prev => ({...prev, incomingGreeting: val, outgoingGreeting: val}));
+                    insertTokenAtCursor(token, apply, (config.incomingGreeting || config.outgoingGreeting || ''));
+                  }}
+                  placeholder="How should the agent greet the caller?"
+                  rows={3}
+                />
+              </div>
+
+              <div className="mt-6">
                 <Label htmlFor="script">Script</Label>
                 <Textarea
                   id="script"
@@ -1408,40 +1453,6 @@ export default function AgentConfig() {
                   placeholder="Write the conversation script here..."
                   className="min-h-[300px]"
                 />
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div>
-                    <Label htmlFor="outgoingGreeting">Greeting (outbound calls)</Label>
-                    <Textarea
-                      id="outgoingGreeting"
-                      value={config.outgoingGreeting || ""}
-                      onChange={(e) => setConfig(prev => ({ ...prev, outgoingGreeting: e.target.value }))}
-                      onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const token = e.dataTransfer.getData('text/plain');
-                        insertTokenAtCursor(token, val => setConfig(prev => ({...prev, outgoingGreeting: val})), config.outgoingGreeting || '');
-                      }}
-                      placeholder="How should the agent start outbound calls?"
-                      rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="incomingGreeting">Greeting (inbound calls)</Label>
-                    <Textarea
-                      id="incomingGreeting"
-                      value={config.incomingGreeting || ""}
-                      onChange={(e) => setConfig(prev => ({ ...prev, incomingGreeting: e.target.value }))}
-                      onFocus={(e) => { lastFocusedTextarea.current = e.currentTarget; }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const token = e.dataTransfer.getData('text/plain');
-                        insertTokenAtCursor(token, val => setConfig(prev => ({...prev, incomingGreeting: val})), config.incomingGreeting || '');
-                      }}
-                      placeholder="How should the agent start inbound calls?"
-                      rows={3}
-                    />
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -1505,7 +1516,7 @@ export default function AgentConfig() {
                         key={day}
                         className={`w-10 h-10 rounded-full border text-sm font-medium ${
                           config.workingDays?.[index] 
-                            ? "bg-[#FEF5F1] text-[#FE5B25] border-gray-300" 
+                            ? "bg-white text-[#3d5097] border-gray-300" 
                             : "border-gray-300 text-gray-700 hover:bg-gray-50"
                         }`}
                         onClick={() => 
@@ -1572,7 +1583,7 @@ export default function AgentConfig() {
                     <p className="text-xs text-gray-500">
                       Manage event types in the <button 
                         onClick={() => navigate('/dashboard/calendar')}
-                        className="text-[#FE5B25] hover:underline"
+                        className="text-[#3d5097] hover:underline"
                       >
                         calendar section
                       </button>.
@@ -1607,11 +1618,11 @@ export default function AgentConfig() {
 
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Lead sources</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>CSV Lead sources</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="leadForm">Lead source for outbound calls</Label>
+                <Label htmlFor="leadForm">CSV lead source for outbound calls</Label>
                 {isLoadingLeadForms ? (
                   <Select disabled>
                     <SelectTrigger>
@@ -1622,40 +1633,45 @@ export default function AgentConfig() {
                   <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="No lead forms available" />
+                        <SelectValue placeholder="No CSV leads available" />
                       </SelectTrigger>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Manage lead forms in the <button 
-                        onClick={() => navigate('/dashboard/lead-sources')}
-                        className="text-[#FE5B25] hover:underline"
+                      Upload CSV leads in the <button 
+                        onClick={() => navigate('/dashboard/lead-sources?open=csv')}
+                        className="text-[#3d5097] hover:underline"
                       >
-                        lead sources section
+                        CSV upload
                       </button>.
                     </p>
                   </div>
                 ) : (
-                  <Select 
-                    value={config.selectedLeadForm || "none"} 
-                    onValueChange={(value) => {
-                      setConfig(prev => ({ 
-                        ...prev, 
-                        selectedLeadForm: value === "none" ? "" : value
-                      }));
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select lead source (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No lead source</SelectItem>
-                      {availableLeadForms.map((form) => (
-                        <SelectItem key={form.id} value={form.id}>
-                          {form.name || form.meta_form_id} - {form.source_type_display || 'Meta Lead Ads'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <Select 
+                      value={config.selectedLeadForm || "none"} 
+                      onValueChange={(value) => {
+                        setConfig(prev => ({ 
+                          ...prev, 
+                          selectedLeadForm: value === "none" ? "" : value
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select CSV lead source (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No lead source connected</SelectItem>
+                        {availableLeadForms.map((form) => (
+                          <SelectItem key={form.id} value={form.id}>
+                            <div className="flex items-center gap-2">
+                              <img src="/csv icon.png" alt="CSV" className="w-4 h-4 object-contain" />
+                              <span>{form.name || form.meta_form_id} - {form.source_type_display || 'CSV Import'}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </>
                 )}
               </div>
             </CardContent>

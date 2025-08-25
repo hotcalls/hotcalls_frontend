@@ -1006,7 +1006,7 @@ export const callAPI = {
   /**
    * Get date-filtered call logs for appointments
    */
-  async getCallLogsInDateRange(startDate: string, endDate: string, status?: string): Promise<CallLogsListResponse> {
+  async getCallLogsInDateRange(startDate: string, endDate: string, status?: string, agent__workspace?: string): Promise<CallLogsListResponse> {
     console.log(`📅 GET /api/calls/call-logs/ (date range: ${startDate} to ${endDate}) - Getting calls in date range`);
     
     try {
@@ -1018,6 +1018,9 @@ export const callAPI = {
       
       if (status) {
         params.status = status;
+      }
+      if (agent__workspace) {
+        params.agent__workspace = agent__workspace;
       }
       
       return await this.getCallLogs(params);
@@ -2279,7 +2282,7 @@ export const chartAPI = {
   /**
    * Generate real chart data by combining multiple API sources
    */
-  async generateRealChartData(dateRange: {from: Date, to: Date}): Promise<ChartDataPoint[]> {
+  async generateRealChartData(dateRange: {from: Date, to: Date}, workspaceId?: string): Promise<ChartDataPoint[]> {
     console.log('📊 Generating real chart data for date range:', dateRange);
     
     try {
@@ -2291,10 +2294,10 @@ export const chartAPI = {
       
       if (isSingleDay) {
         console.log('📊 Single day detected - generating hourly real data');
-        return await this.generateSingleDayHourlyData(dateRange.from);
+        return await this.generateSingleDayHourlyData(dateRange.from, workspaceId);
       } else {
         console.log('📊 Multi day detected - generating daily real data');
-        return await this.generateMultiDayData(dateRange);
+        return await this.generateMultiDayData(dateRange, workspaceId);
       }
     } catch (error) {
       console.error('❌ Error generating real chart data:', error);
@@ -2307,7 +2310,7 @@ export const chartAPI = {
   /**
    * Generate hourly data for a single day using real call logs
    */
-  async generateSingleDayHourlyData(date: Date): Promise<ChartDataPoint[]> {
+  async generateSingleDayHourlyData(date: Date, workspaceId?: string): Promise<ChartDataPoint[]> {
     try {
       // Set start and end of the selected day
       const startOfDay = new Date(date);
@@ -2318,7 +2321,9 @@ export const chartAPI = {
       // Get all call logs for this specific day
       const callLogs = await callAPI.getCallLogsInDateRange(
         startOfDay.toISOString(),
-        endOfDay.toISOString()
+        endOfDay.toISOString(),
+        undefined,
+        workspaceId
       );
 
       // Get leads created on this day
@@ -2399,7 +2404,7 @@ export const chartAPI = {
   /**
    * Generate daily data for multi-day ranges (existing logic)
    */
-  async generateMultiDayData(dateRange: {from: Date, to: Date}): Promise<ChartDataPoint[]> {
+  async generateMultiDayData(dateRange: {from: Date, to: Date}, workspaceId?: string): Promise<ChartDataPoint[]> {
     // Set proper start and end times for the date range
     const startOfRange = new Date(dateRange.from);
     startOfRange.setHours(0, 0, 0, 0);
@@ -2410,13 +2415,14 @@ export const chartAPI = {
     const totalDays = Math.ceil((endOfRange.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     // Get daily call statistics
-    const dailyStats = await callAPI.getDailyStats(totalDays);
+    const dailyStats = await callAPI.getDailyStats(totalDays, { agent__workspace: workspaceId });
     
     // Get appointment calls in date range
     const appointmentCalls = await callAPI.getCallLogsInDateRange(
       startOfRange.toISOString(), 
       endOfRange.toISOString(), 
-      'appointment_scheduled'
+      'appointment_scheduled',
+      workspaceId
     );
     
     // Get all leads in date range (to calculate daily lead creation)  

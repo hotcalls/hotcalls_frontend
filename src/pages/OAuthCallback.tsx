@@ -122,7 +122,7 @@ export default function OAuthCallback() {
             <div className="text-center space-y-4">
               {status === 'processing' && (
                 <>
-                  <Loader2 className="h-12 w-12 animate-spin text-[#FE5B25] mx-auto" />
+                  <Loader2 className="h-12 w-12 animate-spin text-[#3d5097] mx-auto" />
                   <div>
                     <h3 className={textStyles.sectionTitle}>{message}</h3>
                     <p className={textStyles.cardSubtitle}>Bitte warten...</p>

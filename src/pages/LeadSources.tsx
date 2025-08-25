@@ -8,7 +8,11 @@ import { Plus, Facebook, Globe, Linkedin, Webhook, Trash2, Play, Pause, Loader2,
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { metaAPI, webhookAPI, funnelAPI } from "@/lib/apiService";
+import { metaAPI, webhookAPI, funnelAPI, agentAPI, callAPI } from "@/lib/apiService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarUI } from "@/components/ui/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
 import React from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +59,7 @@ export default function LeadSources() {
   const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
   const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
   const [csvFunnels, setCsvFunnels] = useState<LeadFunnel[]>([]);
+  const [useDemoCsv, setUseDemoCsv] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCsvStep, setIsCsvStep] = useState(false);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
@@ -80,6 +85,18 @@ export default function LeadSources() {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [rotatingTokenId, setRotatingTokenId] = useState<string | null>(null);
   const [togglingFunnelId, setTogglingFunnelId] = useState<string | null>(null);
+  const [deleteConfirmFunnelId, setDeleteConfirmFunnelId] = useState<string | null>(null);
+  const [deletingFunnelId, setDeletingFunnelId] = useState<string | null>(null);
+  // Schedule calls dialog state
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleFunnelId, setScheduleFunnelId] = useState<string | null>(null);
+  const [scheduleAgents, setScheduleAgents] = useState<any[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [scheduleMode, setScheduleMode] = useState<'now'|'later'>("now");
+  const [scheduleAt, setScheduleAt] = useState<string>("");
+  const [isScheduling, setIsScheduling] = useState(false);
+  // Minimal stats per CSV funnel: lead count + variable keys
+  const [csvStatsByFunnel, setCsvStatsByFunnel] = useState<Record<string, { count: number; variables: string[] }>>({});
   const navigate = useNavigate();
   const { workspaceDetails } = useWorkspace();
   const { toast } = useToast();
@@ -110,30 +127,18 @@ export default function LeadSources() {
         setMetaIntegrations([]);
       }
 
-      // Handle Webhook sources
-      if (webhookSourcesResult.status === 'fulfilled') {
-        const sources = webhookSourcesResult.value;
-        if (Array.isArray(sources)) {
-          setWebhookSources(sources);
-          console.log(`✅ Loaded ${sources.length} webhook sources`);
-        } else if (sources?.results && Array.isArray(sources.results)) {
-          setWebhookSources(sources.results);
-          console.log(`✅ Loaded ${sources.results.length} webhook sources`);
-        } else {
-          setWebhookSources([]);
-        }
-      } else {
-        console.error('❌ Error loading webhook sources:', webhookSourcesResult.reason);
+      // Handle Webhook sources - disabled for CSV-only mode
         setWebhookSources([]);
-      }
 
       // Handle CSV funnels (filter out Meta and Webhook based funnels)
       if (funnelsResult.status === 'fulfilled') {
         const allFunnels = (funnelsResult.value as any[]) || [];
         const csvOnly = allFunnels.filter((f: any) => !f.meta_lead_form && !f.webhook_source);
         setCsvFunnels(csvOnly);
+        setUseDemoCsv(csvOnly.length === 0);
       } else {
         setCsvFunnels([]);
+        setUseDemoCsv(true);
       }
     } catch (error) {
       console.error('❌ Unexpected error loading sources:', error);
@@ -146,6 +151,95 @@ export default function LeadSources() {
       console.log('🏁 All sources loading completed');
     }
   }, [workspaceDetails?.id]);
+
+  // Load minimal stats for a CSV funnel via API
+  const loadCsvFunnelStats = useCallback(async (funnelId: string) => {
+    if (!workspaceDetails?.id) return;
+    try {
+      // 1) Variables defined for this funnel via API (authoritative)
+      let variableKeys: string[] = [];
+      try {
+        const vars = await funnelAPI.getFunnelVariables(funnelId);
+        variableKeys = Array.isArray(vars) ? vars.map((v: any) => v.key) : [];
+      } catch (e) {
+        console.error('⚠️ Funnel variables API error', e);
+      }
+
+      // 2) Lead count for this funnel
+      let page = 1; let total = 0; const PAGE_SIZE = 100; const MAX_PAGES = 50;
+      while (page <= MAX_PAGES) {
+        const resp: any = await leadAPI.getLeads({ page, page_size: PAGE_SIZE, workspace: workspaceDetails.id, ordering: '-created_at' } as any);
+        const results: any[] = resp?.results || [];
+        if (results.length === 0) break;
+        total += results.filter((l: any) => (l.lead_funnel?.id === funnelId) || (l.lead_funnel === funnelId)).length;
+        if (!resp.next) break; page += 1;
+      }
+
+      // No inference fallback: show only API-provided variables to keep it authoritative
+
+      setCsvStatsByFunnel(prev => ({ ...prev, [funnelId]: { count: total, variables: variableKeys } }));
+    } catch {}
+  }, [workspaceDetails?.id]);
+
+  // Refresh stats whenever CSV funnels change
+  useEffect(() => {
+    if (Array.isArray(csvFunnels) && csvFunnels.length > 0) {
+      Promise.all(csvFunnels.map((f: any) => loadCsvFunnelStats(f.id))).catch(() => {});
+    }
+  }, [csvFunnels, loadCsvFunnelStats]);
+
+  const openScheduleDialog = async (funnelId: string) => {
+    setScheduleFunnelId(funnelId);
+    setScheduleOpen(true);
+    try {
+      const agents = await agentAPI.getAgents(workspaceDetails?.id);
+      setScheduleAgents(Array.isArray(agents) ? agents : []);
+      if (Array.isArray(agents) && agents.length > 0) {
+        const first = agents[0];
+        setSelectedAgentId(first.agent_id);
+      }
+    } catch (e) {
+      console.error('❌ Failed to load agents:', e);
+      setScheduleAgents([]);
+    }
+  };
+
+  const scheduleCallsForFunnel = async () => {
+    if (!scheduleFunnelId || !selectedAgentId || !workspaceDetails?.id) return;
+    setIsScheduling(true);
+    try {
+      // collect all leads for this funnel
+      let page = 1; const ids: string[] = []; const MAX = 5000;
+      while (ids.length < MAX) {
+        const resp: any = await leadAPI.getLeads({ page, page_size: 100, workspace: workspaceDetails.id, ordering: '-created_at' } as any);
+        const results: any[] = resp?.results || [];
+        if (results.length === 0) break;
+        results.filter((l: any) => (l.lead_funnel?.id === scheduleFunnelId) || (l.lead_funnel === scheduleFunnelId))
+               .forEach((l: any) => ids.push(l.id));
+        if (!resp.next) break; page += 1;
+      }
+      if (ids.length === 0) {
+        toast({ title: 'No leads found', description: 'This CSV source has no leads to call yet.' });
+        setIsScheduling(false);
+        return;
+      }
+      // optional next_call time
+      const nextCall = scheduleMode === 'later' && scheduleAt ? scheduleAt : undefined;
+      for (let i = 0; i < ids.length; i += 25) {
+        const slice = ids.slice(i, i + 25);
+        await Promise.all(slice.map(async (id) => {
+          try { await callAPI.createTask({ workspace: workspaceDetails.id, agent: selectedAgentId, target_ref: `lead:${id}`, ...(nextCall ? { next_call: nextCall } : {}) }); } catch {}
+        }));
+      }
+      setScheduleOpen(false);
+      toast({ title: 'Calls scheduled', description: `${ids.length} leads queued for calling.` });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Could not schedule calls.', variant: 'destructive' });
+    } finally {
+      setIsScheduling(false);
+    }
+  };
 
   const handleAddLeadSource = async (type: string) => {
     if (type === "Meta") {
@@ -206,6 +300,22 @@ export default function LeadSources() {
     } finally {
       setIsCreatingWebhook(false);
     }
+  };
+
+  // Populate state with a demo CSV of 20 leads
+  const populateDemoCsv = () => {
+    const demoRows: Record<string, any>[] = Array.from({ length: 20 }).map((_, idx) => {
+      const id = idx + 1;
+      return {
+        name: `Demo${id}`,
+        surname: `User${id}`,
+        email: `demo${id}@example.com`,
+        phone: `+4915123456${String(id).padStart(2,'0')}`,
+      };
+    });
+    setCsvParsedRows(demoRows);
+    setCsvParseInfo({ delimiter: ',', header: ['name','surname','email','phone'], filename: 'demo.csv' });
+    setCsvImportResult(null);
   };
 
   const copyToClipboard = async (text: string) => {
@@ -348,6 +458,17 @@ export default function LeadSources() {
     }
   }, [loadAllSources]);
 
+  // If linked with ?open=csv, open dialog directly on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open') === 'csv') {
+      setIsAddDialogOpen(true);
+      setIsCsvStep(true);
+      // Show demo data immediately
+      populateDemoCsv();
+    }
+  }, []);
+
   return (
     <div className={layoutStyles.pageContainer}>
       {/* Success Message */}
@@ -365,99 +486,45 @@ export default function LeadSources() {
       <div className={layoutStyles.pageHeader}>
         <div>
           <h1 className={textStyles.pageTitle}>Lead sources</h1>
-          <p className={textStyles.pageSubtitle}>Manage your lead channels and integrations</p>
+          <p className={textStyles.pageSubtitle}>Upload and manage your CSV leads</p>
         </div>
         
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) {
+            // Reset CSV step when dialog closes
+            setIsCsvStep(false);
+            setCsvImportResult(null);
+            setCsvParsedRows([]);
+            setCsvParseInfo(null);
+          }
+        }}>
           <DialogTrigger asChild>
-            <button className={buttonStyles.create.default}>
+            <button 
+              className={buttonStyles.create.default}
+              onClick={() => {
+                setIsAddDialogOpen(true);
+                setIsCsvStep(true);  // Direkt zum CSV Upload
+              }}
+            >
               <Plus className={iconSizes.small} />
-              <span>Add lead source</span>
+              <span>CSV Upload</span>
             </button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Add lead source</DialogTitle>
+              <DialogTitle>CSV Upload</DialogTitle>
               <DialogDescription>
-                Choose a lead source to connect with your agents.
+                Upload your leads via CSV file.
               </DialogDescription>
             </DialogHeader>
-            {!isWebhookNameStep && !isCsvStep ? (
-              <div className="grid gap-4 py-4">
-                {/* Meta */}
-                <button
-                  onClick={() => handleAddLeadSource("Meta")}
-                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
-                >
-                  <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-[#FFE1D7]">
-                    <Facebook className={`${iconSizes.large} text-blue-600 group-hover:text-[#FE5B25]`} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="font-medium">Meta Lead Ads</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Connect your Facebook and Instagram lead forms
-                    </p>
-                  </div>
-                </button>
-
-                {/* Webhook */}
-                <button
-                  onClick={() => handleAddLeadSource("Webhook")}
-                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
-                >
-                  <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#FFE1D7]">
-                    <Webhook className={`${iconSizes.large} text-gray-700 group-hover:text-[#FE5B25]`} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="font-medium">Webhook</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Connect your website or systems via webhook
-                    </p>
-                  </div>
-                </button>
-
-                {/* CSV Import */}
-                <button
-                  onClick={() => handleAddLeadSource("CSV")}
-                  className="flex items-center space-x-4 p-4 border-2 border-gray-200 rounded-lg hover:bg-[#FEF5F1] hover:border-gray-300 transition-all group"
-                >
-                  <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-[#FFE1D7]">
-                    <Globe className={`${iconSizes.large} text-gray-700 group-hover:text-[#FE5B25]`} />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <h3 className="font-medium">CSV Import</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload CSV: first name, last name, email, phone. Extra columns become variables.
-                    </p>
-                  </div>
-                </button>
-              </div>
-            ) : isWebhookNameStep ? (
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Connect webhook via onboarding</h4>
-                  <p className="text-sm text-muted-foreground">
-                    To connect your website or external systems via webhook, please book a short call. Our expert will help you set it up correctly.
-                  </p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" onClick={() => { setIsWebhookNameStep(false); setWebhookName(""); }}>Back</Button>
-                  <a
-                    href="https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Button>Book a call</Button>
-                  </a>
-                </div>
-              </div>
-            ) : (
+            {isCsvStep && (
               // CSV Step
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Upload CSV</h4>
                   <p className="text-sm text-muted-foreground">
-                    Required columns: first name, last name, email, phone. Extra columns are captured as variables.
+                    Required columns: name, surname, email, phone. Extra columns are captured as variables.
                   </p>
                 </div>
 
@@ -469,6 +536,7 @@ export default function LeadSources() {
                         setCsvParsedRows(rows);
                         setCsvParseInfo(info);
                         setCsvImportResult(null);
+                        // reset demo indicator if any (no-op now)
                       }}
                     />
 
@@ -480,6 +548,25 @@ export default function LeadSources() {
                           {csvParsedRows.length > 10000 && (
                             <div className="mt-2 text-red-600">Maximum 10,000 rows per CSV.</div>
                           )}
+                        </div>
+                        {/* Variables from API for this funnel after import (authoritative) */}
+                        <div className="p-3 bg-gray-50 rounded border border-gray-200">
+                          <div className="font-medium mb-1">Detected variables</div>
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              // Try to show API variables for latest created/updated CSV funnel
+                              const latestCsv = (csvFunnels[0]?.id) as string | undefined;
+                              const apiVars = latestCsv ? (csvStatsByFunnel[latestCsv]?.variables || []) : [];
+                              if (apiVars.length === 0) {
+                                return <span className="text-xs text-gray-500">Will appear after import</span>;
+                              }
+                              return apiVars.map((v: string) => (
+                                <span key={v} className="px-2 py-1 text-xs rounded-full bg-white border">
+                                  {v}
+                                </span>
+                              ));
+                            })()}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -501,7 +588,13 @@ export default function LeadSources() {
                 )}
 
                 <div className="flex items-center justify-between pt-2 gap-2">
-                  <Button variant="outline" onClick={() => { setIsCsvStep(false); setCsvImportResult(null); setCsvParsedRows([]); }}>Back</Button>
+                  <Button variant="outline" onClick={() => { 
+                    setIsCsvStep(false); 
+                    setCsvImportResult(null); 
+                    setCsvParsedRows([]);
+                    setCsvParseInfo(null);
+                    setIsAddDialogOpen(false);
+                  }}>Close</Button>
                   {!csvImportResult && (
                     <div className="ml-auto flex gap-2">
                       <Button
@@ -512,7 +605,32 @@ export default function LeadSources() {
                           if (csvParsedRows.length > 10000) { toast({ title: 'Limit reached', description: 'Maximum 10,000 rows per CSV allowed.', variant: 'destructive' }); return; }
                           try {
                             setIsUploadingCsv(true);
-                            const res = await leadAPI.bulkCreateLeads(csvParsedRows as any);
+                            
+                            // Map common column names to expected backend fields
+                            const mappedRows = csvParsedRows.map(row => {
+                              const mappedRow: any = {};
+                              Object.keys(row).forEach(key => {
+                                const lowerKey = key.toLowerCase().trim();
+                                if (lowerKey === 'first name' || lowerKey === 'firstname' || lowerKey === 'vorname') {
+                                  mappedRow.name = row[key];
+                                } else if (lowerKey === 'last name' || lowerKey === 'lastname' || lowerKey === 'nachname' || lowerKey === 'surname') {
+                                  mappedRow.surname = row[key];
+                                } else if (lowerKey === 'email' || lowerKey === 'e-mail') {
+                                  mappedRow.email = row[key];
+                                } else if (lowerKey === 'phone' || lowerKey === 'telefon' || lowerKey === 'mobile' || lowerKey === 'tel') {
+                                  mappedRow.phone = row[key];
+                                } else if (lowerKey === 'name') {
+                                  mappedRow.name = row[key];
+                                } else {
+                                  // Other columns go to meta_data
+                                  if (!mappedRow.meta_data) mappedRow.meta_data = {};
+                                  mappedRow.meta_data[key] = row[key];
+                                }
+                              });
+                              return mappedRow;
+                            });
+                            
+                            const res = await leadAPI.bulkCreateLeads(mappedRows);
                             setCsvImportResult({
                               import_batch_id: res.import_batch_id,
                               created_lead_ids: res.created_lead_ids || [],
@@ -528,7 +646,6 @@ export default function LeadSources() {
                                 import_batch_id: res.import_batch_id,
                                 created_lead_ids: res.created_lead_ids || [],
                                 detected_variable_keys: res.detected_variable_keys || [],
-                                lead_funnel_id: res.lead_funnel_id || null,
                                 ts: Date.now(),
                               }));
                             }
@@ -568,181 +685,67 @@ export default function LeadSources() {
       {/* All Lead Sources */}
       {!isLoading && (
         <div className={layoutStyles.cardGrid}>
-          {/* Meta Integrations */}
-          {Array.isArray(metaIntegrations) && metaIntegrations.map((integration) => (
-            <Card key={integration.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
-                      {integration.page_picture_url ? (
-                        <img 
-                          src={integration.page_picture_url} 
-                          alt={integration.page_name || 'Meta Page'} 
-                          className="w-8 h-8 rounded object-cover"
-                        />
-                      ) : (
-                        <Facebook className={`${iconSizes.large} text-[#FE5B25]`} />
-                      )}
-                    </div>
-                    <div>
-                      <CardTitle className={textStyles.cardTitle}>
-                        {integration.page_name || 'Meta Lead Ads'}
-                      </CardTitle>
-                      <p className={textStyles.cardSubtitle}>
-                        {integration.page_name ? `Page ID: ${integration.page_id}` : `Page ID: ${integration.page_id}`}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                    <Badge variant={integration.status === 'active' ? 'default' : 'secondary'}>
-                      {integration.status === 'active' ? 'Active' : 'Inactive'}
-                    </Badge>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button className={buttonStyles.cardAction.iconDelete}>
-                          <Trash2 className={iconSizes.small} />
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete integration</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Do you really want to delete this Meta integration? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleDeleteIntegration(integration.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                  <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
-                  Lead source connected. Configure exact assignment in agent settings.
-                </div>
-              </CardContent>
-            </Card>
-          ))}
 
-          {/* CSV Sources */}
-          {Array.isArray(csvFunnels) && csvFunnels.length > 0 && csvFunnels.map((funnel) => (
+          {/* CSV Sources (real or demo) */}
+          {((useDemoCsv ? [{ id: 'demo-csv-1', name: 'Demo CSV Source', is_active: true }] as any : csvFunnels)).map((funnel: any) => (
             <Card key={funnel.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
-                      <Globe className={`${iconSizes.large} text-[#FE5B25]`} />
+                    <div className="p-2 rounded-lg bg-white overflow-hidden">
+                      <img src="/csv icon.png" alt="CSV" className="w-8 h-8 object-contain" />
                     </div>
                     <div>
                       <CardTitle className={textStyles.cardTitle}>
                         {funnel.name || 'CSV Source'}
                       </CardTitle>
-                      <p className={textStyles.cardSubtitle}>
-                        CSV • {funnel.is_active ? 'Active' : 'Inactive'}
-                      </p>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {(csvStatsByFunnel[funnel.id]?.count ?? 0)} leads
+                        {csvStatsByFunnel[funnel.id]?.variables?.length ? ` · vars: ${csvStatsByFunnel[funnel.id].variables.join(', ')}` : ''}
+                      </div>
                     </div>
                   </div>
                   <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
                     <Badge variant={funnel.is_active ? 'default' : 'secondary'}>
                       {funnel.is_active ? 'Active' : 'Inactive'}
                     </Badge>
+                    <Button
+                      variant="outline"
+                      onClick={() => openScheduleDialog(funnel.id)}
+                    >
+                      Schedule calls
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Delete CSV source"
+                      onClick={() => setDeleteConfirmFunnelId(funnel.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                  CSV‑Lead‑Source available. Configure exact assignment in agent‑settings.
-                </div>
-              </CardContent>
+              
             </Card>
           ))}
 
-          {/* Webhook Sources */}
-          {Array.isArray(webhookSources) && webhookSources.map((webhook) => {
-            return (
-              <Card key={webhook.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 rounded-lg bg-[#FFE1D7] overflow-hidden">
-                        <Webhook className={`${iconSizes.large} text-[#FE5B25]`} />
-                      </div>
-                      <div>
-                        <CardTitle className={textStyles.cardTitle}>
-                          {webhook.name}
-                        </CardTitle>
-                        <p className={textStyles.cardSubtitle}>
-                          Webhook • {new Date(webhook.created_at).toLocaleDateString('de-DE')}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                      <Badge variant={'default'}>
-                        Connected
-                      </Badge>
-                      
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button className={buttonStyles.cardAction.iconDelete}>
-                            <Trash2 className={iconSizes.small} />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete webhook?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. The webhook source "{webhook.name}" will be permanently deleted.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteWebhook(webhook.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-green-600 inline mr-2" />
-                    Lead source connected. Configure exact assignment in agent settings.
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
 
-          {/* Empty state */}
-          {Array.isArray(metaIntegrations) && metaIntegrations.length === 0 && 
-           Array.isArray(webhookSources) && webhookSources.length === 0 &&
-           Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
+
+          {/* Empty state (hidden when demo shown) */}
+          {!useDemoCsv && Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
-                <Facebook className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">No lead sources connected</h3>
+                <img src="/csv icon.png" alt="CSV" className="h-12 w-12 mx-auto mb-4 object-contain opacity-70" />
+                <h3 className="text-lg font-medium mb-2">No CSV leads uploaded</h3>
                 <p className="text-gray-500 mb-4">
-                  Connect Meta, Webhook, or upload CSV leads to start receiving leads automatically
+                  Upload your leads through CSV upload
                 </p>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Button onClick={() => { setIsAddDialogOpen(true); setIsCsvStep(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add lead source
+                  CSV Upload
                 </Button>
               </CardContent>
             </Card>
@@ -813,6 +816,133 @@ export default function LeadSources() {
           
           <div className="flex justify-end pt-4 border-t">
             <Button onClick={() => setIsCreatedDialogOpen(false)} className="px-6">Done</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Calls Dialog */}
+      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule calls</DialogTitle>
+            <DialogDescription>Choose agent and time to call all leads from this source.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Which agent?</div>
+              <Select value={selectedAgentId || ""} onValueChange={(v)=>setSelectedAgentId(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select agent" />
+                </SelectTrigger>
+                <SelectContent>
+                  {scheduleAgents.map((a:any)=> (
+                    <SelectItem key={a.agent_id} value={a.agent_id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">When?</div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='now'} onChange={()=>setScheduleMode('now')} /> Now</label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='later'} onChange={()=>setScheduleMode('later')} /> Pick time</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={scheduleMode!=='later'} className="justify-start gap-2">
+                      <CalendarIcon className="h-4 w-4" />
+                      {scheduleAt ? new Date(scheduleAt).toLocaleString() : 'Select date & time'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-3">
+                    <div className="grid gap-3">
+                      <CalendarUI
+                        mode="single"
+                        selected={scheduleAt ? new Date(scheduleAt) : undefined}
+                        onSelect={(d:any)=>{
+                          if (!d) return;
+                          const iso = new Date(d).toISOString().slice(0,16);
+                          const existing = scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(11,16) : '09:00';
+                          setScheduleAt(`${iso.slice(0,10)}T${existing}`);
+                        }}
+                      />
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(11,13) : '09'}
+                          onValueChange={(hh)=>{
+                            const base = scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(0,10) : new Date().toISOString().slice(0,10);
+                            const mm = scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(14,16) : '00';
+                            setScheduleAt(`${base}T${hh}:${mm}`);
+                          }}
+                        >
+                          <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from({length:24},(_,i)=>String(i).padStart(2,'0')).map(h=> (
+                              <SelectItem key={h} value={h}>{h}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <span>:</span>
+                        <Select
+                          value={scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(14,16) : '00'}
+                          onValueChange={(mm)=>{
+                            const base = scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(0,10) : new Date().toISOString().slice(0,10);
+                            const hh = scheduleAt && scheduleAt.length>=16 ? scheduleAt.slice(11,13) : '09';
+                            setScheduleAt(`${base}T${hh}:${mm}`);
+                          }}
+                        >
+                          <SelectTrigger className="w-16"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {['00','15','30','45'].map(m=> (
+                              <SelectItem key={m} value={m}>{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={()=>setScheduleOpen(false)}>Cancel</Button>
+            <Button onClick={scheduleCallsForFunnel} disabled={!selectedAgentId || isScheduling}>
+              {isScheduling ? 'Scheduling…' : 'Schedule calls'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirmFunnelId} onOpenChange={(open)=>{ if (!open) setDeleteConfirmFunnelId(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete CSV lead source</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={()=>setDeleteConfirmFunnelId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={!!deletingFunnelId}
+              onClick={async ()=>{
+                if (!deleteConfirmFunnelId) return;
+                try {
+                  setDeletingFunnelId(deleteConfirmFunnelId);
+                  await funnelAPI.deleteFunnel(deleteConfirmFunnelId);
+                  setCsvFunnels(prev => prev.filter((f:any)=> f.id !== deleteConfirmFunnelId));
+                  setDeleteConfirmFunnelId(null);
+                  toast({ title: 'Deleted', description: 'Lead source removed.' });
+                } catch (e) {
+                  console.error('❌ Delete funnel failed', e);
+                  toast({ title: 'Error', description: 'Could not delete lead source.', variant: 'destructive' });
+                } finally {
+                  setDeletingFunnelId(null);
+                }
+              }}
+            >
+              {deletingFunnelId ? 'Deleting…' : 'Delete'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

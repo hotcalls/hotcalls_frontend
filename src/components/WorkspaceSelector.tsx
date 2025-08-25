@@ -40,7 +40,7 @@ export function WorkspaceSelector() {
           className="w-full justify-between h-10 border-gray-200"
           disabled
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Loader2 className="h-4 w-4 text-gray-500 animate-spin" />
             <span className="truncate">Lade Workspaces...</span>
           </div>
@@ -57,7 +57,7 @@ export function WorkspaceSelector() {
           className="w-full justify-between h-10 border-red-200 text-red-600"
           disabled
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Building2 className="h-4 w-4" />
             <span className="truncate">Fehler beim Laden</span>
           </div>
@@ -76,9 +76,9 @@ export function WorkspaceSelector() {
             aria-expanded={open}
             className="w-full justify-between h-10 border-gray-200 hover:bg-gray-50"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <Building2 className="h-4 w-4 text-gray-500" />
-              <span className="truncate">
+              <span className="truncate" title={selectedWorkspace?.label || "Workspace wählen..."}>
                 {selectedWorkspace?.label || "Workspace wählen..."}
               </span>
             </div>
@@ -95,6 +95,7 @@ export function WorkspaceSelector() {
                   <CommandItem
                     key={workspace.value}
                     value={workspace.value}
+                    className="min-w-0"
                     onSelect={() => {
                       const id = workspace.value;
                       setSelectedWorkspace(id);
@@ -112,7 +113,7 @@ export function WorkspaceSelector() {
                         value === workspace.value ? "opacity-100" : "opacity-0"
                       }`}
                     />
-                    {workspace.label}
+                    <span className="truncate" title={workspace.label}>{workspace.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

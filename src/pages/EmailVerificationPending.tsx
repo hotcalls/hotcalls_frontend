@@ -105,7 +105,7 @@ const EmailVerificationPending = () => {
           </CardHeader>
           <CardContent className="text-center">
             <div className="flex justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-[#FE5B25]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#3d5097]" />
             </div>
           </CardContent>
         </Card>
@@ -131,7 +131,7 @@ const EmailVerificationPending = () => {
           <CardContent className="space-y-4">
             <Button 
               onClick={handleBackToSignup}
-              className="w-full bg-[#FE5B25] hover:bg-[#E54E1F] text-white"
+              className="w-full bg-[#3d5097] hover:bg-[#3d5097] text-white"
             >
               Erneut registrieren
             </Button>
@@ -173,7 +173,7 @@ const EmailVerificationPending = () => {
             <Button 
               onClick={handleEmailVerification}
               disabled={isVerifying}
-              className="w-full bg-[#FE5B25] hover:bg-[#E54E1F] text-white"
+              className="w-full bg-[#3d5097] hover:bg-[#3d5097] text-white"
             >
               {isVerifying ? (
                 <>
@@ -190,7 +190,7 @@ const EmailVerificationPending = () => {
             <Button 
               onClick={handleGoToLogin}
               variant="link"
-              className="text-[#FE5B25] hover:underline"
+              className="text-[#3d5097] hover:underline"
             >
               Bereits bestätigt? Zur Anmeldung
             </Button>

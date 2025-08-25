@@ -494,26 +494,47 @@ export default function Dashboard() {
       try {
         console.log('🔍 Starting real chart data fetch...');
         
-        // Get real chart data from APIs (API will handle auth internally)
-        const chartData = await chartAPI.generateRealChartData(dateRange);
+        // Get real chart data from APIs with workspace filter
+        const chartData = await chartAPI.generateRealChartData(dateRange, primaryWorkspace?.id ? String(primaryWorkspace.id) : undefined);
         console.log('✅ Chart data received:', chartData);
         setRealChartData(chartData);
       } catch (error) {
         console.error('Error fetching real chart data:', error);
         setChartError(error instanceof Error ? error.message : 'Failed to load chart data');
-        // Fallback to dummy data on error
-        setRealChartData(generateAnalyticsData(dateRange));
+        // Fallback to zero-filled data on error
+        const zeros = (() => {
+          const isSingle = format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
+          if (isSingle) {
+            const arr: any[] = [];
+            for (let h = 0; h < 24; h++) {
+              const d = new Date(dateRange.from);
+              d.setHours(h, 0, 0, 0);
+              arr.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
+            }
+            return arr;
+          }
+          const start = new Date(dateRange.from);
+          start.setHours(0,0,0,0);
+          const end = new Date(dateRange.to);
+          end.setHours(23,59,59,999);
+          const days = Math.ceil((end.getTime()-start.getTime())/(1000*60*60*24))+1;
+          const arr: any[] = [];
+          for (let i=0;i<days;i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate()+i);
+            arr.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
+          }
+          return arr;
+        })();
+        setRealChartData(zeros);
       } finally {
         setChartLoading(false);
       }
     };
 
     fetchRealChartData();
-  }, [dateRange]); // Re-fetch when date range changes
+  }, [dateRange, primaryWorkspace?.id]); // Re-fetch when date range or workspace changes
 
-  // Analytics-Daten (fallback für Dummy-Daten)
-  const analyticsData = useMemo(() => generateAnalyticsData(dateRange), [dateRange]);
-  
   // Prüfe ob es ein einzelner Tag ist für unterschiedliche Formatierung
   const isSingleDay = useMemo(() => {
     const fromDate = format(dateRange.from, 'yyyy-MM-dd');
@@ -523,18 +544,16 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // Use Real Chart Data or Fallback to Dummy Data
+  // Use Real Chart Data or Fallback to zero-filled data
   const enhancedAnalyticsData = useMemo(() => {
-    // For single day, we need at least 24 data points (hourly)
-    // For multi day, we need at least the number of days
+    // For single day, we expect 24 points; for multi-day, days count
     const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     console.log('🔍 Chart data decision:', {
       isSingleDay,
       expectedDataPoints,
       realDataLength: realChartData.length,
-      dummyDataLength: analyticsData.length,
-      willUseDummy: realChartData.length < expectedDataPoints
+      willUseZeroFill: realChartData.length < expectedDataPoints
     });
     
     // If we have sufficient real chart data, use it
@@ -543,10 +562,10 @@ export default function Dashboard() {
       return realChartData;
     }
     
-    // For single day with insufficient real data, use minimal dummy structure
-    console.log('📊 Using minimal dummy data fallback (no fake numbers)');
+    // Zero-fill structure, no fake numbers
+    console.log('📊 Using zero-filled fallback');
     if (isSingleDay) {
-      // Generate 24 hours of ZERO data for single day to maintain chart structure
+      // Generate 24 hours of ZERO data for single day
       const minimalData = [];
       for (let hour = 0; hour < 24; hour++) {
         const date = new Date(dateRange.from);
@@ -559,18 +578,25 @@ export default function Dashboard() {
           conversion: 0
         });
       }
-      console.log('📊 Generated 24 hours of zero data for chart structure');
+      console.log('📊 Generated 24 hours of zero data');
       return minimalData;
     } else {
-      // For multi-day, use dummy data (this is acceptable for date ranges)
-      const dummyData = analyticsData.map(item => ({
-        ...item,
-        conversion: item.leads > 0 ? ((item.appointments / item.leads) * 100) : 0
-      }));
-      console.log('📊 Using dummy data for multi-day range');
-      return dummyData;
+      // For multi-day, generate zero-filled days
+      const start = new Date(dateRange.from);
+      start.setHours(0,0,0,0);
+      const end = new Date(dateRange.to);
+      end.setHours(23,59,59,999);
+      const days = Math.ceil((end.getTime() - start.getTime()) / (1000*60*60*24)) + 1;
+      const zeros = [] as any[];
+      for (let i=0;i<days;i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate()+i);
+        zeros.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
+      }
+      console.log('📊 Using zero-filled data for multi-day range');
+      return zeros;
     }
-  }, [realChartData, analyticsData, isSingleDay, dateRange]);
+  }, [realChartData, isSingleDay, dateRange]);
 
   // Metriken-Definitionen
   const metricConfig = {
@@ -675,9 +701,9 @@ export default function Dashboard() {
   }, [realAppointments, appointmentListLoading, appointmentListError]);
 
   return (
-    <div className={layoutStyles.pageContainer}>
+    <div className={`${layoutStyles.pageContainer} max-w-full overflow-x-hidden`}>
       {/* Page Header - EINHEITLICH */}
-      <div className={layoutStyles.pageHeader}>
+      <div className={`${layoutStyles.pageHeader} flex-col sm:flex-row items-start sm:items-center gap-2`}>
         <div>
           <h1 className={textStyles.pageTitle}>Dashboard</h1>
           <p className={textStyles.pageSubtitle}>Overview of your AI agents' performance</p>
@@ -685,13 +711,13 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.title}
             className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
               selectedMetric === stat.id 
-                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
+                ? 'border-[#3d5097]/30 bg-[#3d5097]/5' 
                 : 'border-gray-200'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
@@ -700,7 +726,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${
                   selectedMetric === stat.id 
-                    ? 'bg-[#FE5B25]/10 text-[#FE5B25]' 
+                    ? 'bg-[#3d5097]/10 text-[#3d5097]' 
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   <stat.icon className="h-6 w-6" />
@@ -734,19 +760,19 @@ export default function Dashboard() {
       </div>
 
       {/* Performance Chart + Neue Termine Grid */}
-      <div className="grid gap-6 grid-cols-5">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
           {/* Analytics Chart - 3/5 der Breite */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3 min-w-0">
             <div className="bg-white rounded-lg border p-6 h-[416px] flex flex-col">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
                 <div>
                   <h2 className="text-xl font-semibold">Performance overview</h2>
                   <p className="text-sm text-muted-foreground mt-1">{metricConfig[selectedMetric].name}</p>
                 </div>
                 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <span className="text-sm text-muted-foreground">Period</span>
-                  <div className="[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
+                  <div className="w-full sm:w-auto [&_button]:w-full sm:[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
                     <DateRangePicker 
                       dateRange={dateRange}
                       onDateRangeChange={setDateRange}
@@ -761,8 +787,8 @@ export default function Dashboard() {
                     {/* Gradient Definition für Area */}
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
-                        <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                        <stop offset="0%" stopColor="#3d5097" stopOpacity={0.15}/>
+                        <stop offset="100%" stopColor="#3d5097" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     
@@ -812,7 +838,7 @@ export default function Dashboard() {
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                         fontSize: '14px'
                       }}
-                      cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
+                      cursor={{ stroke: '#3d5097', strokeWidth: 1, strokeDasharray: '5 5' }}
                     />
                     {/* Area mit Gradient-Fill */}
                     <Area
@@ -827,11 +853,11 @@ export default function Dashboard() {
                     <Line 
                       type="monotone" 
                       dataKey={selectedMetric} 
-                      stroke="#FE5B25" 
+                      stroke="#3d5097" 
                       strokeWidth={2.5}
                       name={metricConfig[selectedMetric].name}
                       dot={false}
-                      activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: "#3d5097", strokeWidth: 0 }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -840,9 +866,9 @@ export default function Dashboard() {
           </div>
 
           {/* Neue Termine - 2/5 der Breite */}
-          <div className="col-span-2">
+          <div className="lg:col-span-2 min-w-0">
                         <div className="bg-white rounded-lg border p-6 h-[416px]">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
                 <h2 className="text-xl font-semibold">New appointments</h2>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">{staticAppointments.length} appointments</span>
@@ -919,7 +945,7 @@ export default function Dashboard() {
       {/* Letzte Anrufe - moderne Tabelle */}
       <div className="bg-white rounded-lg border">
           {/* Header mit Suche und Aktionen */}
-          <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-6 border-b">
             <h2 className="text-2xl font-semibold">Recent calls</h2>
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -928,7 +954,7 @@ export default function Dashboard() {
                   placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

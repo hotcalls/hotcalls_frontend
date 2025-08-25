@@ -50,8 +50,8 @@ export function UsageAlertOverlay() {
 
   return (
     <div className="fixed inset-0 z-40 pointer-events-none">
-      <div className="absolute bottom-6 right-6 pointer-events-auto max-w-sm w-[360px] rounded-xl shadow-2xl border border-orange-200 bg-white">
-        <div className="px-4 py-3 rounded-t-xl bg-gradient-to-r from-[#FE5B25] to-orange-400 text-white">
+      <div className="absolute bottom-6 right-6 pointer-events-auto max-w-sm w-[360px] rounded-xl shadow-2xl border border-[#3d5097] bg-white">
+        <div className="px-4 py-3 rounded-t-xl bg-gradient-to-r from-[#3d5097] to-[#3d5097] text-white">
           <div className="text-sm font-semibold">Nutzungs-Hinweis</div>
         </div>
         <div className="p-4 space-y-3">
@@ -60,7 +60,7 @@ export function UsageAlertOverlay() {
           </div>
           <div className="flex items-center gap-2 pt-1">
             <Button
-              className="bg-[#FE5B25] hover:bg-[#e65422] text-white"
+              className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
               onClick={() => (window.location.href = '/plans')}
             >
               Jetzt upgraden

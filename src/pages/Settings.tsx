@@ -33,6 +33,7 @@ import WelcomePlanCards from "@/components/billing/WelcomePlanCards";
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
+  const SHOW_BILLING = false; // Hide Plans & Balance
   
   const [changingPlan, setChangingPlan] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
@@ -70,6 +71,13 @@ export default function Settings() {
   // Load all available plans for PlanCards (Welcome-Flow Stil)
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
+
+  useEffect(() => {
+    // Prevent navigating to hidden billing tab via URL
+    if (!SHOW_BILLING && activeTab === 'billing') {
+      setActiveTab('account');
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     // Lade einmalig, wenn Billing-Tab aktiv wird
@@ -650,7 +658,7 @@ export default function Settings() {
               onClick={() => setActiveTab("account")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "account"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -665,7 +673,7 @@ export default function Settings() {
               onClick={() => setActiveTab("workspace")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "workspace"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
+                  ? "border-[#3d5097] text-[#3d5097]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -676,20 +684,22 @@ export default function Settings() {
               </div>
             </button>
             
-            <button
-              onClick={() => setActiveTab("billing")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
-                activeTab === "billing"
-                  ? "border-[#FE5B25] text-[#FE5B25]"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-              role="tab"
-            >
-              <div className="flex items-center">
-                <CreditCard className={iconSizes.small} />
-                <span className="ml-2">Plans & balance</span>
-              </div>
-            </button>
+            {SHOW_BILLING && (
+              <button
+                onClick={() => setActiveTab("billing")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
+                  activeTab === "billing"
+                    ? "border-[#3d5097] text-[#3d5097]"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+                role="tab"
+              >
+                <div className="flex items-center">
+                  <CreditCard className={iconSizes.small} />
+                  <span className="ml-2">Plans & balance</span>
+                </div>
+              </button>
+            )}
           </nav>
         </div>
 
@@ -882,7 +892,7 @@ export default function Settings() {
                       setShowInviteModal(true);
                     }}
                     disabled={isAtUserLimit}
-                    className="bg-[#FE5B25] hover:bg-[#E5501F] text-white"
+                    className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
                   >
                     <Plus className={iconSizes.small} />
                     <span>Mitglied einladen</span>
@@ -977,7 +987,8 @@ export default function Settings() {
           {/* Advanced Feld entfernt */}
         </TabsContent>
 
-        {/* Pläne & Guthaben Tab (sichtbar für alle) */}
+        {/* Pläne & Guthaben Tab (ausgeblendet) */}
+        {SHOW_BILLING && (
         <TabsContent value="billing" className="space-y-6">
           {/* Exakt das Layout aus dem Welcome Flow */}
           <WelcomePlanCards
@@ -1068,7 +1079,7 @@ export default function Settings() {
               Abonnement verwalten
             </Button>
             <Button
-              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
+              className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white"
               onClick={async ()=>{
                 if (!primaryWorkspace?.id) return;
                 try {
@@ -1102,6 +1113,7 @@ export default function Settings() {
 
           {/* Hinweis: Verfügbare Minuten Card entfernt wie gewünscht */}
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Invite User Modal - Small & Centered */}
@@ -1141,7 +1153,7 @@ export default function Settings() {
             <Button
               onClick={handleInviteUser}
               disabled={isInviting || !inviteEmail.trim()}
-              className="bg-[#FE5B25] hover:bg-[#E5501F] text-white"
+              className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
             >
               {isInviting ? "Wird gesendet..." : "Einladen"}
             </Button>

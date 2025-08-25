@@ -988,7 +988,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FE5B25] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3d5097] mx-auto mb-4"></div>
           <p className="text-gray-600">Checking your workspace...</p>
         </div>
       </div>
@@ -1007,7 +1007,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 <div
                   key={index}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index < currentStep ? 'bg-[#FE5B25]' : 'bg-gray-200'
+                    index < currentStep ? 'bg-[#3d5097]' : 'bg-gray-200'
                   }`}
                 />
               ))}
@@ -1040,7 +1040,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="animate-fade-in delay-1000">
                 <Button 
                   size="lg" 
-                  className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
+                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
                   onClick={nextStep}
                 >
                   Los geht's
@@ -1060,7 +1060,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 placeholder="z.B. Sarah, Max, Anna..."
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="text-center text-lg h-12 border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                className="text-center text-lg h-12 border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                 autoFocus
               />
             </div>
@@ -1074,7 +1074,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               </h2>
               {isLoadingVoices ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#FE5B25]" />
+                  <Loader2 className="h-8 w-8 animate-spin text-[#3d5097]" />
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1118,9 +1118,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   return (
                     <div 
                       key={voice.id} 
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#FE5B25] ${
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#3d5097] ${
                         formData.voice === voice.id 
-                          ? "border-[#FE5B25] bg-[#FEF5F1]" 
+                          ? "border-[#3d5097] bg-white" 
                           : "border-gray-200 hover:bg-gray-50"
                       }`}
                       onClick={() => handleInputChange('voice', voice.id)}
@@ -1180,7 +1180,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             </button>
                           
                           {formData.voice === voice.id && (
-                            <div className="w-6 h-6 bg-[#FE5B25] rounded-full flex items-center justify-center">
+                            <div className="w-6 h-6 bg-[#3d5097] rounded-full flex items-center justify-center">
                               <Check className="h-3 w-3 text-white" />
                             </div>
                           )}
@@ -1201,7 +1201,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 Wie ist {formData.name || 'dein Agent'} drauf?
               </h2>
               <Select value={formData.personality} onValueChange={(value) => handleInputChange('personality', value)}>
-                <SelectTrigger className="h-12 text-lg border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                <SelectTrigger className="h-12 text-lg border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
                   <SelectValue placeholder="Persönlichkeit wählen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1226,7 +1226,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 value={formData.script}
                 onChange={(e) => handleInputChange('script', e.target.value)}
                 rows={8}
-                className="text-lg border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none resize-none"
+                className="text-lg border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none resize-none"
               />
             </div>
           )}
@@ -1235,8 +1235,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {isCreatingAgent && (
             <div className="w-full max-w-md space-y-8 text-center animate-scale-in">
               <div className="space-y-6">
-                <div className="w-20 h-20 bg-[#FE5B25]/10 rounded-full flex items-center justify-center mx-auto">
-                  <Loader2 className="h-10 w-10 text-[#FE5B25] animate-spin" />
+                <div className="w-20 h-20 bg-[#3d5097]/10 rounded-full flex items-center justify-center mx-auto">
+                  <Loader2 className="h-10 w-10 text-[#3d5097] animate-spin" />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">
                   {formData.name || 'Dein Agent'} wird gerade erstellt...
@@ -1259,7 +1259,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 <Button
                   onClick={handleTestCall}
                   disabled={isLoading}
-                  className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {isLoading ? (
@@ -1282,7 +1282,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 6 && (
             <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
               <div className="space-y-6">
-                <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto">
                   <span className="text-4xl">🔥</span>
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">
@@ -1292,7 +1292,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               
               <Button 
                 onClick={nextStep}
-                className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
+                className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
                 size="lg"
               >
                 14-tägige kostenlose Testphase starten*
@@ -1313,7 +1313,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               
               {isLoadingPlans && (
                 <div className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#FE5B25]" />
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3d5097]" />
                   <p className="text-gray-600 mt-2">Lade Pläne...</p>
                 </div>
               )}
@@ -1325,15 +1325,15 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     const isContact = plan.is_contact;
                     
                     return (
-                      <div key={plan.id} className={`border-2 rounded-lg p-8 hover:border-[#FE5B25] transition-all ${
-                        isPopular ? 'border-[#FE5B25] bg-[#FEF5F1] relative transform scale-105 shadow-lg' : 'border-gray-200'
+                      <div key={plan.id} className={`border-2 rounded-lg p-8 hover:border-[#3d5097] transition-all ${
+                        isPopular ? 'border-[#3d5097] bg-white relative transform scale-105 shadow-lg' : 'border-gray-200'
                       }`}>
                         <div className="space-y-6">
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
                               {isPopular && (
-                                <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
+                                <span className="border border-[#3d5097] text-[#3d5097] bg-white text-xs px-2 py-1 rounded-md">
                                   Am beliebtesten
                                 </span>
                               )}
@@ -1358,7 +1358,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                               <ul className="space-y-3 text-sm">
                                 {plan.features.slice(index > 0 && plan.features[0]?.includes('Features plus:') ? 1 : 0).map((feature, featureIndex) => (
                                   <li key={featureIndex} className="flex items-center space-x-3">
-                                    <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
+                                    <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
                                     <span>{feature}</span>
                                   </li>
                                 ))}
@@ -1369,7 +1369,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             className={`w-full focus:ring-0 focus:ring-offset-0 ${
                               isContact 
                                 ? 'bg-gray-900 hover:bg-gray-800 text-white'
-                                : 'bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white'
+                                : 'bg-[#3d5097] hover:bg-[#3d5097]/90 text-white'
                             }`}
                             onClick={() => {
                               if (isContact) {
@@ -1406,7 +1406,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="text-center space-y-3">
                 <Button 
                   variant="outline"
-                  className="border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/5 focus:ring-0 focus:ring-offset-0"
+                  className="border-[#3d5097] text-[#3d5097] hover:bg-[#3d5097]/5 focus:ring-0 focus:ring-offset-0"
                   onClick={() => setShowComparison(!showComparison)}
                 >
                   {showComparison ? 'Vergleich ausblenden' : 'Pläne vergleichen'}
@@ -1429,7 +1429,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <th className="text-left p-4 font-medium">Feature</th>
                             <th className="text-center p-4 font-medium">Start</th>
-                            <th className="text-center p-4 font-medium bg-[#FEF5F1]">Pro</th>
+                            <th className="text-center p-4 font-medium bg-white">Pro</th>
                             <th className="text-center p-4 font-medium">Enterprise</th>
                           </tr>
                         </thead>
@@ -1441,19 +1441,19 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Monatliche Gebühr</td>
                             <td className="text-center p-4">199€</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">549€</td>
+                            <td className="text-center p-4 bg-white">549€</td>
                             <td className="text-center p-4">ab 1.490€</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Inkludierte Minuten pro Monat</td>
                             <td className="text-center p-4">250</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">1000</td>
+                            <td className="text-center p-4 bg-white">1000</td>
                             <td className="text-center p-4">Individuell</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Extra Minuten</td>
                             <td className="text-center p-4">ab 0,49€/Min.</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">ab 0,29€/Min.</td>
+                            <td className="text-center p-4 bg-white">ab 0,29€/Min.</td>
                             <td className="text-center p-4">Individuell</td>
                           </tr>
                           
@@ -1464,13 +1464,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Max User</td>
                             <td className="text-center p-4">1</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">5</td>
+                            <td className="text-center p-4 bg-white">5</td>
                             <td className="text-center p-4">Unlimited</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Max aktive Agenten</td>
                             <td className="text-center p-4">3</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">12</td>
+                            <td className="text-center p-4 bg-white">12</td>
                             <td className="text-center p-4">Unlimited</td>
                           </tr>
 
@@ -1480,21 +1480,21 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Sofortanruf bei neuen Leads</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Verhalten des Agenten anpassbar</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Individueller Agent-Prompt</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
 
                           {/* Funktionen */}
@@ -1503,21 +1503,21 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Leads & CRM</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Analytics & Reporting</td>
                             <td className="text-center p-4">Basic</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">Advanced</td>
+                            <td className="text-center p-4 bg-white">Advanced</td>
                             <td className="text-center p-4">Custom</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">API Zugang</td>
                             <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
 
                           {/* Support */}
@@ -1527,14 +1527,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Support-Kanal</td>
                             <td className="text-center p-4">Email</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">Priority Email</td>
+                            <td className="text-center p-4 bg-white">Priority Email</td>
                             <td className="text-center p-4">24/7 Phone & Email</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Persönliches Onboarding</td>
                             <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
                         </tbody>
                       </table>
@@ -1571,7 +1571,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       </p>
                       <Button
                         onClick={() => setCurrentStep(7)}
-                        className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
+                        className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white"
                       >
                         <ArrowLeft className="mr-2 h-5 w-5" />
                         Zurück zur Plan-Auswahl
@@ -1582,7 +1582,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
                 <div className="space-y-6 max-w-md mx-auto">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
                       1
                     </div>
                     <div className="text-left">
@@ -1592,7 +1592,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   </div>
 
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
                       2
                     </div>
                     <div className="text-left">
@@ -1602,7 +1602,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   </div>
 
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
                       3
                     </div>
                     <div className="text-left">
@@ -1614,7 +1614,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
                 <div className="pt-4">
                   <Button 
-                    className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0"
+                    className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0"
                     onClick={() => {
                       localStorage.setItem('welcomeCompleted', 'true');
                       onComplete();
@@ -1642,7 +1642,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
             </Button>
             <Button
               onClick={nextStep}
-              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
+              className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white focus:ring-0 focus:ring-offset-0"
               disabled={
                 (currentStep === 1 && !formData.name) ||
                 (currentStep === 2 && !formData.voice) ||
