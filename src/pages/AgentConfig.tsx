@@ -131,8 +131,7 @@ export default function AgentConfig() {
     character: "",
     language: "de"
   });
-  // UI-only demo fields (no backend integration)
-  const [uiAgentLanguage, setUiAgentLanguage] = useState<string>("English");
+  // Language is stored as ISO code in config.language ("en" | "de" | "es" | "fr")
 
   
 
@@ -1260,38 +1259,20 @@ export default function AgentConfig() {
                   </SelectContent>
                 </Select>
               </div>
-              {/* UI-only: Agent language (demo) */}
               <div>
-                <Label htmlFor="ui-agent-language">Agent language</Label>
-                <Select value={uiAgentLanguage} onValueChange={setUiAgentLanguage}>
+                <Label htmlFor="agent-language">Agent language</Label>
+                <Select 
+                  value={config.language}
+                  onValueChange={(value) => setConfig(prev => ({ ...prev, language: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="English">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">🇬🇧</span>
-                        <span>English</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="German">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">🇩🇪</span>
-                        <span>German</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="Spanish">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">🇪🇸</span>
-                        <span>Spanish</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="French">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">🇫🇷</span>
-                        <span>French</span>
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="en"><div className="flex items-center gap-2"><span className="text-lg">🇬🇧</span><span>English</span></div></SelectItem>
+                    <SelectItem value="de"><div className="flex items-center gap-2"><span className="text-lg">🇩🇪</span><span>German</span></div></SelectItem>
+                    <SelectItem value="es"><div className="flex items-center gap-2"><span className="text-lg">🇪🇸</span><span>Spanish</span></div></SelectItem>
+                    <SelectItem value="fr"><div className="flex items-center gap-2"><span className="text-lg">🇫🇷</span><span>French</span></div></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
