@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2, Clock } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
@@ -54,6 +54,7 @@ export default function AgentConfig() {
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showInlineError, setShowInlineError] = useState(false);
 
   // Get workspace, voices, and user profile
   const { primaryWorkspace } = useWorkspace();
@@ -65,7 +66,7 @@ export default function AgentConfig() {
   // Guard for create mode only
   useEffect(() => {
     if (!isEdit && !usageLoading && isAtAgentLimit) {
-      toast.info("Dein Agenten-Limit ist aufgebraucht.");
+      toast.info("Your agent limit has been reached.");
       navigate("/dashboard/agents");
     }
   }, [isEdit, usageLoading, isAtAgentLimit, navigate]);
@@ -132,7 +133,6 @@ export default function AgentConfig() {
   });
   // UI-only demo fields (no backend integration)
   const [uiAgentLanguage, setUiAgentLanguage] = useState<string>("English");
-  const [uiVoiceLanguage, setUiVoiceLanguage] = useState<string>("English");
 
   
 
@@ -171,6 +171,16 @@ export default function AgentConfig() {
       // Silent fail – card stays in default state
     }
   };
+
+  // Hide inline error when user fixes the required fields
+  useEffect(() => {
+    if (showInlineError && error) {
+      if (config.name && config.voice && (config.script && config.script.trim() !== '')) {
+        setShowInlineError(false);
+        setError(null);
+      }
+    }
+  }, [config.name, config.voice, config.script, showInlineError, error]);
 
   // When Integrationen tab is opened (or ids become available), fetch status once
   useEffect(() => {
@@ -305,6 +315,35 @@ export default function AgentConfig() {
     const mapped = parts.map(p => dict[p.toLowerCase()] || p.charAt(0).toUpperCase() + p.slice(1));
     return mapped.join(' & ');
   };
+
+  // Minimal TimePicker using our Select component for a clean modern look
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const minutes = ['00', '15', '30', '45'];
+
+  function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [h, m] = (value || '09:00').split(':');
+    return (
+      <div className="flex items-center gap-1">
+        <Select value={h} onValueChange={(hv) => onChange(`${hv}:${m}`)}>
+          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#3d5097]"><SelectValue /></SelectTrigger>
+          <SelectContent className="max-h-64">
+            {hours.map((hh) => (
+              <SelectItem key={hh} value={hh}>{hh}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-gray-400 px-1">:</span>
+        <Select value={m} onValueChange={(mv) => onChange(`${h}:${mv}`)}>
+          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#3d5097]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {minutes.map((mm) => (
+              <SelectItem key={mm} value={mm}>{mm}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
 
   // Helper function to map personality to character
   const mapPersonalityToCharacter = (personality: string): string => {
@@ -489,7 +528,7 @@ export default function AgentConfig() {
     const voice = voices.find(v => v.id === voiceId);
     if (!voice || !voice.voice_sample) {
       console.warn('No voice sample available for:', voiceId);
-      toast.error('Keine Hörprobe verfügbar');
+      toast.error('No voice sample available');
       return;
     }
 
@@ -507,14 +546,14 @@ export default function AgentConfig() {
     audio.addEventListener('error', (e) => {
       setPlayingVoice(null);
       console.error('❌ Voice sample playback error:', e);
-      toast.error('Fehler beim Abspielen der Hörprobe');
+      toast.error('Error playing sample');
     });
 
     setPlayingVoice(voiceId);
     audio.play().catch((err) => {
       console.error('❌ Failed to play audio:', err);
       setPlayingVoice(null);
-      toast.error('Audio konnte nicht abgespielt werden');
+      toast.error('Audio could not be played');
     });
   };
 
@@ -632,14 +671,14 @@ export default function AgentConfig() {
       
       if (!primaryWorkspace) {
         console.error('❌ No workspace available');
-        throw new Error('Kein Workspace verfügbar');
+        throw new Error('No workspace available');
       }
       console.log('✅ Workspace available:', primaryWorkspace.id);
 
       // Validate required fields before sending to API
       if (!config.name || !config.voice) {
         console.error('❌ Validation failed:', { name: config.name, voice: config.voice });
-        throw new Error('Name und Voice sind erforderlich');
+        throw new Error('Name and voice are required');
       }
       
       // Additional validation
@@ -653,7 +692,7 @@ export default function AgentConfig() {
       
       if (!config.script || config.script.trim() === '') {
         console.error('❌ Script/Prompt missing');
-        throw new Error('Skript ist erforderlich');
+        throw new Error('Script is required');
       }
       
       console.log('✅ Validation passed');
@@ -738,12 +777,12 @@ export default function AgentConfig() {
       if (isEdit && id) {
         console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
         await agentAPI.updateAgent(id, agentData);
-        toast.success('Agent erfolgreich aktualisiert!');
+        toast.success('Agent updated successfully!');
         agentId = id;
       } else {
         console.log('🆕 Using POST /api/agents/agents/ for creation');
         const newAgent = await agentAPI.createAgent(agentData);
-        toast.success('Agent erfolgreich erstellt!');
+        toast.success('Agent created successfully!');
         agentId = newAgent.agent_id;
         
         // After creating a new agent, navigate to edit mode with the new agent ID
@@ -775,22 +814,24 @@ export default function AgentConfig() {
       console.error('❌ Failed to save agent:', err);
       
       // Enhanced error handling for different HTTP status codes
-      let errorMessage = 'Fehler beim Speichern des Agents';
+      let errorMessage = 'Please fill in name, voice and script to save the agent.';
       
       if (err instanceof Error) {
         if (err.message.includes('500')) {
-          errorMessage = 'Server-Fehler: Bitte Backend-Logs prüfen';
+          errorMessage = 'Server error: please check backend logs';
         } else if (err.message.includes('400')) {
-          errorMessage = 'Ungültige Daten: Bitte Eingaben überprüfen';
+          errorMessage = 'Invalid data: please check your inputs';
         } else if (err.message.includes('403')) {
-          errorMessage = 'Keine Berechtigung: Nur Staff/Admin können Agents bearbeiten';
+          errorMessage = 'Not permitted: only staff/admin can edit agents';
         } else {
           errorMessage = err.message;
         }
       }
       
       setError(errorMessage);
+      setShowInlineError(true);
       toast.error(errorMessage);
+      // Stay on page; don't navigate away
     } finally {
       setSaving(false);
     }
@@ -810,7 +851,7 @@ export default function AgentConfig() {
       setKb(data);
     } catch (e: any) {
       console.error("❌ KB list failed", e);
-      toast.error(e?.message || "Fehler beim Laden der Knowledge Base");
+      toast.error(e?.message || "Failed to load knowledge base");
       setKb({ version: 1, files: [] });
     } finally {
       setKbLoading(false);
@@ -872,12 +913,12 @@ export default function AgentConfig() {
     if (!id || !kbDeleteTarget) return;
     try {
       await knowledgeAPI.deleteById(id, kbDeleteTarget.id);
-      toast.success("Dokument gelöscht");
+      toast.success("Document deleted");
       setKbDeleteOpen(false);
       setKbDeleteTarget(null);
       await loadKnowledge();
     } catch (e: any) {
-      toast.error(e?.message || "Löschen fehlgeschlagen");
+      toast.error(e?.message || "Delete failed");
     }
   };
 
@@ -886,19 +927,19 @@ export default function AgentConfig() {
     try {
       const match = kb?.files?.find(f => f.id === docIdOrFilename || f.name === docIdOrFilename);
       if (!match) {
-        throw new Error("Dokument nicht gefunden");
+        throw new Error("Document not found");
       }
       const { url } = await knowledgeAPI.presignById(id, match.id);
       await navigator.clipboard.writeText(url);
-      toast.success("Link kopiert");
+      toast.success("Link copied");
     } catch (e: any) {
-      toast.error(e?.message || "Link konnte nicht erzeugt werden");
+      toast.error(e?.message || "Could not generate link");
     }
   };
   
   const handleStartTestCall = async () => {
     if (!userProfile?.phone) {
-      toast.error('Keine Telefonnummer in Ihrem Profil gefunden');
+      toast.error('No phone number found in your profile');
       return;
     }
     
@@ -914,12 +955,12 @@ export default function AgentConfig() {
       console.log('🧪 Calling test API with data:', testData);
       await callAPI.makeTestCall(testData);
       
-      toast.success('Test-Anruf wurde gestartet!');
+      toast.success('Test call started!');
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
       console.log('✅ Test call was initiated (ignoring backend error):', err);
-      toast.success('Test-Anruf wurde gestartet!');
+      toast.success('Test call started!');
     } finally {
       setIsTestCalling(false);
       setTestPopoverOpen(false);
@@ -940,24 +981,15 @@ export default function AgentConfig() {
     );
   }
 
-  // Show error state
-  if (error) {
+  // Show inline minimal validation instead of blocking page
+  const renderInlineError = () => {
+    if (!showInlineError || !error) return null;
     return (
-      <div className={layoutStyles.pageContainer}>
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-600">Error: {error}</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-2"
-            onClick={() => navigate('/dashboard/agents')}
-          >
-            Back to agents
-          </Button>
-        </div>
+      <div className="mb-4 p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+        {error}
       </div>
     );
-  }
+  };
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -1025,6 +1057,8 @@ export default function AgentConfig() {
           </button>
         </div>
       </div>
+
+      {renderInlineError()}
 
       {/* Tabbed Interface */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -1234,10 +1268,30 @@ export default function AgentConfig() {
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="English">English</SelectItem>
-                    <SelectItem value="German">German</SelectItem>
-                    <SelectItem value="Spanish">Spanish</SelectItem>
-                    <SelectItem value="French">French</SelectItem>
+                    <SelectItem value="English">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🇬🇧</span>
+                        <span>English</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="German">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🇩🇪</span>
+                        <span>German</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="Spanish">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🇪🇸</span>
+                        <span>Spanish</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="French">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🇫🇷</span>
+                        <span>French</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1311,7 +1365,7 @@ export default function AgentConfig() {
                             <button 
                               className="w-8 h-8 p-0 border rounded-full flex items-center justify-center hover:bg-gray-50 shrink-0"
                               onClick={() => playVoiceSample(voice.id)}
-                              title={playingVoice === voice.id ? 'Stoppen' : 'Probe hören'}
+                              title={playingVoice === voice.id ? 'Stop' : 'Play sample'}
                             >
                               {playingVoice === voice.id ? (
                                 <Pause className="h-3 w-3" />
@@ -1346,21 +1400,7 @@ export default function AgentConfig() {
                   </p>
                 )}
               </div>
-              {/* UI-only: Voice language (demo) */}
-              <div>
-                <Label htmlFor="ui-voice-language">Voice language</Label>
-                <Select value={uiVoiceLanguage} onValueChange={setUiVoiceLanguage}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="English">English</SelectItem>
-                    <SelectItem value="German">German</SelectItem>
-                    <SelectItem value="Spanish">Spanish</SelectItem>
-                    <SelectItem value="French">French</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Voice language removed */}
               
               {/* Begrüßungen ziehen wir in den Skript-Tab */}
             </CardContent>
@@ -1377,17 +1417,19 @@ export default function AgentConfig() {
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-sm">
-                      Hier können Sie die Aufgabe des Agenten definieren und das Gesprächsskript erstellen.
-                      <br /><br />
-                      <strong>Format für optimale Ergebnisse:</strong>
-                      <br /><br />
-                      KI Assistent: [Ihre Nachricht]<br />
-                      Gegenüber:<br />
-                      KI Assistent: [Antwort]<br />
-                      Gegenüber:
+                  <TooltipContent className="max-w-xs text-sm text-gray-700">
+                    <p>
+                      Define the agent's task and write the conversation script.
                     </p>
+                    <div className="mt-2">
+                      <div className="font-medium">Suggested structure</div>
+                      <div className="mt-1 leading-relaxed">
+                        AI Assistant: [Your message]<br />
+                        Prospect:<br />
+                        AI Assistant: [Reply]<br />
+                        Prospect:
+                      </div>
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
@@ -1468,14 +1510,13 @@ export default function AgentConfig() {
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-sm">
-                      Konfigurieren Sie hier die Anrufstrategie:
-                      <br />
-                      • Maximale Versuche: Wie oft soll ein Lead kontaktiert werden?<br />
-                      • Intervall: Wartezeit zwischen Anrufversuchen<br />
-                      • Aktive Zeiten: Wann darf der Agent anrufen?
-                    </p>
+                  <TooltipContent className="max-w-xs text-sm text-gray-700">
+                    <p>Configure the calling strategy:</p>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      <li>Max attempts: how many times to call a lead</li>
+                      <li>Interval: waiting time between attempts</li>
+                      <li>Active times: when the agent may call</li>
+                    </ul>
                   </TooltipContent>
                 </Tooltip>
               </CardTitle>
@@ -1514,11 +1555,12 @@ export default function AgentConfig() {
                     {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day, index) => (
                       <button
                         key={day}
-                        className={`w-10 h-10 rounded-full border text-sm font-medium ${
-                          config.workingDays?.[index] 
-                            ? "bg-white text-[#3d5097] border-gray-300" 
-                            : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className={`w-10 h-10 rounded-full border text-sm font-medium transition-colors ${
+                          config.workingDays?.[index]
+                            ? "bg-[#3d5097] text-white border-[#3d5097] hover:bg-[#344482]"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                         }`}
+                        aria-pressed={!!config.workingDays?.[index]}
                         onClick={() => 
                           setConfig(prev => ({
                             ...prev,
@@ -1537,21 +1579,18 @@ export default function AgentConfig() {
 
                 <div>
                   <Label>Time window</Label>
-                  <div className="flex items-center space-x-4 mt-2">
-                    <Input
-                      type="time"
-                      value={config.workingTimeStart || "09:00"}
-                      onChange={(e) => setConfig(prev => ({ ...prev, workingTimeStart: e.target.value }))}
-                      className="w-24"
+                  <div className="flex items-center gap-3 mt-2">
+                    <TimePicker
+                      value={config.workingTimeStart || '09:00'}
+                      onChange={(v) => setConfig(prev => ({ ...prev, workingTimeStart: v }))}
                     />
-                    <span className="text-sm text-gray-500">bis</span>
-                    <Input
-                      type="time"
-                      value={config.workingTimeEnd || "17:00"}
-                      onChange={(e) => setConfig(prev => ({ ...prev, workingTimeEnd: e.target.value }))}
-                      className="w-24"
+                    <span className="text-sm text-gray-500">to</span>
+                    <TimePicker
+                      value={config.workingTimeEnd || '17:00'}
+                      onChange={(v) => setConfig(prev => ({ ...prev, workingTimeEnd: v }))}
                     />
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">24h format, local timezone</p>
                 </div>
               </div>
             </CardContent>
@@ -1638,7 +1677,7 @@ export default function AgentConfig() {
                     </Select>
                     <p className="text-xs text-gray-500">
                       Upload CSV leads in the <button 
-                        onClick={() => navigate('/dashboard/lead-sources?open=csv')}
+                        onClick={() => navigate('/dashboard/lead-sources')}
                         className="text-[#3d5097] hover:underline"
                       >
                         CSV upload

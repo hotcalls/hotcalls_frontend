@@ -863,12 +863,17 @@ export const callAPI = {
     page_size?: number;
     search?: string;
     agent?: string;
-    agent__workspace?: string;
+    agent__workspace?: string; // legacy
+    agentworkspace?: string;   // backend expects this
     status?: string;
+    has_appointment?: boolean;
+    successful?: boolean | string;
     direction?: string;
     ordering?: string;
     timestamp_after?: string;
     timestamp_before?: string;
+    appointment_datetime_after?: string;
+    appointment_datetime_before?: string;
   }): Promise<CallLogsListResponse> {
     console.log('📞 GET /api/calls/call-logs/ - Getting call logs');
     
@@ -889,10 +894,23 @@ export const callAPI = {
         searchParams.append('agent', params.agent);
       }
       if (params?.agent__workspace) {
+        // Serialisiere mit Doppel-Unterstrich gemäß API: agent__workspace
         searchParams.append('agent__workspace', params.agent__workspace);
+      }
+      if (params?.agentworkspace) {
+        searchParams.append('agentworkspace', params.agentworkspace);
       }
       if (params?.status) {
         searchParams.append('status', params.status);
+      }
+      if (params?.successful !== undefined) {
+        searchParams.append('successful', String(params.successful));
+      }
+      if (params?.has_appointment !== undefined) {
+        searchParams.append('has_appointment', String(params.has_appointment));
+      }
+      if (params?.successful !== undefined) {
+        searchParams.append('successful', String(params.successful));
       }
       if (params?.direction) {
         searchParams.append('direction', params.direction);
@@ -905,6 +923,12 @@ export const callAPI = {
       }
       if (params?.timestamp_before) {
         searchParams.append('timestamp_before', params.timestamp_before);
+      }
+      if (params?.appointment_datetime_after) {
+        searchParams.append('appointment_datetime_after', params.appointment_datetime_after);
+      }
+      if (params?.appointment_datetime_before) {
+        searchParams.append('appointment_datetime_before', params.appointment_datetime_before);
       }
       
       if (searchParams.toString()) {
@@ -921,19 +945,54 @@ export const callAPI = {
   },
 
   /**
+   * Fetch all pages of call logs for given filters (page_size=1000 pagination)
+   */
+  async fetchAllCallLogs(params?: {
+    page_size?: number;
+    search?: string;
+    agent?: string;
+    agent__workspace?: string;
+    status?: string;
+    has_appointment?: boolean;
+    direction?: string;
+    ordering?: string;
+    timestamp_after?: string;
+    timestamp_before?: string;
+    appointment_datetime_after?: string;
+    appointment_datetime_before?: string;
+  }): Promise<CallLog[]> {
+    const pageSize = params?.page_size || 1000;
+    let page = 1;
+    const all: CallLog[] = [];
+    // Loop until no next page
+    // We prefer using count/accum length, but next URL is more robust
+    while (true) {
+      const pageResponse = await this.getCallLogs({ ...(params || {}), page, page_size: pageSize });
+      all.push(...(pageResponse.results || []));
+      if (!pageResponse.next) break;
+      page += 1;
+    }
+    return all;
+  },
+
+  /**
    * Calculate reached leads from call logs
    * Filters out 'not_reached' status and counts unique leads
    */
   calculateReachedLeads(callLogs: CallLog[]): number {
     try {
-      // Filter successful calls (not 'not_reached' and not null)
-      const successfulCalls = callLogs.filter(log => 
-        log.status && log.status !== 'not_reached'
-      );
+      // Reached when duration > 0 or successful flag is true
+      const successfulCalls = (callLogs || []).filter((log: any) => {
+        if (typeof log.duration === 'number' && log.duration > 0) return true;
+        if (typeof log.successful === 'boolean') return log.successful === true;
+        return false;
+      });
       
-      // Count unique leads (Set eliminates duplicates)
+      // Count unique leads with valid id/value
       const uniqueReachedLeads = new Set(
-        successfulCalls.map(log => log.lead)
+        successfulCalls
+          .map((log: any) => log.lead)
+          .filter((leadId: any) => typeof leadId === 'string' ? leadId.trim().length > 0 : !!leadId)
       ).size;
       
       console.log(`📊 Calculated reached leads: ${uniqueReachedLeads} from ${callLogs.length} total calls`);
@@ -1020,7 +1079,8 @@ export const callAPI = {
         params.status = status;
       }
       if (agent__workspace) {
-        params.agent__workspace = agent__workspace;
+        // Map to backend key without underscore for compatibility
+        (params as any).agentworkspace = agent__workspace;
       }
       
       return await this.getCallLogs(params);
@@ -1040,15 +1100,16 @@ export const callAPI = {
     appointment_datetime_after?: string;
     appointment_datetime_before?: string;
     agent__workspace?: string;
+    agentworkspace?: string;
   }): Promise<AppointmentCallLog[]> {
     console.log('📅 GET /api/calls/call-logs/ (appointments) - Getting appointment call logs');
     
     try {
       // Prepare parameters for call logs API
       const callParams: any = {
-        status: 'appointment_scheduled', // Only get appointments
-        ordering: params?.ordering || '-appointment_datetime', // Default: newest appointments first
-        page_size: params?.page_size || 10, // Default: 10 appointments for dashboard
+        has_appointment: true,
+        ordering: params?.ordering || 'appointment_datetime',
+        page_size: params?.page_size || 10,
         page: params?.page || 1
       };
 
@@ -1060,7 +1121,10 @@ export const callAPI = {
         callParams.appointment_datetime_before = params.appointment_datetime_before;
       }
       if (params?.agent__workspace) {
-        callParams.agent__workspace = params.agent__workspace;
+        callParams.agentworkspace = params.agent__workspace;
+      }
+      if (params?.agentworkspace) {
+        callParams.agentworkspace = params.agentworkspace;
       }
 
       // Call the existing getCallLogs function with appointment filters
@@ -1095,6 +1159,7 @@ export const callAPI = {
     timestamp_before?: string;
     search?: string;
     agent__workspace?: string;
+    agentworkspace?: string;
   }): Promise<CallLog[]> {
     console.log('📞 GET /api/calls/call-logs/ (recent) - Getting recent call logs');
     
@@ -1119,7 +1184,10 @@ export const callAPI = {
         callParams.search = params.search.trim();
       }
       if (params?.agent__workspace) {
-        callParams.agent__workspace = params.agent__workspace;
+        callParams.agentworkspace = params.agent__workspace;
+      }
+      if (params?.agentworkspace) {
+        callParams.agentworkspace = params.agentworkspace;
       }
 
       // Call the existing getCallLogs function
@@ -1730,6 +1798,29 @@ export const leadAPI = {
     }
   },
 
+  /** Fetch all pages of leads with page_size=1000 */
+  async fetchAllLeads(params?: {
+    page_size?: number;
+    search?: string;
+    name?: string;
+    surname?: string;
+    email?: string;
+    phone?: string;
+    ordering?: string;
+    workspace?: string;
+  }): Promise<Lead[]> {
+    const pageSize = params?.page_size || 1000;
+    let page = 1;
+    const all: Lead[] = [];
+    while (true) {
+      const pageResp = await this.getLeads({ ...(params || {}), page, page_size: pageSize });
+      all.push(...(pageResp.results || []));
+      if (!pageResp.next) break;
+      page += 1;
+    }
+    return all;
+  },
+
   /**
    * Get single lead by ID
    */
@@ -1887,7 +1978,7 @@ export const leadAPI = {
   /**
    * Get leads within a date range for chart data
    */
-  async getLeadsInDateRange(startDate: string, endDate: string): Promise<LeadsListResponse> {
+  async getLeadsInDateRange(startDate: string, endDate: string, workspaceId?: string, page: number = 1): Promise<LeadsListResponse> {
     console.log(`📊 GET /api/leads/ (date range: ${startDate} to ${endDate}) - Getting leads in date range`);
     
     try {
@@ -1897,6 +1988,8 @@ export const leadAPI = {
       searchParams.append('created_after', startDate);
       searchParams.append('created_before', endDate);
       searchParams.append('page_size', '1000'); // Get enough data for aggregation
+      searchParams.append('page', String(page));
+      if (workspaceId) searchParams.append('workspace', workspaceId);
       
       if (searchParams.toString()) {
         url += '?' + searchParams.toString();
@@ -1909,6 +2002,18 @@ export const leadAPI = {
       console.error('❌ Date range leads API error:', error);
       throw error;
     }
+  },
+
+  async fetchAllLeadsInDateRange(startDate: string, endDate: string, workspaceId?: string): Promise<Lead[]> {
+    let page = 1;
+    const all: Lead[] = [];
+    while (true) {
+      const pageResp = await this.getLeadsInDateRange(startDate, endDate, workspaceId, page);
+      all.push(...(pageResp.results || []));
+      if (!pageResp.next) break;
+      page += 1;
+    }
+    return all;
   },
 };
 
@@ -2317,20 +2422,30 @@ export const chartAPI = {
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
+      // Leads (created on this day) – fetch all pages
+      const leadsInDayAll = await leadAPI.fetchAllLeads({
+        workspace: workspaceId,
+        page_size: 1000,
+        // created_after/before via getLeadsInDateRange replacement
+      });
+      // Fallback: keep existing call to maintain behavior (if needed for other fields)
+      const leadsInDay = await leadAPI.getLeadsInDateRange(startOfDay.toISOString(), endOfDay.toISOString());
 
-      // Get all call logs for this specific day
-      const callLogs = await callAPI.getCallLogsInDateRange(
-        startOfDay.toISOString(),
-        endOfDay.toISOString(),
-        undefined,
-        workspaceId
-      );
-
-      // Get leads created on this day
-      const leadsInDay = await leadAPI.getLeadsInDateRange(
-        startOfDay.toISOString(),
-        endOfDay.toISOString()
-      );
+      // Calls in this day – fetch all pages
+      const callsAll = await callAPI.fetchAllCallLogs({
+        agent__workspace: workspaceId,
+        timestamp_after: startOfDay.toISOString(),
+        timestamp_before: endOfDay.toISOString(),
+        page_size: 1000
+      });
+      // Appointments in this day – fetch all pages
+      const apptAll = await callAPI.fetchAllCallLogs({
+        has_appointment: true,
+        agent__workspace: workspaceId,
+        appointment_datetime_after: startOfDay.toISOString(),
+        appointment_datetime_before: endOfDay.toISOString(),
+        page_size: 1000
+      });
 
       // Group calls by hour
       const hourlyData: ChartDataPoint[] = [];
@@ -2341,7 +2456,7 @@ export const chartAPI = {
         hourStart.setHours(hour, 0, 0, 0);
 
         // Count calls in this hour (using local time comparison)
-        const callsInHour = callLogs.results.filter(call => {
+        const callsInHour = callsAll.filter(call => {
           const callTime = new Date(call.timestamp);
           const callHour = callTime.getHours();
           const callDate = callTime.toDateString();
@@ -2349,13 +2464,14 @@ export const chartAPI = {
           return callDate === targetDate && callHour === hour;
         }).length;
 
-        // Count appointments in this hour (using local time comparison)
-        const appointmentsInHour = callLogs.results.filter(call => {
-          const callTime = new Date(call.timestamp);
-          const callHour = callTime.getHours();
-          const callDate = callTime.toDateString();
+        // Count appointments in this hour (using appointment_datetime field)
+        const appointmentsInHour = apptAll.filter(call => {
+          if (!call.appointment_datetime) return false;
+          const apptTime = new Date(call.appointment_datetime);
+          const apptHour = apptTime.getHours();
+          const apptDate = apptTime.toDateString();
           const targetDate = date.toDateString();
-          return callDate === targetDate && callHour === hour && call.status === 'appointment_scheduled';
+          return apptDate === targetDate && apptHour === hour;
         }).length;
 
         // Count leads created in this hour (using local time comparison)
@@ -2405,59 +2521,42 @@ export const chartAPI = {
    * Generate daily data for multi-day ranges (existing logic)
    */
   async generateMultiDayData(dateRange: {from: Date, to: Date}, workspaceId?: string): Promise<ChartDataPoint[]> {
-    // Set proper start and end times for the date range
+    // Workspace-genau über Rohdaten, dann clientseitig pro Tag aggregieren
     const startOfRange = new Date(dateRange.from);
     startOfRange.setHours(0, 0, 0, 0);
     const endOfRange = new Date(dateRange.to);
     endOfRange.setHours(23, 59, 59, 999);
-    
-    // Calculate number of days for the chart
-    const totalDays = Math.ceil((endOfRange.getTime() - startOfRange.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    // Get daily call statistics
-    const dailyStats = await callAPI.getDailyStats(totalDays, { agent__workspace: workspaceId });
-    
-    // Get appointment calls in date range
-    const appointmentCalls = await callAPI.getCallLogsInDateRange(
-      startOfRange.toISOString(), 
-      endOfRange.toISOString(), 
-      'appointment_scheduled',
-      workspaceId
-    );
-    
-    // Get all leads in date range (to calculate daily lead creation)  
-    console.log('📊 Multi-day calling getLeadsInDateRange with:', startOfRange.toISOString(), 'to', endOfRange.toISOString());
-    const leadsInRange = await leadAPI.getLeadsInDateRange(startOfRange.toISOString(), endOfRange.toISOString());
-    
-    // Process daily stats into chart format
-    const chartData: ChartDataPoint[] = dailyStats.daily_stats.map(dayStat => {
-      // Count appointments for this specific day
-      const dayAppointments = appointmentCalls.results.filter(call => {
-        const callDate = new Date(call.timestamp).toISOString().split('T')[0];
-        const statDate = dayStat.date.split('T')[0];
-        return callDate === statDate;
-      }).length;
-      
-      // Count leads created on this specific day
-      const dayLeads = leadsInRange.results.filter(lead => {
-        const leadDate = new Date(lead.created_at).toISOString().split('T')[0];
-        const statDate = dayStat.date.split('T')[0];
-        return leadDate === statDate;
-      }).length;
-      
-      // Calculate conversion rate for the day
-      const conversion = dayLeads > 0 ? ((dayAppointments / dayLeads) * 100) : 0;
-      
-      return {
-        date: dayStat.date,
-        leads: dayLeads,
-        calls: dayStat.calls,
-        appointments: dayAppointments,
-        conversion: Math.round(conversion * 10) / 10 // Round to 1 decimal
-      };
+
+    // Fetch all pages
+    const callsAll = await callAPI.fetchAllCallLogs({
+      agent__workspace: workspaceId,
+      timestamp_after: startOfRange.toISOString(),
+      timestamp_before: endOfRange.toISOString(),
+      page_size: 1000
     });
-    
-    console.log('✅ Generated multi-day real data:', chartData.length, 'data points');
+    const apptAll = await callAPI.fetchAllCallLogs({
+      has_appointment: true,
+      agent__workspace: workspaceId,
+      appointment_datetime_after: startOfRange.toISOString(),
+      appointment_datetime_before: endOfRange.toISOString(),
+      page_size: 1000
+    });
+    const leadsAll = await leadAPI.fetchAllLeadsInDateRange(startOfRange.toISOString(), endOfRange.toISOString(), workspaceId);
+
+    // Build complete day range and bucket
+    const chartData: ChartDataPoint[] = [];
+    const cursor = new Date(startOfRange);
+    while (cursor <= endOfRange) {
+      const dayIso = new Date(cursor).toISOString();
+      const dayKey = dayIso.split('T')[0];
+      const calls = callsAll.filter(c => new Date(c.timestamp).toISOString().split('T')[0] === dayKey).length;
+      const appointments = apptAll.filter(c => c.appointment_datetime && new Date(c.appointment_datetime).toISOString().split('T')[0] === dayKey).length;
+      const leads = leadsAll.filter(l => new Date(l.created_at).toISOString().split('T')[0] === dayKey).length;
+      const conversion = leads > 0 ? Math.round(((appointments / leads) * 100) * 10) / 10 : 0;
+      chartData.push({ date: dayIso, leads, calls, appointments, conversion });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
     return chartData;
   }
 }; 

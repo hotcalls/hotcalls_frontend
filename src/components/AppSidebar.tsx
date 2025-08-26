@@ -101,7 +101,7 @@ const PlanSection = () => {
           href="https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel"
           target="_blank"
           rel="noopener noreferrer"
-          className={buttonStyles.primary.fullWidth}
+          className={`${buttonStyles.create.default} w-full justify-center`}
         >
           <Calendar className={iconSizes.small} />
           <span>Talk to Expert</span>
@@ -217,26 +217,31 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r">
       <SidebarHeader>
-        {/* hotcalls Logo */}
-        <div className="px-2 py-3">
-          <div className="flex items-center">
+        {/* Logo */}
+        <div className="px-2 py-2">
+          <div className="flex items-center justify-start w-full">
             <img 
-              src="/hotcalls-logo.png" 
-              alt="hotcalls" 
-              className="h-10 w-auto max-w-full"
+              src="/Messecaller.png" 
+              alt="Messecaller" 
+              className="h-[72px] w-auto max-w-full object-contain -ml-2"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
+                if (!img.dataset.fallback) {
+                  img.dataset.fallback = '1';
+                  img.src = '/Messecaller.jpeg';
+                  return;
+                }
                 img.style.display = 'none';
                 const fallback = img.nextElementSibling as HTMLElement;
                 if (fallback) fallback.style.display = 'flex';
               }}
             />
-                         <div className="items-center gap-3 hidden">
-               <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center">
-                 <span className="text-white text-sm font-bold">H</span>
-               </div>
-               <span className="text-xl font-bold text-gray-900">hotcalls</span>
-             </div>
+            <div className="items-center gap-3 hidden">
+              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">H</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900">hotcalls</span>
+            </div>
           </div>
         </div>
         

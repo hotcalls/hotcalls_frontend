@@ -22,7 +22,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Info,
   Check,
   X,
   PhoneMissed
@@ -43,6 +42,7 @@ import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint, AppointmentCallLog } from '@/lib/apiService';
 import { useWorkspace } from '@/hooks/use-workspace';
+import { useUserProfile } from '@/hooks/use-user-profile';
 
 // Generiere Analytics-Daten basierend auf Zeitraum
 const generateAnalyticsData = (dateRange: {from: Date, to: Date}) => {
@@ -219,16 +219,20 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-// Status Mapping von API zu Frontend
-const mapApiStatusToDisplayStatus = (apiStatus: string | null): string => {
-  switch(apiStatus) {
-    case 'appointment_scheduled': return 'Termin vereinbart';
-    case 'not_reached': return 'Nicht erreicht';  
-    case 'reached': return 'Erreicht';
-    case 'no_interest': return 'Kein Interesse';
-    case null: return 'Offen';
-    default: return 'Unbekannt';
-  }
+// Status-Ableitung aus CallLog-Feldern (Backend liefert kein status-Feld)
+const deriveDisplayStatus = (call: CallLog): string => {
+  // Termin vorhanden → Termin vereinbart
+  if ((call as any).appointment_datetime) return 'Termin vereinbart';
+  // Erreicht, wenn Gesprächsdauer > 0 oder successful true
+  const successfulFlag = typeof (call as any).successful === 'boolean' ? (call as any).successful : false;
+  if ((call as any).duration > 0 || successfulFlag) return 'Erreicht';
+  // Nicht erreicht bei Dauer 0 oder Fehlgründen
+  const reason = String((call as any).disconnection_reason || '').toLowerCase();
+  const failReasons = ['busy', 'no_answer', 'declined', 'failed', 'network_error', 'not_reached', 'timeout'];
+  if ((call as any).duration === 0 || (reason && failReasons.some(r => reason.includes(r)))) return 'Nicht erreicht';
+  // Spezifisch „Kein Interesse“ nur wenn Grund darauf hindeutet
+  if (reason.includes('no_interest') || reason.includes('kein_interesse')) return 'Kein Interesse';
+  return 'Offen';
 };
 
 // Interface für Recent Call Data
@@ -258,7 +262,7 @@ const transformCallLogToRecentCall = (callLog: CallLog): RecentCallData => {
     email: callLog.lead_email,
     phone: displayPhone,
     agent: callLog.agent_workspace_name,
-    status: mapApiStatusToDisplayStatus(callLog.status),
+    status: deriveDisplayStatus(callLog as any),
     date: format(new Date(callLog.timestamp), 'yyyy-MM-dd')
   };
 };
@@ -267,6 +271,7 @@ const leadDetails = generateLeadDetails();
 
 export default function Dashboard() {
   const { primaryWorkspace } = useWorkspace();
+  const { profile } = useUserProfile();
   const [dateRange, setDateRange] = useState<{from: Date, to: Date}>({
     from: subDays(new Date(), 6),
     to: new Date()
@@ -301,6 +306,7 @@ export default function Dashboard() {
   const [recentCallsLoading, setRecentCallsLoading] = useState(true);
   const [recentCallsError, setRecentCallsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchInput, setSearchInput] = useState<string>('');
 
   // API Call für Leads Count
   useEffect(() => {
@@ -350,9 +356,10 @@ export default function Dashboard() {
           return;
         }
 
-        // Get call logs filtered by workspace
-        const callLogsData = await callAPI.getCallLogs({ agent__workspace: String(primaryWorkspace?.id || '') });
-        const reachedCount = callAPI.calculateReachedLeads(callLogsData.results);
+        // Workspace-scoped successful calls (last 30 days)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const callLogsData = await callAPI.getCallLogs({ successful: true as any, agentworkspace: String(primaryWorkspace?.id || ''), timestamp_after: thirtyDaysAgo, page_size: 1000 });
+        const reachedCount = callAPI.calculateReachedLeads(callLogsData.results || []);
         setReachedLeadsCount(reachedCount);
       } catch (error) {
         console.error('Error fetching call logs for reached leads:', error);
@@ -389,9 +396,18 @@ export default function Dashboard() {
           return;
         }
 
-        // Get appointment statistics filtered by workspace
-        const stats = await callAPI.getAppointmentStats({ agent__workspace: String(primaryWorkspace?.id || '') });
-        setAppointmentStats(stats);
+        // Workspace-genauer Count via call logs mit Termin ab jetzt
+        const nowIso = new Date().toISOString();
+        const apptLogs = await callAPI.getCallLogs({ has_appointment: true, agentworkspace: String(primaryWorkspace?.id || ''), appointment_datetime_after: nowIso, page_size: 1 });
+        const total = apptLogs?.count || 0;
+        setAppointmentStats({
+          total_appointments: total,
+          appointments_today: 0,
+          appointments_this_week: 0,
+          appointments_this_month: 0,
+          upcoming_appointments: total,
+          past_appointments: 0,
+        });
       } catch (error) {
         console.error('Error fetching appointment stats:', error);
         setAppointmentsError(error instanceof Error ? error.message : 'Failed to load appointment data');
@@ -403,40 +419,28 @@ export default function Dashboard() {
     if (primaryWorkspace?.id) fetchAppointmentStats();
   }, [primaryWorkspace?.id]);
 
-  // API Call für Static Appointment List (nächste 2 Wochen ab heute)
+  // Temporär: Immer 5 Dummy-Termine anzeigen (ohne API)
   useEffect(() => {
-    const fetchAppointmentList = async () => {
-      setAppointmentListLoading(true);
-      setAppointmentListError(null);
-      
-      try {
-        console.log('📅 Fetching static appointment list (next 2 weeks)...');
-        
-        // Define static 2-week period from today
-        const now = new Date();
-        const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-        
-        // Get appointments in next 2 weeks
-        const appointments = await callAPI.getAppointmentCallLogs({
-          page_size: 5, // Get exactly 5 appointments
-          ordering: 'appointment_datetime', // Order by appointment time (earliest first)
-          appointment_datetime_after: now.toISOString(),
-          appointment_datetime_before: twoWeeksLater.toISOString(),
-          agent__workspace: String(primaryWorkspace?.id || '')
-        });
-        
-        setRealAppointments(appointments);
-        console.log(`✅ Static appointment list loaded: ${appointments.length} upcoming appointments (next 2 weeks)`);
-      } catch (error) {
-        console.error('❌ Error fetching appointment list:', error);
-        setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
-      } finally {
-        setAppointmentListLoading(false);
-      }
-    };
-
-    fetchAppointmentList();
-  }, []); // Run once on mount - STATIC, not dependent on dateRange
+    setAppointmentListLoading(true);
+    setAppointmentListError(null);
+    try {
+      const now = new Date();
+      const demo: AppointmentCallLog[] = Array.from({ length: 5 }).map((_, i) => {
+        const d = new Date(now.getTime() + (i + 1) * 60 * 60 * 1000); // nächste Stunden
+        return {
+          id: `demo-appointment-${i + 1}`,
+          lead: `Demo${i + 1} User${i + 1}`,
+          appointmentDate: format(d, 'dd.MM.yyyy HH:mm'),
+          date: format(d, 'yyyy-MM-dd')
+        };
+      });
+      setRealAppointments(demo);
+    } catch (error) {
+      setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
+    } finally {
+      setAppointmentListLoading(false);
+    }
+  }, []);
 
   // API Call für Recent Calls (Letzte Anrufe)
   useEffect(() => {
@@ -459,8 +463,8 @@ export default function Dashboard() {
           ordering: '-timestamp',          // Neueste zuerst
           timestamp_after: startDate,      // Gleicher Filter wie Chart
           timestamp_before: endDate,       // Gleicher Filter wie Chart
-          search: searchQuery || undefined, // Keyword Search
-          agent__workspace: String(primaryWorkspace?.id || '')
+          agent__workspace: String(primaryWorkspace?.id || ''),
+          search: searchQuery || undefined
         });
         
         // Transform API → Frontend
@@ -477,7 +481,7 @@ export default function Dashboard() {
     };
     
     fetchRecentCalls();
-  }, [dateRange, searchQuery, primaryWorkspace?.id]); // Abhängig von Datum, Search und Workspace
+  }, [dateRange, primaryWorkspace?.id, searchQuery]); // Bei serverseitiger Suche auch auf searchQuery reagieren
 
   // Real Chart Data State
   const [realChartData, setRealChartData] = useState<ChartDataPoint[]>([]);
@@ -673,13 +677,24 @@ export default function Dashboard() {
     ];
   }, [leadsStats, leadsLoading, leadsError, reachedLeadsCount, callsLoading, callsError, appointmentStats, appointmentsLoading, appointmentsError]);
 
-  // Recent Calls Logic - Use real API data
-  const filteredCalls = useMemo(() => {
-    // API macht bereits das Filtering - einfache Logic
+  const displayedCalls = useMemo(() => {
     if (recentCallsLoading) return [];
     if (recentCallsError) return [];
-    return realRecentCalls; // Bereits gefiltert durch API
-  }, [realRecentCalls, recentCallsLoading, recentCallsError]);
+    const base = realRecentCalls;
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return base;
+
+    const qDigits = q.replace(/\D/g, '');
+    const qNoSpace = q.replace(/\s+/g, '');
+    return base.filter((c) => {
+      const leadLower = (c.lead || '').toLowerCase();
+      const nameMatch = leadLower.includes(q) || leadLower.replace(/\s+/g, '').includes(qNoSpace);
+      const emailMatch = (c.email || '').toLowerCase().includes(q);
+      const phoneDigits = (c.phone || '').replace(/\D/g, '');
+      const phoneMatch = qDigits ? phoneDigits.includes(qDigits) : false;
+      return nameMatch || emailMatch || phoneMatch;
+    });
+  }, [realRecentCalls, searchQuery, recentCallsLoading, recentCallsError]);
 
   // Static Appointments Logic - Always show next 2 weeks from today
   const staticAppointments = useMemo(() => {
@@ -913,12 +928,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                             
-                            <button
-                              className="flex items-center justify-center flex-shrink-0 text-gray-500 hover:text-gray-700"
-                              onClick={() => setSelectedLead(appointment.lead)}
-                            >
-                              <Info className="h-3.5 w-3.5" />
-                            </button>
+                            {/* Info button vorübergehend entfernt */}
                           </div>
                         </CardContent>
                       </Card>
@@ -947,13 +957,17 @@ export default function Dashboard() {
           {/* Header mit Suche und Aktionen */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-6 border-b">
             <h2 className="text-2xl font-semibold">Recent calls</h2>
-            <div className="flex items-center gap-3">
+            <form
+              onSubmit={(e) => { e.preventDefault(); setSearchQuery(searchInput); }}
+              className="flex items-center gap-2"
+            >
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setSearchQuery(searchInput); }}
                   className="w-full sm:w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
@@ -961,16 +975,19 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">⌘</kbd>
-                  <kbd className="px-1.5 py-0.5 text-xs font-medium text-gray-500 bg-gray-100 border rounded">F</kbd>
-                </div>
               </div>
-            </div>
+              <Button
+                type="submit"
+                variant="default"
+                className="h-9 relative z-10"
+              >
+                Search
+              </Button>
+            </form>
           </div>
 
           {/* Tabelle */}
-          {filteredCalls.length > 0 ? (
+          {(displayedCalls.length > 0 || (profile?.email === 'leonhard@malmachen.com' && !recentCallsLoading)) ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -981,11 +998,11 @@ export default function Dashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredCalls.slice(0, 10).map((call) => (
+                  {displayedCalls.slice(0, 20).map((call) => (
                     <tr key={call.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -1012,7 +1029,6 @@ export default function Dashboard() {
                         {(() => {
                           const statusBadge = getStatusBadge(call.status);
                           const StatusIcon = statusBadge.icon;
-                          
                           return (
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadge.className}`}>
                               <StatusIcon className="h-3 w-3" />
@@ -1024,18 +1040,7 @@ export default function Dashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{call.date}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedLead(call.lead)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
+                      
                     </tr>
                   ))}
                 </tbody>
@@ -1142,7 +1147,7 @@ export default function Dashboard() {
                         <CardContent className="p-3">
                           {(() => {
                             // Suche nach Follow-up in den ursprünglichen Anruf-Daten oder Terminen
-                            const leadCall = filteredCalls.find(call => call.lead === selectedLead);
+                            const leadCall = displayedCalls.find(call => call.lead === selectedLead);
                             const leadAppointment = staticAppointments.find(appointment => appointment.lead === selectedLead);
                             
                             if (leadAppointment) {

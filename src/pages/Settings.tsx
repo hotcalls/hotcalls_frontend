@@ -883,20 +883,22 @@ export default function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => {
-                      if (isAtUserLimit) {
-                        toast({ title: 'Hinweis', description: 'Dein Nutzer-Limit ist aufgebraucht.' });
-                        return;
-                      }
-                      setShowInviteModal(true);
-                    }}
-                    disabled={isAtUserLimit}
-                    className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
-                  >
-                    <Plus className={iconSizes.small} />
-                    <span>Mitglied einladen</span>
-                  </Button>
+                  {false && (
+                    <Button
+                      onClick={() => {
+                        if (isAtUserLimit) {
+                          toast({ title: 'Hinweis', description: 'Dein Nutzer-Limit ist aufgebraucht.' });
+                          return;
+                        }
+                        setShowInviteModal(true);
+                      }}
+                      disabled={isAtUserLimit}
+                      className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
+                    >
+                      <Plus className={iconSizes.small} />
+                      <span>Mitglied einladen</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>

@@ -45,6 +45,8 @@ interface LeadFunnel {
   workspace: string;
   name: string;
   is_active: boolean;
+  // Optional count provided by backend: /api/funnels/lead-funnels/ -> lead_count
+  lead_count?: number;
   agent?: {
     id: string;
     name: string;
@@ -59,7 +61,7 @@ export default function LeadSources() {
   const [webhookSources, setWebhookSources] = useState<WebhookSource[]>([]);
   const [leadFunnels, setLeadFunnels] = useState<LeadFunnel[]>([]);
   const [csvFunnels, setCsvFunnels] = useState<LeadFunnel[]>([]);
-  const [useDemoCsv, setUseDemoCsv] = useState(false);
+  const [useDemoCsv, setUseDemoCsv] = useState(false); // legacy flag, no longer used for rendering
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCsvStep, setIsCsvStep] = useState(false);
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
@@ -74,6 +76,7 @@ export default function LeadSources() {
     errors: Array<{ index: number; error: any }>;
     detected_variable_keys?: string[];
   }>(null);
+  const [dialogDetectedVars, setDialogDetectedVars] = useState<string[]>([]);
   const [isWebhookNameStep, setIsWebhookNameStep] = useState(false);
   const [webhookName, setWebhookName] = useState("");
   const [isCreatingWebhook, setIsCreatingWebhook] = useState(false);
@@ -101,6 +104,16 @@ export default function LeadSources() {
   const { workspaceDetails } = useWorkspace();
   const { toast } = useToast();
 
+  // Resolve display name for a CSV funnel (prefer stored filename override)
+  const resolveFunnelName = useCallback((funnelId: string, fallbackName: string) => {
+    try {
+      const key = `csv:name:${workspaceDetails?.id || 'ws'}:${funnelId}`;
+      const val = localStorage.getItem(key);
+      if (val && val.trim().length > 0) return val;
+    } catch {}
+    return fallbackName;
+  }, [workspaceDetails?.id]);
+
   // Load all lead sources
   const loadAllSources = useCallback(async () => {
     console.log('🔍 Starting to load all lead sources...');
@@ -110,7 +123,7 @@ export default function LeadSources() {
       const [metaIntegrationsResult, webhookSourcesResult, funnelsResult] = await Promise.allSettled([
         metaAPI.getIntegrations(),
         webhookAPI.listSources(),
-        workspaceDetails?.id ? funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id }) : Promise.resolve([] as any[]),
+        workspaceDetails?.id ? funnelAPI.getLeadFunnels({ workspace: workspaceDetails.id, ordering: '-created_at' }) : Promise.resolve([] as any[]),
       ]);
 
       // Handle Meta integrations
@@ -135,10 +148,20 @@ export default function LeadSources() {
         const allFunnels = (funnelsResult.value as any[]) || [];
         const csvOnly = allFunnels.filter((f: any) => !f.meta_lead_form && !f.webhook_source);
         setCsvFunnels(csvOnly);
-        setUseDemoCsv(csvOnly.length === 0);
+        // Seed stats map with server-provided lead_count to avoid flashing 0
+        setCsvStatsByFunnel(prev => {
+          const next: Record<string, { count: number; variables: string[] }> = { ...prev };
+          csvOnly.forEach((f: any) => {
+            const existing = next[f.id] || { count: 0, variables: [] as string[] };
+            const serverCount = typeof f.lead_count === 'number' ? f.lead_count : existing.count;
+            next[f.id] = { count: serverCount, variables: existing.variables };
+          });
+          return next;
+        });
+        // do not show demo placeholder anymore
       } else {
         setCsvFunnels([]);
-        setUseDemoCsv(true);
+        // keep empty state
       }
     } catch (error) {
       console.error('❌ Unexpected error loading sources:', error);
@@ -175,9 +198,40 @@ export default function LeadSources() {
         if (!resp.next) break; page += 1;
       }
 
-      // No inference fallback: show only API-provided variables to keep it authoritative
+      // Fallback: infer from recent leads in this funnel (meta_data/variables)
+      if (variableKeys.length === 0) {
+        try {
+          let p = 1; const keys = new Set<string>();
+          const MAX_PAGES = 3; // light sampling
+          while (p <= MAX_PAGES) {
+            const resp: any = await leadAPI.getLeads({ page: p, page_size: 100, workspace: workspaceDetails.id, ordering: '-created_at' } as any);
+            const results: any[] = resp?.results || [];
+            if (results.length === 0) break;
+            results
+              .filter((l: any) => (l.lead_funnel?.id === funnelId) || (l.lead_funnel === funnelId))
+              .forEach((l: any) => {
+                const meta = l.meta_data || l.variables || {};
+                Object.keys(meta || {}).forEach(k => keys.add(k));
+              });
+            if (!resp.next) break; p += 1;
+          }
+          variableKeys = Array.from(keys);
+        } catch (e) {
+          console.error('⚠️ Variable inference fallback failed', e);
+        }
+      }
 
-      setCsvStatsByFunnel(prev => ({ ...prev, [funnelId]: { count: total, variables: variableKeys } }));
+      // Remove core contact fields from display variables
+      const coreDisplay = new Set(['name','first_name','firstname','surname','last_name','lastname','email','phone','full_name']);
+      variableKeys = (variableKeys || []).filter(k => !coreDisplay.has(String(k).toLowerCase()));
+
+      // Preserve existing non-empty cache to avoid flashing 0/empty shortly after import
+      setCsvStatsByFunnel(prev => {
+        const existing = prev[funnelId] || { count: 0, variables: [] as string[] };
+        const nextCount = total > 0 ? total : existing.count || 0;
+        const nextVars = (variableKeys && variableKeys.length > 0) ? variableKeys : (existing.variables || []);
+        return { ...prev, [funnelId]: { count: nextCount, variables: nextVars } };
+      });
     } catch {}
   }, [workspaceDetails?.id]);
 
@@ -458,16 +512,7 @@ export default function LeadSources() {
     }
   }, [loadAllSources]);
 
-  // If linked with ?open=csv, open dialog directly on mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('open') === 'csv') {
-      setIsAddDialogOpen(true);
-      setIsCsvStep(true);
-      // Show demo data immediately
-      populateDemoCsv();
-    }
-  }, []);
+  // Remove any legacy query handling; do not auto-open dialogs
 
   return (
     <div className={layoutStyles.pageContainer}>
@@ -497,6 +542,7 @@ export default function LeadSources() {
             setCsvImportResult(null);
             setCsvParsedRows([]);
             setCsvParseInfo(null);
+            setDialogDetectedVars([]);
           }
         }}>
           <DialogTrigger asChild>
@@ -537,6 +583,13 @@ export default function LeadSources() {
                         setCsvParseInfo(info);
                         setCsvImportResult(null);
                         // reset demo indicator if any (no-op now)
+                        // Pre-calc preview variables from header (exclude core fields)
+                        try {
+                          const header = (info?.header || []) as string[];
+                          const core = new Set(['name','first name','firstname','surname','last name','lastname','email','e-mail','phone','telefon','mobile','tel','full_name','full name']);
+                          const preview = header.filter(h => !core.has(h.toLowerCase().trim()));
+                          setDialogDetectedVars(preview);
+                        } catch {}
                       }}
                     />
 
@@ -549,18 +602,25 @@ export default function LeadSources() {
                             <div className="mt-2 text-red-600">Maximum 10,000 rows per CSV.</div>
                           )}
                         </div>
-                        {/* Variables from API for this funnel after import (authoritative) */}
+                        {/* Variables detected from this import (authoritative) */}
                         <div className="p-3 bg-gray-50 rounded border border-gray-200">
                           <div className="font-medium mb-1">Detected variables</div>
                           <div className="flex flex-wrap gap-2">
                             {(() => {
-                              // Try to show API variables for latest created/updated CSV funnel
-                              const latestCsv = (csvFunnels[0]?.id) as string | undefined;
-                              const apiVars = latestCsv ? (csvStatsByFunnel[latestCsv]?.variables || []) : [];
-                              if (apiVars.length === 0) {
+                              if (isUploadingCsv) {
+                                return (
+                                  <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Importing and analyzing…
+                                  </span>
+                                );
+                              }
+                              const shown = dialogDetectedVars.length > 0
+                                ? dialogDetectedVars
+                                : (csvImportResult?.detected_variable_keys || []);
+                              if (!shown || shown.length === 0) {
                                 return <span className="text-xs text-gray-500">Will appear after import</span>;
                               }
-                              return apiVars.map((v: string) => (
+                              return shown.map((v: string) => (
                                 <span key={v} className="px-2 py-1 text-xs rounded-full bg-white border">
                                   {v}
                                 </span>
@@ -579,6 +639,16 @@ export default function LeadSources() {
                       <div className="font-medium">Import completed</div>
                       <div>{csvImportResult.successful_creates} / {csvImportResult.total_leads} leads imported</div>
                     </div>
+                    {Array.isArray(csvImportResult.detected_variable_keys) && csvImportResult.detected_variable_keys.length > 0 && (
+                      <div className="p-3 bg-gray-50 rounded border border-gray-200">
+                        <div className="font-medium mb-1">Detected variables</div>
+                        <div className="flex flex-wrap gap-2">
+                          {csvImportResult.detected_variable_keys.map((v) => (
+                            <span key={v} className="px-2 py-1 text-xs rounded-full bg-white border">{v}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {csvImportResult.failed_creates > 0 && (
                       <div className="p-3 bg-amber-50 rounded border border-amber-200">
                         {csvImportResult.failed_creates} rows with errors.
@@ -594,6 +664,7 @@ export default function LeadSources() {
                     setCsvParsedRows([]);
                     setCsvParseInfo(null);
                     setIsAddDialogOpen(false);
+                    setDialogDetectedVars([]);
                   }}>Close</Button>
                   {!csvImportResult && (
                     <div className="ml-auto flex gap-2">
@@ -630,7 +701,9 @@ export default function LeadSources() {
                               return mappedRow;
                             });
                             
+                            // Create leads and wait briefly so backend prepares variables
                             const res = await leadAPI.bulkCreateLeads(mappedRows);
+                            await new Promise(r => setTimeout(r, 1200));
                             setCsvImportResult({
                               import_batch_id: res.import_batch_id,
                               created_lead_ids: res.created_lead_ids || [],
@@ -646,13 +719,53 @@ export default function LeadSources() {
                                 import_batch_id: res.import_batch_id,
                                 created_lead_ids: res.created_lead_ids || [],
                                 detected_variable_keys: res.detected_variable_keys || [],
+                                filename: csvParseInfo?.filename || null,
                                 ts: Date.now(),
                               }));
                             }
-                            // Refresh lead funnels so the new CSV funnel erscheint sofort
+                            // Refresh funnels and eagerly load variables for CSV funnels
                             try { 
-                              const updatedFunnels = await funnelAPI.getLeadFunnels({ workspace: workspaceDetails?.id || '' });
-                              if (Array.isArray(updatedFunnels)) setLeadFunnels(updatedFunnels);
+                              const updated = await funnelAPI.getLeadFunnels({ workspace: workspaceDetails?.id || '', ordering: '-created_at' });
+                              if (Array.isArray(updated)) {
+                                const csvOnly = updated.filter((f:any)=>!f.meta_lead_form && !f.webhook_source);
+                                setLeadFunnels(csvOnly);
+                                // Load variables for all CSV funnels
+                                await Promise.all(csvOnly.map((f:any)=>loadCsvFunnelStats(f.id)));
+                                // Pick most recent (API already ordered)
+                                const pick = csvOnly[0] || csvOnly[csvOnly.length-1];
+                                if (pick?.id) {
+                                  // Store filename as display name override for this funnel
+                                  try {
+                                    const display = (csvParseInfo?.filename || '').trim();
+                                    if (display) {
+                                      const key = `csv:name:${workspaceDetails?.id || 'ws'}:${pick.id}`;
+                                      localStorage.setItem(key, display);
+                                      // Persist to backend so it shows in API as well
+                                      try {
+                                        await funnelAPI.updateFunnel(pick.id, { name: display });
+                                      } catch (e) {
+                                        console.warn('Funnel rename failed, using local override only', e);
+                                      }
+                                    }
+                                  } catch {}
+                                  try {
+                                    const v = await funnelAPI.getFunnelVariables(pick.id);
+                                    const keys = Array.isArray(v) ? v.map((x:any)=>x.key) : [];
+                                    // fallback: compute keys from uploaded rows meta_data
+                                    let fallbackKeys: string[] = [];
+                                    try {
+                                      const set = new Set<string>();
+                                      mappedRows.forEach((m:any)=> Object.keys(m?.meta_data || {}).forEach(k=> set.add(k)));
+                                      fallbackKeys = Array.from(set);
+                                    } catch {}
+                                    const finalKeys = (keys && keys.length > 0) ? keys : fallbackKeys;
+                                    if (finalKeys.length > 0) {
+                                      setDialogDetectedVars(finalKeys);
+                                      setCsvStatsByFunnel(prev => ({ ...prev, [pick.id]: { count: res.total_leads || csvParsedRows.length, variables: finalKeys } }));
+                                    }
+                                  } catch {}
+                                }
+                              }
                             } catch {}
                             toast({ title: 'CSV imported', description: `${res.successful_creates} of ${res.total_leads} leads imported.` });
                           } catch (e) {
@@ -687,8 +800,8 @@ export default function LeadSources() {
         <div className={layoutStyles.cardGrid}>
 
 
-          {/* CSV Sources (real or demo) */}
-          {((useDemoCsv ? [{ id: 'demo-csv-1', name: 'Demo CSV Source', is_active: true }] as any : csvFunnels)).map((funnel: any) => (
+          {/* CSV Sources (real only) */}
+          {csvFunnels.map((funnel: any) => (
             <Card key={funnel.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -698,7 +811,7 @@ export default function LeadSources() {
                     </div>
                     <div>
                       <CardTitle className={textStyles.cardTitle}>
-                        {funnel.name || 'CSV Source'}
+                        {resolveFunnelName(funnel.id, funnel.name || 'CSV Source')}
                       </CardTitle>
                       <div className="text-xs text-gray-500 mt-1">
                         {(csvStatsByFunnel[funnel.id]?.count ?? 0)} leads
@@ -734,8 +847,8 @@ export default function LeadSources() {
 
 
 
-          {/* Empty state (hidden when demo shown) */}
-          {!useDemoCsv && Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
+          {/* Empty state */}
+          {Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
                 <img src="/csv icon.png" alt="CSV" className="h-12 w-12 mx-auto mb-4 object-contain opacity-70" />

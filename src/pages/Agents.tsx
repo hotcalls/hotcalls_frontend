@@ -297,13 +297,7 @@ export default function Agents() {
                         onCheckedChange={() => toggleAgentStatus(agent.agent_id, agent.status)}
                         className="data-[state=checked]:bg-[#3d5097] data-[state=unchecked]:bg-gray-200"
                       />
-                      <button 
-                        className={buttonStyles.cardAction.icon}
-                        onClick={() => navigate(`/dashboard/agents/analytics/${agent.agent_id}`)}
-                        title="Analyse"
-                      >
-                        <BarChart className={iconSizes.small} />
-                      </button>
+                      {/* Analytics button removed per request */}
                       <button 
                         className={buttonStyles.cardAction.icon}
                         onClick={() => {

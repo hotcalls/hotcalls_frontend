@@ -115,11 +115,11 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
     try {
       if (!file) return;
       if (file.type !== "application/pdf") {
-        toast.error("Nur PDF erlaubt");
+        toast.error("PDF only allowed");
         return;
       }
       if (file.size > 20 * 1024 * 1024) {
-        toast.error("Maximal 20 MB");
+        toast.error("Maximum 20 MB");
         return;
       }
       setUploading(true);
@@ -129,10 +129,10 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
         email_default_body: body || undefined,
       });
       setDocInfo(res);
-      toast.success("Upload erfolgreich");
+      toast.success("Upload successful");
       onChanged?.();
     } catch (e: any) {
-      toast.error(e?.message || "Upload fehlgeschlagen");
+      toast.error(e?.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -143,10 +143,10 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
       setDeleting(true);
       await agentAPI.deleteSendDocument(agentId);
       setDocInfo({ has_document: false, filename: null, url: null, email_default_subject: null, email_default_body: null });
-      toast.success("Dokument entfernt");
+      toast.success("Document removed");
       onChanged?.();
     } catch (e: any) {
-      toast.error(e?.message || "Entfernen fehlgeschlagen");
+      toast.error(e?.message || "Remove failed");
     } finally {
       setDeleting(false);
     }

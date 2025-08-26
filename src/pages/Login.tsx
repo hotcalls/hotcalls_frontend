@@ -115,14 +115,18 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6">
-            <img src="/hotcalls-logo.png" alt="hotcalls" className="h-12 w-auto" onError={(e) => { const img = e.target as HTMLImageElement; img.style.display = 'none'; const fallback = img.nextElementSibling as HTMLElement; if (fallback) fallback.style.display = 'flex'; }} />
+            <img 
+              src="/Messecaller.png" 
+              alt="Messecaller" 
+              className="h-16 md:h-20 w-auto object-contain"
+            />
             <div className="items-center gap-2 justify-center hidden">
-              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
-              <span className="text-2xl font-bold text-gray-900">hotcalls</span>
+              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">M</span></div>
+              <span className="text-2xl font-bold text-gray-900">Messecaller</span>
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Willkommen zurück</CardTitle>
-          <CardDescription>Melden Sie sich bei Ihrem HotCalls Konto an</CardDescription>
+          <CardDescription>Melden Sie sich bei Ihrem Messecaller Konto an</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
