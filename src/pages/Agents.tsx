@@ -140,7 +140,7 @@ export default function Agents() {
         call_from: originalAgent.call_from,
         call_to: originalAgent.call_to,
         character: originalAgent.character,
-        prompt: originalAgent.prompt,
+        script_template: (originalAgent as any).script_template || "",
         config_id: originalAgent.config_id,
         calendar_configuration: originalAgent.calendar_configuration
       };

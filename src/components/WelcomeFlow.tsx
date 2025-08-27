@@ -720,7 +720,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: formData.script, // Use user's task definition as prompt
+        script_template: formData.script, // Use user's task definition as script_template
         config_id: null,
         calendar_configuration: null
       };

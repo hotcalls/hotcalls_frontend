@@ -85,7 +85,7 @@ export interface CreateAgentRequest {
   call_from: string;
   call_to: string;
   character: string;
-  prompt: string;
+  script_template: string;
   config_id?: string | null;
   calendar_configuration?: string | null;
   lead_funnel?: string | null; // Lead funnel assignment
@@ -109,7 +109,7 @@ export interface AgentResponse {
   call_from: string;
   call_to: string;
   character: string;
-  prompt?: string;
+  script_template?: string;
   config_id?: string | null;
   phone_numbers?: any[];
   phone_number_count?: number;

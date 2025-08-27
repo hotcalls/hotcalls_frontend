@@ -47,7 +47,9 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
   const [subject, setSubject] = useState<string>("");
   const [body, setBody] = useState<string>("");
 
-  const tlsMode = useMemo(() => "starttls", []);
+  // Auto-detect transport security: Port 465 => SSL, otherwise STARTTLS
+  const computedUseSSL = smtp.smtp_port === 465;
+  const computedUseTLS = !computedUseSSL; // default to STARTTLS for non-465
 
   useEffect(() => {
     if (!open) return;
@@ -78,8 +80,8 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
         smtp_enabled: true,
         smtp_host: smtp.smtp_host,
         smtp_port: smtp.smtp_port,
-        smtp_use_tls: tlsMode === "starttls",
-        smtp_use_ssl: tlsMode === "ssl",
+        smtp_use_tls: computedUseTLS,
+        smtp_use_ssl: computedUseSSL,
         smtp_username: smtp.smtp_username,
         smtp_from_email: smtp.smtp_from_email,
       };

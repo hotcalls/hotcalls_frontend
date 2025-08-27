@@ -56,7 +56,7 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
     call_from: "09:00",
     call_to: "17:00",
     character: "Freundlich, professionell und hilfsbereit. Beantwortet Fragen kompetent und führt Termine-Buchungen durch.",
-    prompt: "Du bist ein hilfreicher KI-Assistent für Terminbuchungen und Kundenservice. Sei freundlich, professionell und effizient.",
+    script_template: "Du bist ein hilfreicher KI-Assistent für Terminbuchungen und Kundenservice. Sei freundlich, professionell und effizient.",
   });
 
   // Load voices on component mount
@@ -151,7 +151,7 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
         call_from: formData.call_from + ":00",
         call_to: formData.call_to + ":00",
         character: formData.character,
-        prompt: formData.prompt,
+        script_template: formData.script_template,
       };
 
       const agent = await agentAPI.createAgent(agentData);
@@ -383,12 +383,12 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
               </p>
             </div>
             <div>
-              <Label htmlFor="prompt">System Prompt (Erweitert)</Label>
+              <Label htmlFor="prompt">Script template</Label>
               <Textarea
                 id="prompt"
                 placeholder="Technische Anweisungen für die KI..."
-                value={formData.prompt}
-                onChange={(e) => handleInputChange('prompt', e.target.value)}
+                value={formData.script_template}
+                onChange={(e) => handleInputChange('script_template', e.target.value)}
                 className="mt-2"
                 rows={3}
               />

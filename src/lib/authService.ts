@@ -136,7 +136,7 @@ export interface AgentCreateRequest {
   call_from: string; // Time format "HH:mm:ss"
   call_to: string; // Time format "HH:mm:ss"
   character: string;
-  prompt?: string;
+  script_template?: string;
   config_id?: string;
   calendar_configuration?: string;
 }
@@ -155,7 +155,7 @@ export interface Agent {
   call_from: string;
   call_to: string;
   character: string;
-  prompt?: string;
+  script_template?: string;
   config_id?: string;
   calendar_configuration?: string;
   created_date?: string;
@@ -238,7 +238,7 @@ export const agentService = {
     try {
       console.log('Creating agent with data:', {
         ...agentData,
-        prompt: agentData.prompt ? '[REDACTED]' : undefined
+        script_template: (agentData as any).script_template ? '[REDACTED]' : undefined
       });
       
       const response = await apiClient.post<Agent>(
