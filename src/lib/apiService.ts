@@ -392,10 +392,18 @@ export const workspaceAPI = {
     });
   },
 
-  async testSmtp(workspaceId: string, to_email: string): Promise<{ success: boolean; error?: string }>{
+  async testSmtp(
+    workspaceId: string,
+    to_email: string,
+    extra?: { agent_id?: string; subject?: string; body?: string }
+  ): Promise<{ success: boolean; error?: string }>{
+    const payload: Record<string, any> = { to_email };
+    if (extra?.agent_id) payload.agent_id = extra.agent_id;
+    if (extra?.subject) payload.subject = extra.subject;
+    if (extra?.body) payload.body = extra.body;
     return apiCall(`/api/workspaces/workspaces/${workspaceId}/smtp-test/`, {
       method: 'POST',
-      body: JSON.stringify({ to_email }),
+      body: JSON.stringify(payload),
     });
   },
 
@@ -585,6 +593,20 @@ export const agentAPI = {
     email_default_body: string | null;
   }>{
     return apiCall(`/api/agents/agents/${agentId}/send-document/`, { method: 'GET' });
+  },
+
+  async updateSendDocumentDefaults(agentId: string, payload: { email_default_subject?: string; email_default_body?: string }): Promise<{
+    has_document: boolean;
+    filename: string | null;
+    url: string | null;
+    email_default_subject: string | null;
+    email_default_body: string | null;
+  }>{
+    // Update metadata for existing document (subject/body), no file upload
+    return apiCall(`/api/agents/agents/${agentId}/send-document/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload || {}),
+    });
   },
 
   async uploadSendDocument(agentId: string, payload: { file: File; email_default_subject?: string; email_default_body?: string }): Promise<{

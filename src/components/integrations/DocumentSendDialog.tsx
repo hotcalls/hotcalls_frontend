@@ -88,7 +88,16 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
       if (smtp.smtp_password) payload.smtp_password = smtp.smtp_password;
       const res = await workspaceAPI.updateSmtpSettings(workspaceId, payload);
       setSmtp(prev => ({ ...prev, ...res, smtp_password: "" }));
-      toast.success("SMTP gespeichert");
+
+      // Save default subject/body for the agent without re-uploading a file
+      try {
+        await agentAPI.updateSendDocumentDefaults(agentId, {
+          email_default_subject: subject ?? "",
+          email_default_body: body ?? "",
+        });
+      } catch {}
+
+      toast.success("Einstellungen gespeichert");
     } catch (e: any) {
       toast.error(e?.message || "SMTP konnte nicht gespeichert werden");
     } finally {
@@ -104,7 +113,15 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
         toast.error("Bitte Absender‑E‑Mail setzen");
         return;
       }
-      const res = await workspaceAPI.testSmtp(workspaceId, to);
+      // Optional: warn if no document uploaded
+      if (!docInfo?.has_document) {
+        toast.info("Hinweis: Es ist noch kein PDF hochgeladen – Testmail wird ohne Anhang gesendet.");
+      }
+      const res = await workspaceAPI.testSmtp(workspaceId, to, {
+        agent_id: agentId,
+        subject: subject || undefined,
+        body: body || undefined,
+      });
       if (res?.success) toast.success("Testmail gesendet"); else toast.error(res?.error || "Test fehlgeschlagen");
     } catch (e: any) {
       toast.error(e?.message || "Test fehlgeschlagen");
@@ -156,7 +173,7 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl w-[640px] max-w-[95vw]">
+      <DialogContent className="sm:max-w-xl w-[640px] max-w-[95vw] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Dokumentenversand konfigurieren</DialogTitle>
           <DialogDescription>SMTP konfigurieren und PDF festlegen, das der Agent versendet.</DialogDescription>
@@ -168,53 +185,56 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
             <div className="text-sm font-medium">E‑Mail (SMTP)</div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="min-w-0">
+          <div className="flex items-end gap-3">
+            <div className="flex-[2] min-w-0">
               <Label>From E‑Mail</Label>
               <Input className="w-full" value={smtp.smtp_from_email} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_from_email: e.target.value }))} placeholder="you@domain.tld" />
             </div>
-            <div className="min-w-0">
+            <div className="flex-1 min-w-0">
               <Label>Host</Label>
-              <Input className="w-full" value={smtp.smtp_host} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_host: e.target.value }))} placeholder="smtp.domain.tld" />
+              <Input className="w-full truncate" value={smtp.smtp_host} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_host: e.target.value }))} placeholder="smtp.domain.tld" />
             </div>
-            <div className="min-w-0">
+            <div className="basis-24 shrink-0">
               <Label>Port</Label>
-              <Input className="w-full" type="number" value={smtp.smtp_port} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_port: Number(e.target.value || 0) }))} />
+              <Input className="w-full text-center" type="number" min={1} max={65535} step={1} value={smtp.smtp_port} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_port: Number(e.target.value || 0) }))} placeholder="587" />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-            <div className="min-w-0">
+            <div className="min-w-0 md:col-span-1 overflow-hidden">
               <Label>Benutzername</Label>
-              <Input className="w-full" value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
+              <Input className="w-full truncate" value={smtp.smtp_username} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_username: e.target.value }))} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 md:col-span-1 overflow-hidden">
               <Label>Passwort</Label>
-              <Input className="w-full" type="password" value={smtp.smtp_password} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_password: e.target.value }))} placeholder={smtp.smtp_password_set ? "••••••" : ""} />
+              <Input className="w-full truncate" type="password" value={smtp.smtp_password} onChange={(e) => setSmtp(prev => ({ ...prev, smtp_password: e.target.value }))} placeholder={smtp.smtp_password_set ? "••••••" : ""} />
             </div>
+            <div className="hidden md:block" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button size="sm" onClick={handleSaveSmtp} disabled={savingSmtp}>{savingSmtp ? "Speichern…" : "Speichern"}</Button>
-            <Button size="sm" variant="outline" onClick={handleTestSmtp} disabled={testing}>{testing ? "Testet…" : "Testmail"}</Button>
-          </div>
+          {/* Save/Test actions moved to footer */}
         </div>
 
         {/* Document Section */}
         <div className="space-y-3 mt-6">
           <div className="text-sm font-medium">Dokument</div>
           {docInfo.has_document ? (
-            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm gap-2">
-              <span className="text-gray-700 flex-1 min-w-0 truncate">PDF: {docInfo.filename}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" variant="outline" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>Ersetzen</Button>
-                <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? "Entfernt…" : "Entfernen"}</Button>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Input
+                value={`PDF: ${docInfo.filename || ''}`}
+                readOnly
+                className="truncate cursor-default"
+                title={docInfo.filename || ''}
+              />
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" className="whitespace-nowrap" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>Ersetzen</Button>
+                <Button size="sm" variant="destructive" className="whitespace-nowrap" onClick={handleDelete} disabled={deleting}>{deleting ? "Entfernt…" : "Entfernen"}</Button>
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm gap-2">
-              <span className="text-gray-600 flex-1 min-w-0 truncate">Kein Dokument vorhanden</span>
-              <Button size="sm" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>{uploading ? "Lädt…" : "Upload"}</Button>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <Input value="Kein Dokument vorhanden" readOnly className="cursor-default" />
+              <Button size="sm" className="whitespace-nowrap" onClick={() => document.getElementById("doc-upload-input")?.click()} disabled={uploading}>{uploading ? "Lädt…" : "Upload"}</Button>
             </div>
           )}
 
@@ -223,17 +243,27 @@ export default function DocumentSendDialog({ open, onOpenChange, workspaceId, ag
           <div className="grid grid-cols-1 gap-3">
             <div>
               <Label>Standard‑Betreff (optional)</Label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="z. B. Informationen zu Ihrem Anliegen" />
+              <Input value={subject} onChange={(e) => setSubject(e.target.value)} onBlur={async () => {
+                try {
+                  await agentAPI.updateSendDocumentDefaults(agentId, { email_default_subject: subject || null as any });
+                } catch {}
+              }} placeholder="z. B. Informationen zu Ihrem Anliegen" />
             </div>
             <div>
               <Label>Standard‑Text (optional)</Label>
-              <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Kurzer Begleittext. Platzhalter: {current_date}, {lead_name}" />
+              <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} onBlur={async () => {
+                try {
+                  await agentAPI.updateSendDocumentDefaults(agentId, { email_default_body: body || null as any });
+                } catch {}
+              }} placeholder="Kurzer Begleittext. Platzhalter: {current_date}, {lead_name}" />
             </div>
           </div>
         </div>
 
         <div className="mt-6 flex items-center justify-end">
           <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSaveSmtp} disabled={savingSmtp}>{savingSmtp ? "Speichern…" : "Speichern"}</Button>
+            <Button size="sm" variant="outline" onClick={handleTestSmtp} disabled={testing}>{testing ? "Testet…" : "Testmail"}</Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Schließen</Button>
           </div>
         </div>

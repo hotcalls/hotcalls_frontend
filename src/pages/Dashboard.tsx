@@ -40,7 +40,7 @@ import { format, subDays, isWithinInterval, startOfDay, endOfDay, eachDayOfInter
 import { de } from 'date-fns/locale';
 import { DateRangePicker } from '@/components/DateRangePicker';
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint, AppointmentCallLog } from '@/lib/apiService';
+import { leadAPI, callAPI, CallLog, AppointmentStats, chartAPI, ChartDataPoint, AppointmentCallLog, agentAPI } from '@/lib/apiService';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { useUserProfile } from '@/hooks/use-user-profile';
 
@@ -247,7 +247,7 @@ interface RecentCallData {
 }
 
 // Transform API CallLog zu Frontend RecentCallData
-const transformCallLogToRecentCall = (callLog: CallLog): RecentCallData => {
+const transformCallLogToRecentCall = (callLog: CallLog, agentNameById?: Record<string, string>): RecentCallData => {
   const fullName = callLog.lead_surname 
     ? `${callLog.lead_name} ${callLog.lead_surname}`
     : callLog.lead_name;
@@ -255,13 +255,16 @@ const transformCallLogToRecentCall = (callLog: CallLog): RecentCallData => {
   const displayPhone = callLog.direction === 'outbound' 
     ? callLog.to_number 
     : callLog.from_number;
+  const agentDisplay = (agentNameById && agentNameById[(callLog as any).agent as any])
+    || (callLog as any).agent_name
+    || callLog.agent_workspace_name;
     
   return {
     id: callLog.id,
     lead: fullName,
     email: callLog.lead_email,
     phone: displayPhone,
-    agent: callLog.agent_workspace_name,
+    agent: agentDisplay,
     status: deriveDisplayStatus(callLog as any),
     date: format(new Date(callLog.timestamp), 'yyyy-MM-dd')
   };
@@ -458,6 +461,13 @@ export default function Dashboard() {
         const startDate = startOfDay(dateRange.from).toISOString();
         const endDate = endOfDay(dateRange.to).toISOString();
         
+        // Optional: Agent-ID zu Name auflösen (für saubere Anzeige)
+        let agentNameById: Record<string, string> | undefined;
+        try {
+          const agents = await agentAPI.getAgents(primaryWorkspace?.id ? String(primaryWorkspace.id) : undefined);
+          agentNameById = Object.fromEntries((agents || []).map((a: any) => [a.agent_id, a.name]));
+        } catch {}
+
         const apiCalls = await callAPI.getRecentCallLogs({
           page_size: 10,                    // Standard: 10 Calls
           ordering: '-timestamp',          // Neueste zuerst
@@ -468,7 +478,7 @@ export default function Dashboard() {
         });
         
         // Transform API → Frontend
-        const transformedCalls = apiCalls.map(transformCallLogToRecentCall);
+        const transformedCalls = apiCalls.map((c) => transformCallLogToRecentCall(c, agentNameById));
         setRealRecentCalls(transformedCalls);
         console.log(`✅ Recent calls loaded: ${transformedCalls.length} calls`);
         

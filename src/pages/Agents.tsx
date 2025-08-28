@@ -292,11 +292,7 @@ export default function Agents() {
                     </div>
                     
                     <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
-                      <Switch
-                        checked={agent.status === "active"}
-                        onCheckedChange={() => toggleAgentStatus(agent.agent_id, agent.status)}
-                        className="data-[state=checked]:bg-[#3d5097] data-[state=unchecked]:bg-gray-200"
-                      />
+                      {/* Status toggle hidden per request */}
                       {/* Analytics button removed per request */}
                       <button 
                         className={buttonStyles.cardAction.icon}
