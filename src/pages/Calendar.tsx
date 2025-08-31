@@ -135,11 +135,32 @@ function EventTypeStep1({ formData, setFormData }: { formData: EventTypeFormData
   );
 }
 
-function EventTypeStep2({ formData, setFormData, availableCalendars }: { 
+function EventTypeStep2({ formData, setFormData, availableCalendars, workspaceId }: { 
   formData: EventTypeFormData, 
   setFormData: (data: EventTypeFormData) => void,
-  availableCalendars: BackendCalendar[]
+  availableCalendars: BackendCalendar[],
+  workspaceId?: string
 }) {
+  const [subAccounts, setSubAccounts] = useState<Array<{ id: string; provider: 'google'|'outlook'; label: string }>>([]);
+  const [loadingSubs, setLoadingSubs] = useState(false);
+
+  useEffect(() => {
+    const loadSubs = async () => {
+      if (!workspaceId) { setSubAccounts([]); return; }
+      setLoadingSubs(true);
+      try {
+        const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+        const items = await eventTypeAPI.listSubAccounts(workspaceId);
+        setSubAccounts(Array.isArray(items) ? items as any : []);
+      } catch (e) {
+        setSubAccounts([]);
+      } finally {
+        setLoadingSubs(false);
+      }
+    };
+    loadSubs();
+  }, [workspaceId]);
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Kalendereinstellungen</h3>
@@ -149,52 +170,63 @@ function EventTypeStep2({ formData, setFormData, availableCalendars }: {
         <p className="text-sm text-muted-foreground mb-2">
           Wählen Sie den Kalender aus, in den die Buchungen dieses Event-Types eingetragen werden sollen.
         </p>
-          <Select 
+        <Select 
           value={formData.calendar}
-          onValueChange={(value) => setFormData({...formData, calendar: value})}
+          onValueChange={(value) => {
+            // Auto-select target as conflict (purely visual) and keep unique
+            const targetId = value;
+            const conflicts = new Set([...(formData.conflictCheckCalendars || [])]);
+            if (targetId && targetId !== 'none') conflicts.add(targetId);
+            setFormData({
+              ...formData,
+              calendar: value,
+              conflictCheckCalendars: Array.from(conflicts)
+            });
+          }}
         >
           <SelectTrigger>
             <SelectValue placeholder="Kalender auswählen" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">Kein Zielkalender</SelectItem>
-            {availableCalendars.map((cal) => (
-              <SelectItem key={cal.id} value={cal.id}>
-                {cal.name} ({cal.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})
+            {(loadingSubs ? [] : subAccounts).map((sa) => (
+              <SelectItem key={sa.id} value={sa.id}>
+                {sa.label} ({sa.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-          <div>
+      <div>
         <Label>Kalender für Verfügbarkeitsprüfung</Label>
         <p className="text-sm text-muted-foreground mb-3">
           Wählen Sie die Kalender aus, die auf Konflikte geprüft werden sollen.
         </p>
         <div className="space-y-2">
-          {availableCalendars.map((cal) => (
-            <div key={cal.id} className="flex items-center space-x-2">
+          {(loadingSubs ? [] : subAccounts).map((sa) => (
+            <div key={sa.id} className="flex items-center space-x-2">
               <Checkbox 
-                id={cal.id}
-                checked={formData.conflictCheckCalendars.includes(cal.id)}
+                id={sa.id}
+                checked={formData.conflictCheckCalendars.includes(sa.id)}
+                disabled
                 onCheckedChange={(checked) => {
                   if (checked) {
                     setFormData({
                       ...formData, 
-                      conflictCheckCalendars: [...formData.conflictCheckCalendars, cal.id]
+                      conflictCheckCalendars: [...formData.conflictCheckCalendars, sa.id]
                     });
                   } else {
                     setFormData({
                       ...formData,
-                      conflictCheckCalendars: formData.conflictCheckCalendars.filter(id => id !== cal.id)
+                      conflictCheckCalendars: formData.conflictCheckCalendars.filter(id => id !== sa.id)
                     });
                   }
                 }}
               />
-                  <Label htmlFor={cal.id} className="flex items-center space-x-2">
-                    <span>{cal.name} <span className="text-xs text-muted-foreground">({cal.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})</span></span>
-                {formData.calendar === cal.id && formData.calendar !== 'none' && (
+              <Label htmlFor={sa.id} className="flex items-center space-x-2">
+                <span>{sa.label} <span className="text-xs text-muted-foreground">({sa.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})</span></span>
+                {formData.calendar === sa.id && formData.calendar !== 'none' && (
                   <Badge className="bg-[#3d5097] text-white text-xs">Zielkalender</Badge>
                 )}
               </Label>
@@ -425,19 +457,24 @@ function EventTypeModal({
 
   const handleSubmit = async () => {
     try {
-        const payload = {
-        id: crypto.randomUUID(),
+      // Build working_hours from workdays + times
+      const weekdayMap: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
+      const working_hours = (formData.workdays || []).map(d => ({ day_of_week: weekdayMap[d], start_time: formData.from_time, end_time: formData.to_time }));
+      // Build calendar_mappings from selected target + conflicts
+      const targetId = formData.calendar !== 'none' ? formData.calendar : null;
+      const conflictIds = (formData.conflictCheckCalendars || []).filter(id => id && id !== targetId);
+      const calendar_mappings = [
+        ...(targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : []),
+        ...conflictIds.map(id => ({ sub_account_id: id, role: 'conflict' as const }))
+      ];
+      const payload = {
         name: formData.name,
-        calendar: formData.calendar === 'none' ? null : formData.calendar,
         duration: formData.duration,
+        timezone: 'Europe/Berlin',
+        buffer_time: formData.days_buffer, // days->hours mapping can be refined if needed
         prep_time: formData.prep_time,
-        days_buffer: formData.days_buffer,
-        from_time: formData.from_time,
-        to_time: formData.to_time,
-        workdays: formData.workdays,
-          meeting_type: formData.meeting_type,
-          meeting_address: formData.meeting_type === 'in_person' ? formData.meeting_address : '',
-        conflict_calendars: formData.conflictCheckCalendars
+        working_hours,
+        calendar_mappings,
       };
 
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
@@ -481,7 +518,12 @@ function EventTypeModal({
           <EventTypeStep1 formData={formData} setFormData={setFormData} />
         )}
         {currentStep === 2 && (
-          <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />
+          <EventTypeStep2 
+            formData={formData} 
+            setFormData={setFormData} 
+            availableCalendars={availableCalendars} 
+            workspaceId={workspaceId}
+          />
         )}
         {currentStep === 3 && (
           <EventTypeStep3 formData={formData} setFormData={setFormData} />
@@ -640,18 +682,22 @@ function EventTypeEditModal({
 
   const handleUpdate = async () => {
     try {
+      const weekdayMap: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
+      const working_hours = (editFormData.workdays || []).map(d => ({ day_of_week: weekdayMap[d], start_time: editFormData.from_time, end_time: editFormData.to_time }));
+      const targetId = editFormData.calendar !== 'none' ? editFormData.calendar : null;
+      const conflictIds = (editFormData.conflictCheckCalendars || []).filter(id => id && id !== targetId);
+      const calendar_mappings = [
+        ...(targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : []),
+        ...conflictIds.map(id => ({ sub_account_id: id, role: 'conflict' as const }))
+      ];
       const payload = {
         name: editFormData.name,
-        calendar: editFormData.calendar === 'none' ? null : editFormData.calendar,
         duration: editFormData.duration,
+        timezone: 'Europe/Berlin',
+        buffer_time: editFormData.days_buffer,
         prep_time: editFormData.prep_time,
-        days_buffer: editFormData.days_buffer,
-        from_time: editFormData.from_time,
-        to_time: editFormData.to_time,
-        workdays: editFormData.workdays,
-        meeting_type: editFormData.meeting_type,
-        meeting_address: editFormData.meeting_type === 'in_person' ? editFormData.meeting_address : '',
-        conflict_calendars: editFormData.conflictCheckCalendars
+        working_hours,
+        calendar_mappings,
       };
 
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
@@ -741,7 +787,7 @@ function EventTypeEditStep1({ formData, setFormData }: { formData: EventTypeForm
   return <EventTypeStep1 formData={formData} setFormData={setFormData} />;
 }
 
-function EventTypeEditStep2({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+function EventTypeEditStep2({ formData, setFormData, workspaceId }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void, workspaceId?: string }) {
   return <EventTypeStep4 formData={formData} setFormData={setFormData} />;
 }
 
@@ -749,12 +795,13 @@ function EventTypeEditStep3({ formData, setFormData }: { formData: EventTypeForm
   return <EventTypeStep3 formData={formData} setFormData={setFormData} />;
 }
 
-function EventTypeEditStep4({ formData, setFormData, availableCalendars }: { 
+function EventTypeEditStep4({ formData, setFormData, availableCalendars, workspaceId }: { 
   formData: EventTypeFormData, 
   setFormData: (data: EventTypeFormData) => void,
-  availableCalendars: BackendCalendar[]
+  availableCalendars: BackendCalendar[],
+  workspaceId?: string
 }) {
-  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />;
+  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} workspaceId={workspaceId} />;
 }
 
 function EventTypeEditStep5({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {

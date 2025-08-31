@@ -1642,6 +1642,12 @@ export const eventTypeAPI = {
     const url = `/api/event-types/${workspaceId}/event-types/${eventTypeId}/`;
     return apiCall<void>(url, { method: 'DELETE' });
   },
+  async listSubAccounts(workspaceId: string): Promise<Array<{ id: string; provider: 'google'|'outlook'; label: string }>> {
+    const url = `/api/event-types/${workspaceId}/sub-accounts/`;
+    const response = await apiCall<any>(url);
+    if (Array.isArray(response)) return response;
+    return [];
+  },
 };
 
 // Lead Types
