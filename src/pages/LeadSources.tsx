@@ -679,7 +679,10 @@ export default function LeadSources() {
                             
                             // Map common column names to expected backend fields
                             const mappedRows = csvParsedRows.map(row => {
-                              const mappedRow: any = {};
+                              const mappedRow: any = {
+                                // Add workspace ID to ensure proper filtering
+                                workspace: workspaceDetails?.id
+                              };
                               Object.keys(row).forEach(key => {
                                 const lowerKey = key.toLowerCase().trim();
                                 if (lowerKey === 'first name' || lowerKey === 'firstname' || lowerKey === 'vorname') {
@@ -698,11 +701,21 @@ export default function LeadSources() {
                                   mappedRow.meta_data[key] = row[key];
                                 }
                               });
+                              
+                              console.log('🔍 Mapped lead row with workspace:', {
+                                workspace: mappedRow.workspace,
+                                name: mappedRow.name,
+                                email: mappedRow.email
+                              });
+                              
                               return mappedRow;
                             });
                             
                             // Create leads and wait briefly so backend prepares variables
+                            console.log('📤 Uploading leads to workspace:', workspaceDetails?.id, 'Lead count:', mappedRows.length);
                             const res = await leadAPI.bulkCreateLeads(mappedRows);
+                            console.log('✅ CSV import result:', res);
+                            
                             await new Promise(r => setTimeout(r, 1200));
                             setCsvImportResult({
                               import_batch_id: res.import_batch_id,
@@ -768,6 +781,15 @@ export default function LeadSources() {
                               }
                             } catch {}
                             toast({ title: 'CSV imported', description: `${res.successful_creates} of ${res.total_leads} leads imported.` });
+                            
+                            // Notify other components (like Leads page) that new leads were added
+                            window.dispatchEvent(new CustomEvent('leadsUpdated', { 
+                              detail: { 
+                                workspace: workspaceDetails?.id,
+                                count: res.successful_creates,
+                                source: 'csv'
+                              } 
+                            }));
                           } catch (e) {
                             console.error(e);
                             toast({ title: 'Error', description: 'CSV import failed.', variant: 'destructive' });

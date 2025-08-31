@@ -109,6 +109,20 @@ export default function Leads() {
     }
   }, [loadLeads, workspaceDetails?.id]);
 
+  // Listen for leads updates from CSV imports or other sources
+  useEffect(() => {
+    const handleLeadsUpdated = (event: CustomEvent) => {
+      console.log('🔄 Received leadsUpdated event:', event.detail);
+      if (event.detail?.workspace === workspaceDetails?.id) {
+        console.log('✅ Refreshing leads after CSV import');
+        loadLeads();
+      }
+    };
+
+    window.addEventListener('leadsUpdated', handleLeadsUpdated as EventListener);
+    return () => window.removeEventListener('leadsUpdated', handleLeadsUpdated as EventListener);
+  }, [loadLeads, workspaceDetails?.id]);
+
   // Load CSV funnels (still used to display source names)
   useEffect(() => {
     (async () => {

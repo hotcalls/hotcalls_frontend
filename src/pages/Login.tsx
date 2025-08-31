@@ -151,10 +151,7 @@ const Login = () => {
               <Link to="/forgot-password" className="text-sm text-primary hover:underline">Passwort vergessen?</Link>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Anmeldung läuft..." : "Anmelden"}</Button>
-            <div className="text-center text-sm">
-              <span className="text-muted-foreground">Noch kein Account? </span>
-              <Link to={nextQuery ? `/signup?next=${encodeURIComponent(nextQuery)}` : "/signup"} className="text-primary hover:underline font-medium">Jetzt registrieren</Link>
-            </div>
+
           </form>
         </CardContent>
       </Card>
