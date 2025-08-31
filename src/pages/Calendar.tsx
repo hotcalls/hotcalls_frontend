@@ -776,9 +776,6 @@ export default function Calendar() {
     show: boolean; 
     connection: GoogleConnection | null; 
   }>({ show: false, connection: null });
-  const [googleAffected, setGoogleAffected] = useState<{ count: number; items: Array<{ id: string; name: string; calendar: string }> } | null>(null);
-  const [msAffected, setMsAffected] = useState<{ count: number; items: Array<{ id: string; name: string; calendar: string }> } | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   
   // Event Type Creation Modal State
   const [showEventTypeModal, setShowEventTypeModal] = useState(false);
@@ -884,34 +881,9 @@ export default function Calendar() {
   const loadCalendarsFromBackend = async () => {
     setIsLoadingCalendars(true);
     try {
-      const [connectionsResponse, msConnectionsResponse, calendarsResponse] = await Promise.all([
-        calendarAPI.getGoogleConnections(),
-        calendarAPI.getMicrosoftConnections(),
-        calendarAPI.getCalendars()
-      ]);
-
-      // Trust backend - use all connections from backend response
-      // Backend already filters out truly disconnected connections
-      const filteredConnections = connectionsResponse;
-
-      setGoogleConnections(filteredConnections);
-      setMicrosoftConnections(msConnectionsResponse || []);
-      // Load Microsoft calendars per connection to mirror Google UI
-      try {
-        const msMap: Record<string, any[]> = {};
-        await Promise.all((msConnectionsResponse || []).map(async (c: MicrosoftConnection) => {
-          try {
-            const list = await calendarAPI.getMicrosoftCalendars(c.id);
-            msMap[c.id] = Array.isArray(list) ? list : [];
-          } catch (e) {
-            msMap[c.id] = [];
-          }
-        }));
-        setMsCalendarsByConnection(msMap);
-      } catch {}
-      // BUGFIX: Handle paginated response
-      const calendars = Array.isArray(calendarsResponse) 
-        ? calendarsResponse 
+      const calendarsResponse = await calendarAPI.getCalendars();
+      const calendars = Array.isArray(calendarsResponse)
+        ? calendarsResponse
         : (calendarsResponse as any).results || [];
 
       if (!Array.isArray(calendars)) {
@@ -919,20 +891,19 @@ export default function Calendar() {
         throw new Error('Invalid calendars response');
       }
 
-      // Filter calendars by current workspace if field present
       const wsId = String(primaryWorkspace?.id || '');
       const filteredCalendars = wsId
         ? calendars.filter((c: any) => String(c.workspace) === wsId || String((c as any)?.workspace_id) === wsId)
         : calendars;
-      // Use REAL calendars from backend so we hold the correct Calendar IDs for delete
+
       const convertedCalendars: CalendarType[] = filteredCalendars.map((c: any) => {
         const isGoogle = (c.provider === 'google');
         const providerDetails = (c as any)?.provider_details || {};
         return {
-          id: c.id, // REAL Calendar ID
+          id: c.id,
           connectionId: '',
           name: c.name,
-          email: '', // not used for rendering; avoid mis-filtering by connection email
+          email: isGoogle ? (providerDetails.account_email || '') : (providerDetails.primary_email || ''),
           provider: isGoogle ? 'Google Calendar' : 'Microsoft 365',
           isConnected: !!c.active,
           isDefault: false,
@@ -943,25 +914,43 @@ export default function Calendar() {
           subCalendars: [],
           accessRole: ("owner" as const),
           color: isGoogle ? "#1a73e8" : "#2563eb",
-          timeZone: providerDetails.time_zone || 'Europe/Berlin',
+          timeZone: providerDetails.time_zone || providerDetails.timezone_windows || 'Europe/Berlin',
           active: !!c.active,
           createdAt: new Date(c.created_at),
           lastSyncedAt: null
         };
       });
 
+      // Derive connections list from calendars by provider/email for rendering
+      const googleConnectionsMap = new Map<string, GoogleConnection>();
+      const microsoftConnectionsMap = new Map<string, MicrosoftConnection>();
+      convertedCalendars.forEach(cal => {
+        if (cal.provider === 'Google Calendar') {
+          const email = cal.email || 'Google Calendar';
+          if (!googleConnectionsMap.has(email)) {
+            googleConnectionsMap.set(email, { id: cal.id, account_email: email, active: cal.isConnected, calendar_count: 1, status: cal.isConnected ? 'active' : 'inactive' });
+          } else {
+            const prev = googleConnectionsMap.get(email)!;
+            googleConnectionsMap.set(email, { ...prev, calendar_count: prev.calendar_count + 1 });
+          }
+        } else {
+          const email = cal.email || 'Microsoft 365';
+          if (!microsoftConnectionsMap.has(email)) {
+            microsoftConnectionsMap.set(email, { id: cal.id, workspace: String(primaryWorkspace?.id || ''), primary_email: email, active: cal.isConnected });
+          }
+        }
+      });
+
+      setGoogleConnections(Array.from(googleConnectionsMap.values()));
+      setMicrosoftConnections(Array.from(microsoftConnectionsMap.values()));
+      setMsCalendarsByConnection({});
       setConnectedCalendars(convertedCalendars);
-      
-      // Store provider-agnostic calendars for Event Type creation (Google + Microsoft)
       setAllBackendCalendars(calendars);
-      
-      console.log(`✅ Loaded ${filteredConnections.length} Google connections, ${msConnectionsResponse.length} Microsoft connections and ${convertedCalendars.length} calendars`);
-      
     } catch (error) {
       console.error('❌ Error loading calendars:', error);
-      // Don't show error toast for 404 - just log it and set empty arrays
       setConnectedCalendars([]);
       setGoogleConnections([]);
+      setMicrosoftConnections([]);
       setAllBackendCalendars([]);
     } finally {
       setIsLoadingCalendars(false);
@@ -972,8 +961,10 @@ export default function Calendar() {
   const handleRefreshMicrosoftConnection = async (connectionId: string) => {
     try {
       setMsRefreshingConnectionId(connectionId);
-      await calendarAPI.refreshMicrosoftConnection(connectionId);
-      toast({ title: 'Aktualisiert', description: 'Microsoft Verbindung aktualisiert.' });
+      // Generic approach: find a calendar to sync
+      const cal = connectedCalendars.find(c => c.id === connectionId || c.email === (microsoftConnections.find(m => m.id === connectionId)?.primary_email));
+      if (cal) await calendarAPI.syncCalendar(cal.id);
+      toast({ title: 'Aktualisiert', description: 'Kalender synchronisiert.' });
     } catch (e) {
       console.error('❌ Refresh Microsoft error:', e);
       toast({ title: 'Fehler', description: 'Aktualisieren fehlgeschlagen.', variant: 'destructive' });
@@ -985,15 +976,6 @@ export default function Calendar() {
 
   const handleDisconnectMicrosoftConnection = async (connectionId: string) => {
     setShowMsDisconnectConfirm({ show: true, connectionId });
-    try {
-      setIsPreviewLoading(true);
-      const preview = await calendarAPI.previewMicrosoftDisconnect(connectionId);
-      setMsAffected(preview);
-    } catch (e) {
-      setMsAffected(null);
-    } finally {
-      setIsPreviewLoading(false);
-    }
   };
 
   const [showMsDisconnectConfirm, setShowMsDisconnectConfirm] = useState<{ show: boolean; connectionId: string | null }>({ show: false, connectionId: null });
@@ -1026,29 +1008,23 @@ export default function Calendar() {
   // Connect Google Calendar
   const handleConnectGoogleCalendar = async () => {
     try {
-      const oauthResponse = await calendarAPI.getGoogleOAuthURL();
+      const workspaceId = primaryWorkspace?.id ? String(primaryWorkspace.id) : undefined;
+      const oauthResponse = await calendarAPI.getGoogleOAuthURL(workspaceId);
       window.location.href = oauthResponse.authorization_url;
     } catch (error) {
       console.error('❌ Failed to initiate Google OAuth:', error);
-      toast({
-        title: "Verbindung fehlgeschlagen",
-        description: "Google Kalender konnte nicht verbunden werden.",
-        variant: "destructive",
-      });
+      toast({ title: "Verbindung fehlgeschlagen", description: "Google Kalender konnte nicht verbunden werden.", variant: "destructive" });
     }
   };
 
   const handleConnectMicrosoftCalendar = async () => {
     try {
-      const oauthResponse = await calendarAPI.getMicrosoftOAuthURL();
+      if (!primaryWorkspace?.id) throw new Error('No workspace');
+      const oauthResponse = await calendarAPI.getMicrosoftOAuthURL(String(primaryWorkspace.id));
       window.location.href = oauthResponse.authorization_url;
     } catch (error) {
       console.error('❌ Failed to initiate Microsoft OAuth:', error);
-      toast({
-        title: "Verbindung fehlgeschlagen",
-        description: "Microsoft 365 Kalender konnte nicht verbunden werden.",
-        variant: "destructive",
-      });
+      toast({ title: "Verbindung fehlgeschlagen", description: "Microsoft 365 Kalender konnte nicht verbunden werden.", variant: "destructive" });
     }
   };
 
@@ -1057,15 +1033,6 @@ export default function Calendar() {
     const connection = googleConnections.find(conn => conn.id === connectionId);
     if (!connection) return;
     setShowDisconnectConfirm({ show: true, connection });
-    try {
-      setIsPreviewLoading(true);
-      const preview = await calendarAPI.previewGoogleDisconnect(connectionId);
-      setGoogleAffected(preview);
-    } catch (e) {
-      setGoogleAffected(null);
-    } finally {
-      setIsPreviewLoading(false);
-    }
   };
 
   const confirmDisconnectGoogleCalendar = async () => {
@@ -1076,64 +1043,23 @@ export default function Calendar() {
     setShowDisconnectConfirm({ show: false, connection: null });
 
     try {
-      const result = await calendarAPI.disconnectGoogleCalendar(connection.id);
-      
-      if (result.success) {
-        // SOFORT Frontend State clearen - OPTIMISTIC UPDATE
-        console.log(`🔥 Optimistic Update: Removing connection ${connection.account_email} and all its calendars`);
-        
-        // 0. Connection als gelöscht markieren (für Page Reload)
-        addDeletedConnection(connection.id);
-        
-        // 1. Google Connection aus State entfernen
-        setGoogleConnections(prev => prev.filter(conn => conn.id !== connection.id));
-        
-        // 2. ALLE Kalender die zu dieser Connection gehören entfernen
-        setConnectedCalendars(prev => prev.filter(cal => {
-          const belongsToConnection = cal.email.includes(connection.account_email) || cal.email === connection.account_email;
-          return !belongsToConnection;
-        }));
-
-        // 3. Nach dem erfolgreichen Trennen: Alle Google‑Kalender im Workspace serverseitig LÖSCHEN
-        //    (inkl. Sub‑Kalender). Das Backend löscht dabei per Cascade die verknüpften Event‑Types.
-        try {
-          const allCalendars = await calendarAPI.getCalendars();
-          const googleCalendars = (Array.isArray(allCalendars) ? allCalendars : (allCalendars as any)?.results || [])
-            .filter((c: any) => c.provider === 'google');
-          for (const cal of googleCalendars) {
-            try {
-              await calendarAPI.deleteCalendar(cal.id);
-            } catch (e) {
-              console.warn('Kalender löschen fehlgeschlagen (übersprungen):', cal?.id, e);
-            }
-          }
-        } catch (e) {
-          console.warn('Kalenderliste konnte nicht geladen werden – Löschen übersprungen:', e);
-        }
-
-        toast({
-          title: "Verbindung getrennt",
-          description: `Google Calendar für ${connection.account_email} wurde getrennt. Alle Kalender und Event‑Types entfernt.`,
-        });
-
-        // KEIN Backend reload - Backend gibt fälschlicherweise noch Kalender zurück
-        console.log("✅ Disconnect completed - Frontend state updated, connection marked as deleted");
-        // Event-Types neu laden, damit gelöschte Configs sofort aus der Liste verschwinden
-        try { await loadEventTypes(); } catch {}
-        
-      } else {
-        throw new Error(result.message || 'Fehler beim Trennen');
+      // Delete all calendars for this account (provider-agnostic deletion)
+      const allCalendars = await calendarAPI.getCalendars();
+      const googleCalendars = (Array.isArray(allCalendars) ? allCalendars : (allCalendars as any)?.results || [])
+        .filter((c: any) => c.provider === 'google');
+      for (const cal of googleCalendars) {
+        try { await calendarAPI.deleteCalendar(cal.id); } catch {}
       }
+
+      // Update UI
+      setGoogleConnections(prev => prev.filter(conn => conn.id !== connection.id));
+      setConnectedCalendars(prev => prev.filter(cal => !(cal.email && connection.account_email && cal.email.includes(connection.account_email))));
+
+      toast({ title: "Verbindung getrennt", description: `Google Calendar für ${connection.account_email} wurde getrennt.` });
+      try { await loadEventTypes(); } catch {}
     } catch (error) {
       console.error('❌ Error disconnecting:', error);
-      toast({
-        title: "Fehler beim Trennen",
-        description: "Verbindung konnte nicht getrennt werden.",
-        variant: "destructive",
-      });
-      
-      // KEIN Backend reload im Error Fall - Backend ist inkonsistent 
-      console.log("❌ Disconnect failed - keeping current frontend state");
+      toast({ title: "Fehler beim Trennen", description: "Verbindung konnte nicht getrennt werden.", variant: "destructive" });
     } finally {
       setDisconnectingConnectionId(null);
     }
@@ -1345,21 +1271,7 @@ export default function Calendar() {
                 Sind Sie sicher, dass Sie die Google Calendar Verbindung für{' '}
                 <strong>{showDisconnectConfirm.connection?.account_email}</strong> trennen möchten?
               </p>
-              {isPreviewLoading ? (
-                <div className="text-sm text-muted-foreground">Prüfe betroffene Event‑Types…</div>
-              ) : googleAffected && googleAffected.count > 0 ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-800 font-medium mb-2">Diese Event‑Types würden gelöscht ({googleAffected.count}):</p>
-                  <ul className="text-sm text-amber-700 list-disc pl-5">
-                    {googleAffected.items.slice(0, 8).map(it => (
-                      <li key={it.id}>{it.name}</li>
-                    ))}
-                  </ul>
-                  {googleAffected.items.length > 8 && (
-                    <p className="text-xs text-amber-700 mt-2">… und weitere {googleAffected.items.length - 8}</p>
-                  )}
-                </div>
-              ) : (
+              {(
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
                   <ul className="text-sm text-amber-700 space-y-1">
@@ -1421,21 +1333,7 @@ export default function Calendar() {
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p> Sind Sie sicher, dass Sie die Microsoft 365 Verbindung trennen möchten?</p>
-              {isPreviewLoading ? (
-                <div className="text-sm text-muted-foreground">Prüfe betroffene Event‑Types…</div>
-              ) : msAffected && msAffected.count > 0 ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-sm text-amber-800 font-medium mb-2">Diese Event‑Types würden gelöscht ({msAffected.count}):</p>
-                  <ul className="text-sm text-amber-700 list-disc pl-5">
-                    {msAffected.items.slice(0, 8).map(it => (
-                      <li key={it.id}>{it.name}</li>
-                    ))}
-                  </ul>
-                  {msAffected.items.length > 8 && (
-                    <p className="text-xs text-amber-700 mt-2">… und weitere {msAffected.items.length - 8}</p>
-                  )}
-                </div>
-              ) : (
+              {(
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <p className="text-sm text-amber-800 font-medium mb-2">⚠️ Was passiert beim Trennen:</p>
                   <ul className="text-sm text-amber-700 space-y-1">

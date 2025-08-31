@@ -159,9 +159,21 @@ export async function getGoogleConnections(): Promise<GoogleConnection[]> {
   const { calendarAPI } = await import('./apiService');
   
   try {
-    console.log('🔗 Loading Google connections via calendarAPI...');
-    const connections = await calendarAPI.getGoogleConnections();
-    console.log('✅ Google Connections geladen:', connections);
+    console.log('🔗 Loading Google connections via calendars list...');
+    const calendars = await calendarAPI.getCalendars();
+    const list = (Array.isArray(calendars) ? calendars : (calendars as any)?.results || []) as any[];
+    const map = new Map<string, GoogleConnection>();
+    list.filter(c => c.provider === 'google').forEach(c => {
+      const email = (c.provider_details?.account_email) || 'Google Calendar';
+      if (!map.has(email)) {
+        map.set(email, { id: c.id, account_email: email, active: !!c.active, calendar_count: 1, status: c.active ? 'active' : 'inactive' });
+      } else {
+        const prev = map.get(email)!;
+        map.set(email, { ...prev, calendar_count: prev.calendar_count + 1 });
+      }
+    });
+    const connections = Array.from(map.values());
+    console.log('✅ Google Connections constructed:', connections);
     return connections;
   } catch (error) {
     console.error('❌ Error loading Google connections:', error);
@@ -177,10 +189,10 @@ export async function disconnectGoogleCalendar(connectionId: string): Promise<{ 
   const { calendarAPI } = await import('./apiService');
   
   try {
-    console.log('🔌 Disconnecting Google Calendar via calendarAPI:', connectionId);
-    const response = await calendarAPI.disconnectGoogleCalendar(connectionId);
-    console.log('✅ Google Calendar disconnected:', response);
-    return response;
+    console.log('🔌 Disconnecting Google Calendar via deleteCalendar flow:', connectionId);
+    // Use deleteCalendar on calendars that belong to this connection (approx by id)
+    await calendarAPI.deleteCalendar(connectionId);
+    return { success: true };
   } catch (error) {
     console.error('❌ Error disconnecting Google Calendar:', error);
     throw error;
@@ -198,24 +210,13 @@ export async function handleOAuthCallback(): Promise<{
 }> {
   try {
     console.log('🔄 OAuth completed - loading calendars from backend...');
-    
-    // Einfach die Google Connections vom Backend laden - kein Code-Handling nötig
-    const connections = await getGoogleConnections();
-    
-    // Clear stored state after successful OAuth
+    const { calendarAPI } = await import('./apiService');
+    const calendars = await calendarAPI.getCalendars();
     sessionStorage.removeItem('oauth_state');
     sessionStorage.removeItem('oauth_user_email');
-    
-    return { 
-      success: true, 
-      calendars: connections 
-    };
-    
+    return { success: true, calendars: Array.isArray(calendars) ? calendars : (calendars as any)?.results || [] };
   } catch (error) {
     console.error('❌ OAuth callback error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error occurred' 
-    };
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 } 

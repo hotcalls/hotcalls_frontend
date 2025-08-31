@@ -1489,50 +1489,35 @@ export const calendarAPI = {
    * Get Google Calendar connections
    */
   async getGoogleConnections(): Promise<GoogleConnection[]> {
-    console.log('🔗 GET /api/calendars/google_connections/ - Fetching Google connections');
-    
-    try {
-      const response = await apiCall<GoogleConnection[]>('/api/calendars/google_connections/');
-      console.log('✅ Google connections loaded:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Google connections API error:', error);
-      throw error;
-    }
+    // Deprecated: derive from calendars in UI
+    return [];
   },
 
   /**
    * Get Microsoft 365 Calendar connections
    */
   async getMicrosoftConnections(): Promise<MicrosoftConnection[]> {
-    console.log('🔗 GET /api/calendars/microsoft_connections/ - Fetching Microsoft connections');
-    try {
-      const response = await apiCall<MicrosoftConnection[]>('/api/calendars/microsoft_connections/');
-      console.log('✅ Microsoft connections loaded:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Microsoft connections API error:', error);
-      throw error;
-    }
+    // Deprecated: derive from calendars in UI
+    return [];
   },
 
   /**
    * Generate Google OAuth URL
    */
-  async getGoogleOAuthURL(): Promise<{
+  async getGoogleOAuthURL(workspaceId?: string): Promise<{
     authorization_url: string;
     state: string;
     message: string;
   }> {
-    console.log('🔐 POST /api/calendars/google_auth_url/ - Generating OAuth URL');
-    
+    console.log('🔐 POST /api/google-calendar/auth/authorize/ - Generating OAuth URL');
     try {
       const response = await apiCall<{
         authorization_url: string;
         state: string;
         message: string;
-      }>('/api/calendars/google_auth_url/', {
-        method: 'POST'
+      }>('/api/google-calendar/auth/authorize/', {
+        method: 'POST',
+        body: JSON.stringify(workspaceId ? { workspace_id: workspaceId } : {})
       });
       console.log('✅ Google OAuth URL generated:', response.authorization_url);
       return response;
@@ -1545,15 +1530,15 @@ export const calendarAPI = {
   /**
    * Generate Microsoft OAuth URL
    */
-  async getMicrosoftOAuthURL(): Promise<{
+  async getMicrosoftOAuthURL(workspaceId: string): Promise<{
     authorization_url: string;
     state: string;
   }> {
-    console.log('🔐 POST /api/calendars/microsoft_auth_url/ - Generating OAuth URL');
+    console.log('🔐 POST /api/outlook-calendar/auth/authorize/ - Generating OAuth URL');
     try {
-      const response = await apiCall<{ authorization_url: string; state: string }>('/api/calendars/microsoft_auth_url/', {
+      const response = await apiCall<{ authorization_url: string; state: string }>('/api/outlook-calendar/auth/authorize/', {
         method: 'POST',
-        body: JSON.stringify({})
+        body: JSON.stringify({ workspace_id: workspaceId })
       });
       console.log('✅ Microsoft OAuth URL generated:', response.authorization_url);
       return response;
@@ -1567,42 +1552,40 @@ export const calendarAPI = {
    * List Microsoft calendars for a connection
    */
   async getMicrosoftCalendars(connectionId: string): Promise<Array<{ id: string; name: string; is_primary: boolean; owner_email: string; can_edit: boolean }>> {
-    const url = `/api/calendars/microsoft_calendars/?connection_id=${encodeURIComponent(connectionId)}`;
-    return apiCall(url);
+    // Deprecated: no longer supported
+    return [];
   },
 
   /**
    * Refresh Microsoft connection
    */
   async refreshMicrosoftConnection(connectionId: string): Promise<any> {
-    return apiCall(`/api/calendars/${connectionId}/microsoft_refresh/`, { method: 'POST' });
+    // Deprecated: use syncCalendar with generic calendar id instead
+    return { success: false };
   },
 
   /**
    * Disconnect Microsoft connection
    */
   async disconnectMicrosoftCalendar(connectionId: string): Promise<{ success: boolean; message?: string; }>{
-    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect/`, { method: 'POST', body: JSON.stringify({ confirm: true }) });
+    // Deprecated: delete calendars via deleteCalendar
+    return { success: false };
   },
 
   /**
    * Save Microsoft-specific settings for a connection
    */
   async saveMicrosoftSettings(connectionId: string, settings: Record<string, any>): Promise<{ saved: boolean; settings: Record<string, any> }>{
-    return apiCall(`/api/calendars/${connectionId}/settings/`, {
-      method: 'POST',
-      body: JSON.stringify(settings)
-    });
+    // Deprecated
+    return { saved: false, settings };
   },
 
   /**
    * Create Microsoft subscription (webhook)
    */
   async subscribeMicrosoft(connectionId: string, body: { notificationUrl?: string; clientState?: string }): Promise<any> {
-    return apiCall(`/api/calendars/${connectionId}/microsoft_subscribe/`, {
-      method: 'POST',
-      body: JSON.stringify(body || {})
-    });
+    // Deprecated
+    return { success: false };
   },
 
   /**
@@ -1612,36 +1595,24 @@ export const calendarAPI = {
     success: boolean;
     message?: string;
   }> {
-    console.log('🔌 POST /api/calendars/${connectionId}/google_disconnect/ - Disconnecting Google Calendar');
-    
-    try {
-      const response = await apiCall<{
-        success: boolean;
-        message?: string;
-      }>(`/api/calendars/${connectionId}/google_disconnect/`, {
-        method: 'POST',
-        body: JSON.stringify({ confirm: true })
-      });
-      console.log('✅ Google Calendar disconnected:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Google disconnect error:', error);
-      throw error;
-    }
+    // Deprecated: delete calendars via deleteCalendar
+    return { success: false };
   },
 
   /**
    * Preview which Event Types will be deleted when disconnecting a Google connection
    */
   async previewGoogleDisconnect(connectionId: string): Promise<{ count: number; items: Array<{ id: string; name: string; calendar: string }> }>{
-    return apiCall(`/api/calendars/${connectionId}/google_disconnect_preview/`, { method: 'GET' });
+    // Removed feature
+    return { count: 0, items: [] };
   },
 
   /**
    * Preview which Event Types will be deleted when disconnecting a Microsoft connection
    */
   async previewMicrosoftDisconnect(connectionId: string): Promise<{ count: number; items: Array<{ id: string; name: string; calendar: string }> }>{
-    return apiCall(`/api/calendars/${connectionId}/microsoft_disconnect_preview/`, { method: 'GET' });
+    // Removed feature
+    return { count: 0, items: [] };
   },
 
   /**
@@ -1714,6 +1685,11 @@ export const calendarAPI = {
       console.error('❌ Event Type delete API error:', error);
       throw error;
     }
+  },
+
+  /** Sync any calendar (provider-agnostic) */
+  async syncCalendar(calendarId: string): Promise<any> {
+    return apiCall(`/api/calendars/${calendarId}/sync/`, { method: 'POST' });
   },
 };
 
