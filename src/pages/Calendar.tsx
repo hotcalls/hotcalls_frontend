@@ -384,12 +384,14 @@ function EventTypeModal({
   open, 
   onOpenChange, 
   availableCalendars,
-  onEventTypeCreated
+  onEventTypeCreated,
+  workspaceId
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableCalendars: BackendCalendar[];
   onEventTypeCreated: () => void;
+  workspaceId: string;
 }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<EventTypeFormData>({
@@ -438,7 +440,8 @@ function EventTypeModal({
         conflict_calendars: formData.conflictCheckCalendars
       };
 
-      const response = await calendarAPI.createEventType(payload);
+      const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+      const response = await eventTypeAPI.createEventType(String(workspaceId || ''), payload);
       console.log('✅ Event Type created:', response);
       
       // Reload Event Types to show the new one
@@ -561,7 +564,7 @@ function EventTypeCard({ eventType, onEdit, onDelete }: {
         <div className="space-y-3">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Zielkalender</p>
-            <p className="text-sm truncate">{eventType.calendar_name || 'Nicht zugewiesen'}</p>
+            <p className="text-sm truncate">{eventType.name || 'Nicht zugewiesen'}</p>
           </div>
           
           {eventType.prep_time > 0 && (
@@ -589,13 +592,15 @@ function EventTypeEditModal({
   onOpenChange, 
   eventType,
   availableCalendars,
-  onEventTypeUpdated
+  onEventTypeUpdated,
+  workspaceId
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   eventType: any;
   availableCalendars: BackendCalendar[];
   onEventTypeUpdated: () => void;
+  workspaceId: string;
 }) {
   const [activeEditTab, setActiveEditTab] = useState('grundinformationen');
   const [editFormData, setEditFormData] = useState<EventTypeFormData>({
@@ -649,7 +654,8 @@ function EventTypeEditModal({
         conflict_calendars: editFormData.conflictCheckCalendars
       };
 
-      await calendarAPI.updateEventType(eventType.id, payload);
+      const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+      await eventTypeAPI.updateEventType(String(workspaceId || ''), eventType.id, payload);
       console.log('✅ Event Type updated');
       
       onEventTypeUpdated();
@@ -838,7 +844,8 @@ export default function Calendar() {
     if (!showDeleteConfirm.eventType) return;
     
     try {
-      await calendarAPI.deleteEventType(showDeleteConfirm.eventType.id);
+      const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+      await eventTypeAPI.deleteEventType(String(primaryWorkspace?.id || ''), showDeleteConfirm.eventType.id);
       console.log('✅ Event Type deleted');
       
       // Reload Event Types
@@ -864,13 +871,13 @@ export default function Calendar() {
   const loadEventTypes = async () => {
     setIsLoadingEventTypes(true);
     try {
-      const response = await calendarAPI.getCalendarConfigurations();
-      const eventTypesData = Array.isArray(response) ? response : (response as any).results || [];
+      if (!primaryWorkspace?.id) { setEventTypes([]); setIsLoadingEventTypes(false); return; }
+      const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+      const eventTypesData = await eventTypeAPI.listEventTypes(String(primaryWorkspace.id));
       setEventTypes(eventTypesData);
       console.log(`✅ Loaded ${eventTypesData.length} Event Types`);
     } catch (error) {
       console.error('❌ Error loading Event Types:', error);
-      // Don't show error toast for 404 - just log it
       setEventTypes([]);
     } finally {
       setIsLoadingEventTypes(false);
@@ -1360,6 +1367,7 @@ export default function Calendar() {
         onOpenChange={setShowEventTypeModal}
         availableCalendars={allBackendCalendars}
         onEventTypeCreated={loadEventTypes}
+        workspaceId={String(primaryWorkspace?.id || '')}
       />
 
       {/* Event Type Edit Modal */}
@@ -1369,6 +1377,7 @@ export default function Calendar() {
         eventType={editingEventType}
         availableCalendars={allBackendCalendars}
         onEventTypeUpdated={loadEventTypes}
+        workspaceId={String(primaryWorkspace?.id || '')}
       />
 
       {/* Delete Event Type Confirmation Dialog */}
@@ -1583,9 +1592,8 @@ function CalendarCard({
     const loadAffected = async () => {
       try {
         setIsPreviewLoading(true);
-        const [{ calendarAPI }] = await Promise.all([import("@/lib/apiService")]);
-        const resp: any = await calendarAPI.getCalendarConfigurations();
-        const items = Array.isArray(resp) ? resp : (resp?.results || []);
+        const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+        const items = await eventTypeAPI.listEventTypes(String((useWorkspace() as any)?.primaryWorkspace?.id || ''));
         const affected = items
           .filter((et: any) => String(et.calendar) === String(calendar.id))
           .map((et: any) => ({ id: et.id, name: et.name || et.title || 'Unbenannter Event Type' }));

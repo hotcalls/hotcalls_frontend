@@ -87,7 +87,7 @@ export interface CreateAgentRequest {
   character: string;
   script_template: string;
   config_id?: string | null;
-  calendar_configuration?: string | null;
+  event_type?: string | null;
   lead_funnel?: string | null; // Lead funnel assignment
 }
 
@@ -113,7 +113,7 @@ export interface AgentResponse {
   config_id?: string | null;
   phone_numbers?: any[];
   phone_number_count?: number;
-  calendar_configuration?: string | null;
+  event_type?: string | null;
   lead_funnel?: string | null; // The funnel ID assigned to this agent
   created_at: string;
   updated_at?: string;
@@ -1615,81 +1615,32 @@ export const calendarAPI = {
     return { count: 0, items: [] };
   },
 
-  /**
-   * Create Event Type Configuration
-   */
-  async createEventType(payload: any): Promise<any> {
-    console.log('📅 POST /api/calendars/configurations/ - Creating Event Type');
-    
-    try {
-      const response = await apiCall('/api/calendars/configurations/', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      console.log('✅ Event Type created:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Event Type creation API error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get Calendar Configurations (Event Types)
-   */
-  async getCalendarConfigurations(): Promise<any> {
-    console.log('📋 GET /api/calendars/configurations/ - Fetching Event Types');
-    
-    try {
-      const response = await apiCall('/api/calendars/configurations/');
-      console.log('✅ Event Types loaded:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Event Types loading API error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Update Event Type Configuration
-   */
-  async updateEventType(id: string, payload: any): Promise<any> {
-    console.log(`🔄 PUT /api/calendars/configurations/${id}/ - Updating Event Type`);
-    
-    try {
-      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      console.log('✅ Event Type updated:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Event Type update API error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Delete Event Type Configuration
-   */
-  async deleteEventType(id: string): Promise<any> {
-    console.log(`🗑️ DELETE /api/calendars/configurations/${id}/ - Deleting Event Type`);
-    
-    try {
-      const response = await apiCall(`/api/calendars/configurations/${id}/`, {
-        method: 'DELETE'
-      });
-      console.log('✅ Event Type deleted:', response);
-      return response;
-    } catch (error) {
-      console.error('❌ Event Type delete API error:', error);
-      throw error;
-    }
-  },
-
   /** Sync any calendar (provider-agnostic) */
   async syncCalendar(calendarId: string): Promise<any> {
     return apiCall(`/api/calendars/${calendarId}/sync/`, { method: 'POST' });
+  },
+};
+
+// Event Types API (workspace-scoped)
+export const eventTypeAPI = {
+  async listEventTypes(workspaceId: string): Promise<any[]> {
+    const url = `/api/event-types/${workspaceId}/event-types/`;
+    const response = await apiCall<any>(url);
+    if (Array.isArray(response)) return response;
+    if (response && Array.isArray((response as any).results)) return (response as any).results;
+    return [];
+  },
+  async createEventType(workspaceId: string, data: Record<string, any>): Promise<any> {
+    const url = `/api/event-types/${workspaceId}/event-types/`;
+    return apiCall<any>(url, { method: 'POST', body: JSON.stringify(data || {}) });
+  },
+  async updateEventType(workspaceId: string, eventTypeId: string, data: Record<string, any>): Promise<any> {
+    const url = `/api/event-types/${workspaceId}/event-types/${eventTypeId}/`;
+    return apiCall<any>(url, { method: 'PATCH', body: JSON.stringify(data || {}) });
+  },
+  async deleteEventType(workspaceId: string, eventTypeId: string): Promise<void> {
+    const url = `/api/event-types/${workspaceId}/event-types/${eventTypeId}/`;
+    return apiCall<void>(url, { method: 'DELETE' });
   },
 };
 

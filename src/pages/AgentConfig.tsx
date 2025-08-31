@@ -256,12 +256,13 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, id, primaryWorkspace?.id]);
 
-  // Load Event Types from Calendar API
+  // Load Event Types from Event Types API (workspace-scoped)
   const loadEventTypes = async () => {
     setIsLoadingEventTypes(true);
     try {
-      const response = await calendarAPI.getCalendarConfigurations();
-      const eventTypesData = Array.isArray(response) ? response : (response as any).results || [];
+      if (!primaryWorkspace?.id) { setAvailableEventTypes([]); setIsLoadingEventTypes(false); return; }
+      const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
+      const eventTypesData = await eventTypeAPI.listEventTypes(String(primaryWorkspace.id));
       setAvailableEventTypes(eventTypesData);
       console.log(`✅ Loaded ${eventTypesData.length} Event Types for Agent Config`);
     } catch (error) {
@@ -795,7 +796,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         character: mapPersonalityToCharacter(config.personality), // Map personality to character
         script_template: config.script || "Du bist ein freundlicher KI-Agent.",
         config_id: null, // Optional: Set if you have a config_id
-        calendar_configuration: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null, // Save selected event type
+        event_type: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null, // Save selected event type
         lead_funnel: config.selectedLeadForm // Save selected lead funnel
       };
       
@@ -826,7 +827,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         },
         calendarDebug: {
           selectedEventTypes: config.selectedEventTypes,
-          calendar_configuration: agentData.calendar_configuration,
+          event_type: (agentData as any).event_type,
           willSave: config.selectedEventTypes.length > 0 ? config.selectedEventTypes[0] : null
         },
         leadFormDebug: {

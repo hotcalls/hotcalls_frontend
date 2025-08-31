@@ -142,7 +142,7 @@ export default function Agents() {
         character: originalAgent.character,
         script_template: (originalAgent as any).script_template || "",
         config_id: originalAgent.config_id,
-        calendar_configuration: originalAgent.calendar_configuration
+        event_type: (originalAgent as any).event_type || null
       };
       
       // Create the duplicate
