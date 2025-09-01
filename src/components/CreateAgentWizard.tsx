@@ -383,9 +383,9 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
               </p>
             </div>
             <div>
-              <Label htmlFor="prompt">Script template</Label>
+              <Label htmlFor="script">Script template</Label>
               <Textarea
-                id="prompt"
+                id="script"
                 placeholder="Technische Anweisungen für die KI..."
                 value={formData.script_template}
                 onChange={(e) => handleInputChange('script_template', e.target.value)}

@@ -1491,7 +1491,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
-                            <td className="p-4">Individueller Agent-Prompt</td>
+                            <td className="p-4">Individuelles Agenten-Skript</td>
                             <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                             <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
                             <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
