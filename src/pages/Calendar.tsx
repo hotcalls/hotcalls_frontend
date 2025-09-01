@@ -1170,6 +1170,21 @@ export default function Calendar() {
     return () => window.removeEventListener('hotcalls-calendars-updated', onUpdated as EventListener);
   }, []);
 
+  // Ensure event types are fetched once workspace becomes available
+  // and whenever user switches to the Event Types tab
+  useEffect(() => {
+    if (primaryWorkspace?.id && (activeTab === 'event-types')) {
+      loadEventTypes();
+    }
+  }, [primaryWorkspace?.id, activeTab]);
+
+  // Also fetch once as soon as workspace id is known (independent of tab)
+  useEffect(() => {
+    if (primaryWorkspace?.id) {
+      loadEventTypes();
+    }
+  }, [primaryWorkspace?.id]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1191,7 +1206,17 @@ export default function Calendar() {
       </div>
 
       {/* Tab Navigation - WIEDER HERGESTELLT */}
-      <Tabs defaultValue="calendars" value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        defaultValue="calendars"
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === 'event-types') {
+            try { loadEventTypes(); } catch {}
+          }
+        }}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="calendars">Calendars</TabsTrigger>
           <TabsTrigger value="event-types">Event types</TabsTrigger>
