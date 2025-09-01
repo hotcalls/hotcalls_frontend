@@ -297,7 +297,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       // Format all funnels (Meta + CSV) for the dropdown
       const formattedForms = (leadFunnelsData || []).map(funnel => ({
-        id: funnel.id,
+        id: String(funnel.id),
         name: funnel.name,
         meta_form_id: funnel.meta_lead_form?.meta_form_id || null,
         source_type_display: funnel.meta_lead_form ? 'Meta Lead Ads' : 'CSV Import',
@@ -319,7 +319,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
 
   // Load variables for selected funnel
   useEffect(() => {
-    const funnelId = config.selectedLeadForm;
+    const funnelId = config.selectedLeadForm ? String(config.selectedLeadForm) : "";
     if (!funnelId) {
       setFunnelVariables([]);
       return;
@@ -544,12 +544,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         // Load the funnel ID that's assigned to this agent (normalize to string ID)
         let assignedFunnelId = "";
         const lf: any = (agentData as any).lead_funnel;
-        if (typeof lf === 'string') {
-          assignedFunnelId = lf;
-        } else if (lf && typeof lf === 'object' && lf.id) {
-          assignedFunnelId = lf.id as string;
-        } else if ((agentData as any).lead_funnel_id) {
-          assignedFunnelId = (agentData as any).lead_funnel_id as string;
+        if (typeof lf === 'string' || typeof lf === 'number') {
+          assignedFunnelId = String(lf);
+        } else if (lf && typeof lf === 'object' && (lf.id !== undefined && lf.id !== null)) {
+          assignedFunnelId = String(lf.id);
+        } else if ((agentData as any).lead_funnel_id !== undefined && (agentData as any).lead_funnel_id !== null) {
+          assignedFunnelId = String((agentData as any).lead_funnel_id);
         }
         if (assignedFunnelId) {
           console.log('📋 Agent has assigned funnel ID:', assignedFunnelId);
@@ -651,7 +651,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       // Filter funnels that match selected lead forms
       const matchingFunnels = funnels.filter(funnel => {
         // Match by funnel ID directly (works for both Meta and CSV funnels)
-        return selectedLeadForms.includes(funnel.id);
+        return selectedLeadForms.includes(String(funnel.id));
       });
       
       const funnelIds = matchingFunnels.map(funnel => funnel.id);
@@ -703,7 +703,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       // Unassign existing funnels that are not in the new selection
       const funnelsToUnassign = currentlyAssignedFunnels.filter(funnel => 
-        !funnelIds.includes(funnel.id)
+        !funnelIds.includes(String(funnel.id))
       );
       
       for (const funnel of funnelsToUnassign) {
@@ -716,8 +716,8 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }
       
       // Assign new funnels
-      const currentlyAssignedIds = currentlyAssignedFunnels.map(f => f.id);
-      const funnelsToAssign = funnelIds.filter(id => !currentlyAssignedIds.includes(id));
+      const currentlyAssignedIds = currentlyAssignedFunnels.map(f => String(f.id));
+      const funnelsToAssign = funnelIds.filter(id => !currentlyAssignedIds.includes(String(id)));
       
       for (const funnelId of funnelsToAssign) {
         try {
