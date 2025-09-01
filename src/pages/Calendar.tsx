@@ -660,19 +660,29 @@ function EventTypeEditModal({
     meeting_address: ''
   });
 
-  // Load eventType data when modal opens
+  // Load eventType data when modal opens (map backend fields → edit form)
   useEffect(() => {
     if (eventType && open) {
+      const weekdayNames = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+      const wh = Array.isArray(eventType.working_hours) ? eventType.working_hours : [];
+      const enabledDays = wh
+        .map((h: any) => typeof h.day_of_week === 'number' ? weekdayNames[h.day_of_week] : null)
+        .filter(Boolean);
+      const firstWh = wh && wh.length > 0 ? wh[0] : { start_time: '09:00:00', end_time: '17:00:00' };
+      const mappings = Array.isArray(eventType.calendar_mappings) ? eventType.calendar_mappings : [];
+      const targetMap = mappings.find((m: any) => m.role === 'target');
+      const conflictIds = mappings.filter((m: any) => m.role === 'conflict').map((m: any) => m.sub_account_id);
+
       setEditFormData({
         name: eventType.name || '',
         duration: eventType.duration || 60,
-        calendar: eventType.calendar || 'none',
-        conflictCheckCalendars: eventType.conflict_calendars || [],
-        workdays: eventType.workdays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-        from_time: eventType.from_time || '09:00:00',
-        to_time: eventType.to_time || '17:00:00',
+        calendar: targetMap ? String(targetMap.sub_account_id) : 'none',
+        conflictCheckCalendars: conflictIds,
+        workdays: enabledDays.length > 0 ? enabledDays as any : ['monday','tuesday','wednesday','thursday','friday'],
+        from_time: (firstWh.start_time || '09:00:00'),
+        to_time: (firstWh.end_time || '17:00:00'),
         prep_time: eventType.prep_time || 0,
-        days_buffer: eventType.days_buffer || 0,
+        days_buffer: eventType.buffer_time || 0,
         meeting_type: eventType.meeting_type || 'online',
         meeting_link: eventType.meeting_link || '',
         meeting_address: eventType.meeting_address || ''
