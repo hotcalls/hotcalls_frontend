@@ -92,11 +92,9 @@ export default function AgentConfig() {
     }
   }, []);
 
-  // Load Event Types and Lead Forms when workspace is available
-  useEffect(() => {
-    loadEventTypes();
-    loadLeadForms();
-  }, [primaryWorkspace?.id]);
+  // effects moved below after dependent declarations
+
+  
 
   // Log when voices are loaded
   useEffect(() => {
@@ -131,6 +129,16 @@ export default function AgentConfig() {
     character: "",
     language: "de"
   });
+
+  
+
+  // Load Event Types and Lead Forms when workspace is available
+  useEffect(() => {
+    loadEventTypes();
+    loadLeadForms();
+  }, [primaryWorkspace?.id]);
+
+  
   // Blurred script template placeholder (shown when script is empty)
   const SCRIPT_TEMPLATE_PLACEHOLDER = `You are {{assistant_name}}, the world’s best AI sales assistant. You are witty, professional, and conversational.
 
@@ -214,6 +222,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
   const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
+  const [selectedEventTypeDetails, setSelectedEventTypeDetails] = useState<any | null>(null);
   const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
 
   // Document send UI state
@@ -263,7 +272,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       if (!primaryWorkspace?.id) { setAvailableEventTypes([]); setIsLoadingEventTypes(false); return; }
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
       const eventTypesData = await eventTypeAPI.listEventTypes(String(primaryWorkspace.id));
-      setAvailableEventTypes(eventTypesData);
+      // Normalize IDs to strings to avoid Select value mismatches
+      const normalized = (eventTypesData || []).map((et: any) => ({
+        ...et,
+        id: String(et.id),
+      }));
+      setAvailableEventTypes(normalized);
       console.log(`✅ Loaded ${eventTypesData.length} Event Types for Agent Config`);
     } catch (error) {
       console.error('❌ Error loading Event Types in Agent Config:', error);
@@ -450,11 +464,10 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         console.log('✅ Agent data loaded:', agentData);
         
         // Debug: Check calendar configuration
-        console.log('📅 Checking calendar configuration:', {
-          calendar_configuration: agentData.calendar_configuration,
+        console.log('📅 Checking event type mapping:', {
+          event_type: (agentData as any).event_type,
           config_id: (agentData as any).config_id,
-          has_calendar_config: 'calendar_configuration' in agentData,
-          will_load_eventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : []
+          will_load_eventTypes: (agentData as any).event_type ? [(agentData as any).event_type] : []
         });
 
         // Map character to personality options
@@ -466,44 +479,39 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           return 'professional'; // default
         };
 
-        // Parse workdays from API response (can be string or array of day names)
+        // Parse workdays from API response (normalize to Monday-first indexing for UI)
         const parseWorkdays = (workdays: string | string[] | number[] | undefined) => {
           const defaultWorkdays = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
-          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-          
+          const mondayFirst = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
           if (!workdays) return defaultWorkdays;
-          
-          // Handle string format (e.g., "1,2,3,4,5" or "Monday,Tuesday,Wednesday")
+
+          const setByName = (name: string) => {
+            const idx = mondayFirst.indexOf(name.toLowerCase());
+            if (idx !== -1) defaultWorkdays[idx as keyof typeof defaultWorkdays] = true;
+          };
+
           if (typeof workdays === 'string') {
-            const days = workdays.split(',').map(d => d.trim().toLowerCase());
-            days.forEach(day => {
-              // Check if it's a number
-              const dayNum = parseInt(day);
-              if (!isNaN(dayNum) && dayNum >= 0 && dayNum <= 6) {
-                defaultWorkdays[dayNum as keyof typeof defaultWorkdays] = true;
+            const parts = workdays.split(',').map(d => d.trim());
+            parts.forEach(p => {
+              const n = parseInt(p);
+              if (!isNaN(n)) {
+                // Treat numbers as Monday-first indices 0..6
+                if (n >= 0 && n <= 6) defaultWorkdays[n as keyof typeof defaultWorkdays] = true;
               } else {
-                // Check if it's a day name
-                const dayIndex = dayNames.indexOf(day);
-                if (dayIndex !== -1) {
-                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
-                }
+                setByName(p);
+              }
+            });
+          } else if (Array.isArray(workdays)) {
+            workdays.forEach(d => {
+              if (typeof d === 'number') {
+                if (d >= 0 && d <= 6) defaultWorkdays[d as keyof typeof defaultWorkdays] = true;
+              } else if (typeof d === 'string') {
+                setByName(d);
               }
             });
           }
-          // Handle array format
-          else if (Array.isArray(workdays)) {
-            workdays.forEach(day => {
-              if (typeof day === 'number' && day >= 0 && day <= 6) {
-                defaultWorkdays[day as keyof typeof defaultWorkdays] = true;
-              } else if (typeof day === 'string') {
-                const dayIndex = dayNames.indexOf(day.toLowerCase());
-                if (dayIndex !== -1) {
-                  defaultWorkdays[dayIndex as keyof typeof defaultWorkdays] = true;
-                }
-              }
-            });
-          }
-          
+
           return defaultWorkdays;
         };
 
@@ -554,7 +562,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           voiceExternalId: agentData.voice_external_id || "", // Load external voice ID
           script: (agentData as any).script_template || "", // Use script_template from API
           callLogic: "standard",
-          selectedEventTypes: agentData.calendar_configuration ? [agentData.calendar_configuration] : [], // Load calendar config
+          selectedEventTypes: (agentData as any).event_type ? [String((agentData as any).event_type)] : [], // Load selected event type
           selectedLeadForm: assignedFunnelId, // Load the assigned funnel ID
           outgoingGreeting: agentData.greeting_outbound || "",
           incomingGreeting: agentData.greeting_inbound || "",
@@ -767,17 +775,17 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       console.log('🔧 Preparing agentData...');
       
-      // Convert workdays from object to array of English day names
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      // Convert workdays from object to array of English day names (Monday-first indexing)
+      const dayNamesMonFirst = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const workdaysArray = Object.entries(config.workingDays)
         .filter(([_, active]) => active)
-        .map(([day]) => dayNames[parseInt(day)]);
+        .map(([day]) => dayNamesMonFirst[parseInt(day)]);
       
       console.log('📅 Workdays conversion:', {
         configWorkingDays: config.workingDays,
         filteredDays: Object.entries(config.workingDays).filter(([_, active]) => active),
         workdaysArray: workdaysArray,
-        explanation: 'Backend expects English day names like ["Monday", "Tuesday", ...]'
+        explanation: 'Backend expects English day names like ["Monday", "Tuesday", ...] (Monday-first indexing)'
       });
       
       const agentData = {
@@ -1713,6 +1721,47 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               <CardTitle className={textStyles.sectionTitle}>CSV Lead sources</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
+              {/* Selected Event Type Details */}
+              {selectedEventTypeDetails && (
+                <div className="mb-6 rounded-lg border border-gray-200 p-4 bg-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500">Selected event type</p>
+                      <p className="font-medium">
+                        {selectedEventTypeDetails.name} · {selectedEventTypeDetails.duration} Min · TZ {selectedEventTypeDetails.timezone || '—'}
+                      </p>
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Buffer: {selectedEventTypeDetails.buffer_time || 0} Min · Prep: {selectedEventTypeDetails.prep_time || 0} Min
+                    </div>
+                  </div>
+                  {Array.isArray(selectedEventTypeDetails.working_hours) && selectedEventTypeDetails.working_hours.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-500 mb-1">Working hours</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                        {selectedEventTypeDetails.working_hours.map((wh: any) => (
+                          <div key={`${wh.day_of_week}-${wh.start_time}`} className="rounded-md border border-gray-100 px-3 py-2">
+                            <span className="font-medium mr-2">{['Mo','Tu','We','Th','Fr','Sa','Su'][wh.day_of_week]}</span>
+                            <span>{(wh.start_time || '').slice(0,5)}–{(wh.end_time || '').slice(0,5)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {Array.isArray(selectedEventTypeDetails.calendar_mappings) && selectedEventTypeDetails.calendar_mappings.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-500 mb-1">Calendar mappings</p>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEventTypeDetails.calendar_mappings.map((m: any) => (
+                          <span key={m.sub_account_id} className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs text-gray-700">
+                            {m.provider}:{m.role}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <Label htmlFor="leadForm">CSV lead source for outbound calls</Label>
                 {isLoadingLeadForms ? (

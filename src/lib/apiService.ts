@@ -1630,6 +1630,10 @@ export const eventTypeAPI = {
     if (response && Array.isArray((response as any).results)) return (response as any).results;
     return [];
   },
+  async getEventType(workspaceId: string, eventTypeId: string): Promise<any> {
+    const url = `/api/event-types/${workspaceId}/event-types/${eventTypeId}/`;
+    return apiCall<any>(url);
+  },
   async createEventType(workspaceId: string, data: Record<string, any>): Promise<any> {
     const url = `/api/event-types/${workspaceId}/event-types/`;
     return apiCall<any>(url, { method: 'POST', body: JSON.stringify(data || {}) });
