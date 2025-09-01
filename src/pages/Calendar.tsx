@@ -312,7 +312,7 @@ function EventTypeStep3({ formData, setFormData }: { formData: EventTypeFormData
   );
 }
 
-function EventTypeStep4({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
+function EventTypeStep4({ formData, setFormData, availableCalendars }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void, availableCalendars?: BackendCalendar[] }) {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold">Planung</h3>
@@ -616,10 +616,10 @@ function EventTypeCard({ eventType, onEdit, onDelete }: {
             </div>
           )}
 
-          {eventType.days_buffer > 0 && (
+          {eventType.buffer_time > 0 && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">Vorlaufzeit</p>
-              <p className="text-sm">{formatBufferTime(eventType.days_buffer)}</p>
+              <p className="text-sm">{formatBufferTime(eventType.buffer_time)}</p>
             </div>
           )}
         </div>
@@ -758,7 +758,7 @@ function EventTypeEditModal({
             <EventTypeEditStep1 formData={editFormData} setFormData={setEditFormData} />
           )}
           {activeEditTab === 'planung' && (
-            <EventTypeEditStep2 formData={editFormData} setFormData={setEditFormData} />
+            <EventTypeEditStep2 formData={editFormData} setFormData={setEditFormData} workspaceId={workspaceId} />
           )}
           {activeEditTab === 'verfuegbarkeit' && (
             <EventTypeEditStep3 formData={editFormData} setFormData={setEditFormData} />
@@ -788,7 +788,8 @@ function EventTypeEditStep1({ formData, setFormData }: { formData: EventTypeForm
 }
 
 function EventTypeEditStep2({ formData, setFormData, workspaceId }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void, workspaceId?: string }) {
-  return <EventTypeStep4 formData={formData} setFormData={setFormData} />;
+  // Planung → same as creation Step2 (calendars), not Step4
+  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={[]} workspaceId={workspaceId} />;
 }
 
 function EventTypeEditStep3({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
@@ -801,7 +802,8 @@ function EventTypeEditStep4({ formData, setFormData, availableCalendars, workspa
   availableCalendars: BackendCalendar[],
   workspaceId?: string
 }) {
-  return <EventTypeStep2 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} workspaceId={workspaceId} />;
+  // Kalender → calendars step
+  return <EventTypeStep4 formData={formData} setFormData={setFormData} availableCalendars={availableCalendars} />;
 }
 
 function EventTypeEditStep5({ formData, setFormData }: { formData: EventTypeFormData, setFormData: (data: EventTypeFormData) => void }) {
