@@ -8,12 +8,17 @@ import { useToast } from "@/hooks/use-toast";
 interface MetaIntegration {
   id: string;
   workspace: string;
+  workspace_name?: string;
   page_id: string;
-  page_name: string;
-  access_token: string;
+  page_name?: string;
+  page_picture_url?: string;
+  business_account_id: string;
+  status: 'active' | 'inactive' | 'error';
+  access_token_expires_at?: string;
+  scopes?: string[];
+  lead_forms_count?: number;
   created_at: string;
   updated_at: string;
-  is_active: boolean;
   forms?: any[];
 }
 
@@ -166,29 +171,42 @@ export default function MetaIntegration() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {metaIntegrations.map((integration) => (
-                <div key={integration.id} className="bg-white rounded-lg border p-6">
+              {metaIntegrations.map((integration) => {
+                // Safe guard against malformed integration data
+                if (!integration || typeof integration !== 'object') {
+                  console.warn('Skipping malformed integration:', integration);
+                  return null;
+                }
+                
+                return (
+                <div key={integration.id || Math.random()} className="bg-white rounded-lg border p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <Share2 className="h-5 w-5 text-blue-600" />
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {integration.page_name}
+                          {integration.page_name || `Page ${integration.page_id}`}
                         </h3>
                         <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          integration.is_active 
+                          (integration.status || 'inactive') === 'active'
                             ? 'bg-green-100 text-green-800' 
+                            : (integration.status || 'inactive') === 'error'
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {integration.is_active ? 'Active' : 'Inactive'}
+                          {(integration.status || 'inactive') === 'active' ? 'Active' : 
+                           (integration.status || 'inactive') === 'error' ? 'Error' : 'Inactive'}
                         </div>
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p><strong>Page ID:</strong> {integration.page_id}</p>
-                        <p><strong>Created:</strong> {formatDate(integration.created_at)}</p>
-                        <p><strong>Last Updated:</strong> {formatDate(integration.updated_at)}</p>
+                        <p><strong>Page ID:</strong> {integration.page_id || 'Unknown'}</p>
+                        <p><strong>Created:</strong> {integration.created_at ? formatDate(integration.created_at) : 'Unknown'}</p>
+                        <p><strong>Last Updated:</strong> {integration.updated_at ? formatDate(integration.updated_at) : 'Unknown'}</p>
                         {integration.forms && integration.forms.length > 0 && (
                           <p><strong>Lead Forms:</strong> {integration.forms.length} form(s)</p>
+                        )}
+                        {integration.lead_forms_count !== undefined && (
+                          <p><strong>Lead Forms:</strong> {integration.lead_forms_count} form(s)</p>
                         )}
                       </div>
                     </div>
@@ -227,7 +245,8 @@ export default function MetaIntegration() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -20,13 +20,17 @@ import { useToast } from "@/hooks/use-toast";
 interface MetaIntegration {
   id: string;
   workspace: string;
+  workspace_name?: string;
   page_id: string;
   page_name?: string;
   page_picture_url?: string;
   business_account_id: string;
   status: 'active' | 'inactive' | 'error';
-  created_at: string;
   access_token_expires_at?: string;
+  scopes?: string[];
+  lead_forms_count?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface WebhookSource {
