@@ -857,13 +857,17 @@ export default function Calendar() {
     eventType: any | null;
   }>({ show: false, eventType: null });
 
-  // Determine if any provider has at least one connected calendar
+  // Determine if any calendar exists - use generic calendar API as single source of truth
   const hasAnyCalendarConnected = React.useMemo(() => {
-    const hasGoogle = googleConnections.length > 0 && connectedCalendars.length > 0;
-    const msCalendarsCount = Object.values(msCalendarsByConnection || {}).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
-    const hasMicrosoft = microsoftConnections.length > 0 && msCalendarsCount > 0;
-    return hasGoogle || hasMicrosoft;
-  }, [googleConnections.length, connectedCalendars.length, microsoftConnections.length, msCalendarsByConnection]);
+    // If the generic /api/calendars/ API returns any calendars, ALWAYS allow event type creation
+    const hasCalendars = connectedCalendars.length > 0;
+    console.log('🔍 Calendar Detection Debug:', {
+      connectedCalendarsCount: connectedCalendars.length,
+      hasCalendars,
+      calendars: connectedCalendars.map(c => ({ id: c.id, name: c.name, provider: c.provider, active: c.active }))
+    });
+    return hasCalendars;
+  }, [connectedCalendars.length]);
 
   // Track deleted connections in localStorage to prevent reload issues
   const getDeletedConnections = (): string[] => {
@@ -943,25 +947,32 @@ export default function Calendar() {
     }
   };
 
-  // Load calendars from backend
+  // Load calendars from backend using generic calendar API
   const loadCalendarsFromBackend = async () => {
     setIsLoadingCalendars(true);
     try {
+      console.log('📅 Loading calendars from generic API...');
       const calendarsResponse = await calendarAPI.getCalendars();
       const calendars = Array.isArray(calendarsResponse)
         ? calendarsResponse
         : (calendarsResponse as any).results || [];
+
+      console.log('📅 Raw calendar API response:', { calendarsResponse, calendars, count: calendars.length });
 
       if (!Array.isArray(calendars)) {
         console.error('❌ Expected calendars array, got:', typeof calendars, calendars);
         throw new Error('Invalid calendars response');
       }
 
+      // Filter by workspace if needed
       const wsId = String(primaryWorkspace?.id || '');
       const filteredCalendars = wsId
         ? calendars.filter((c: any) => String(c.workspace) === wsId || String((c as any)?.workspace_id) === wsId)
         : calendars;
 
+      console.log('📅 Filtered calendars for workspace:', { wsId, filteredCount: filteredCalendars.length, filteredCalendars });
+
+      // Convert to frontend calendar format - focus on the generic calendar data
       const convertedCalendars: CalendarType[] = filteredCalendars.map((c: any) => {
         const isGoogle = (c.provider === 'google');
         const isOutlook = (c.provider === 'outlook' || c.provider === 'microsoft');
@@ -990,31 +1001,47 @@ export default function Calendar() {
         };
       });
 
-      // Derive connections list from calendars by provider/email for rendering
-      const googleConnectionsMap = new Map<string, GoogleConnection>();
-      const microsoftConnectionsMap = new Map<string, MicrosoftConnection>();
+      // Create simple connection maps for UI display (derived from generic calendar data)
+      const googleConnections: GoogleConnection[] = [];
+      const microsoftConnections: MicrosoftConnection[] = [];
+      
+      const googleEmails = new Set<string>();
+      const microsoftEmails = new Set<string>();
+      
       convertedCalendars.forEach(cal => {
-        if (cal.provider === 'Google Calendar') {
-          const email = cal.email || 'Google Calendar';
-          if (!googleConnectionsMap.has(email)) {
-            googleConnectionsMap.set(email, { id: cal.id, account_email: email, active: cal.isConnected, calendar_count: 1, status: cal.isConnected ? 'active' : 'inactive' });
-          } else {
-            const prev = googleConnectionsMap.get(email)!;
-            googleConnectionsMap.set(email, { ...prev, calendar_count: prev.calendar_count + 1 });
-          }
-        } else {
-          const email = cal.email || 'Microsoft 365';
-          if (!microsoftConnectionsMap.has(email)) {
-            microsoftConnectionsMap.set(email, { id: cal.id, workspace: String(primaryWorkspace?.id || ''), primary_email: email, active: cal.isConnected });
-          }
+        if (cal.provider === 'Google Calendar' && cal.email && !googleEmails.has(cal.email)) {
+          googleEmails.add(cal.email);
+          googleConnections.push({
+            id: cal.id,
+            account_email: cal.email,
+            active: cal.isConnected,
+            calendar_count: 1,
+            status: cal.isConnected ? 'active' : 'inactive'
+          });
+        } else if (cal.provider === 'Microsoft 365' && cal.email && !microsoftEmails.has(cal.email)) {
+          microsoftEmails.add(cal.email);
+          microsoftConnections.push({
+            id: cal.id,
+            workspace: wsId,
+            primary_email: cal.email,
+            active: cal.isConnected
+          });
         }
       });
 
-      setGoogleConnections(Array.from(googleConnectionsMap.values()));
-      setMicrosoftConnections(Array.from(microsoftConnectionsMap.values()));
-      setMsCalendarsByConnection({});
+      console.log('📅 Final calendar state:', {
+        convertedCalendars: convertedCalendars.length,
+        googleConnections: googleConnections.length,
+        microsoftConnections: microsoftConnections.length
+      });
+
+      // Set state - the key is that connectedCalendars contains all the active calendars
       setConnectedCalendars(convertedCalendars);
+      setGoogleConnections(googleConnections);
+      setMicrosoftConnections(microsoftConnections);
+      setMsCalendarsByConnection({}); // Legacy - no longer used
       setAllBackendCalendars(calendars);
+
     } catch (error) {
       console.error('❌ Error loading calendars:', error);
       setConnectedCalendars([]);
