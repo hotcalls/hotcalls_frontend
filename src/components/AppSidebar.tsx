@@ -1,4 +1,4 @@
-import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut, AlertTriangle } from "lucide-react";
+import { Calendar, Home, BarChart3, Users, Settings, CreditCard, Eye, FileText, Webhook, LogOut, AlertTriangle, Share2 } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader } from "@/components/ui/sidebar";
 import { WorkspaceSelector } from "@/components/WorkspaceSelector";
 import { useLocation } from "react-router-dom";
@@ -14,6 +14,7 @@ const items = [
   { title: "Agents", url: "/dashboard/agents", icon: Users },
   { title: "Leads", url: "/dashboard/leads", icon: FileText },
   { title: "Calendar", url: "/dashboard/calendar", icon: Calendar },
+  { title: "Meta Integration", url: "/dashboard/meta-integration", icon: Share2 },
   { title: "CSV Upload", url: "/dashboard/lead-sources", icon: Webhook },
 ];
 

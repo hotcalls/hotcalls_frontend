@@ -10,6 +10,7 @@ import Agents from "./pages/Agents";
 import AgentConfig from "./pages/AgentConfig";
 import AgentAnalytics from "./pages/AgentAnalytics";
 import LeadSources from "./pages/LeadSources";
+import MetaIntegration from "./pages/MetaIntegration";
 
 import WebhookConfig from "./pages/WebhookConfig";
 import Leads from "./pages/Leads";
@@ -68,6 +69,7 @@ const App = () => (
                   <Route path="/agents/analytics/:id" element={<AgentAnalytics />} />
                   <Route path="/lead-sources" element={<LeadSources />} />
                   <Route path="/lead-sources/webhook/config" element={<WebhookConfig />} />
+                  <Route path="/meta-integration" element={<MetaIntegration />} />
                   <Route path="/leads" element={<Leads />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/settings" element={<Settings />} />
