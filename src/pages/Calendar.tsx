@@ -964,13 +964,16 @@ export default function Calendar() {
 
       const convertedCalendars: CalendarType[] = filteredCalendars.map((c: any) => {
         const isGoogle = (c.provider === 'google');
+        const isOutlook = (c.provider === 'outlook' || c.provider === 'microsoft');
         const providerDetails = (c as any)?.provider_details || {};
+        const finalProvider = isGoogle ? 'Google Calendar' : (isOutlook ? 'Microsoft 365' : 'Unknown Provider');
+        
         return {
           id: c.id,
           connectionId: '',
           name: c.name,
           email: isGoogle ? (providerDetails.account_email || '') : (providerDetails.primary_email || ''),
-          provider: isGoogle ? 'Google Calendar' : 'Microsoft 365',
+          provider: finalProvider,
           isConnected: !!c.active,
           isDefault: false,
           isPrimary: !!providerDetails.primary,
@@ -979,7 +982,7 @@ export default function Calendar() {
           bookingsThisWeek: 0,
           subCalendars: [],
           accessRole: ("owner" as const),
-          color: isGoogle ? "#1a73e8" : "#2563eb",
+          color: isGoogle ? "#1a73e8" : (isOutlook ? "#2563eb" : "#6b7280"),
           timeZone: providerDetails.time_zone || providerDetails.timezone_windows || 'Europe/Berlin',
           active: !!c.active,
           createdAt: new Date(c.created_at),
@@ -1267,7 +1270,26 @@ export default function Calendar() {
                 </div>
               )}
 
-              {/* Microsoft Connections hidden: show only Google Calendar connections */}
+              {/* Microsoft Connections */}
+              {microsoftConnections.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">Microsoft 365 connections</h2>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {microsoftConnections.map((connection) => (
+                      <MicrosoftConnectionCard 
+                        key={connection.id} 
+                        connection={connection} 
+                        calendars={connectedCalendars.filter(cal => 
+                          cal.provider === 'Microsoft 365' && (cal.email === connection.primary_email || cal.email.includes(connection.primary_email))
+                        ).map(cal => ({ id: cal.id, name: cal.name, isPrimary: cal.isPrimary }))}
+                        isDisconnecting={msDisconnectingConnectionId === connection.id}
+                        onRefresh={() => handleRefreshMicrosoftConnection(connection.id)}
+                        onDisconnect={() => handleDisconnectMicrosoftConnection(connection.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Show "Noch keine Kalender verbunden" only if no connections */}
               {googleConnections.length === 0 && microsoftConnections.length === 0 && (

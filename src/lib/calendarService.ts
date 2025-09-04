@@ -74,7 +74,7 @@ export function saveCalendars(calendars: Calendar[]): void {
 /**
  * Add new calendars from OAuth connection
  */
-export function addCalendarsFromOAuth(oauthCalendars: any[], existingCalendars: Calendar[]): Calendar[] {
+export function addCalendarsFromOAuth(oauthCalendars: any[], existingCalendars: Calendar[], provider?: string): Calendar[] {
   // Create a map of existing calendars by email for quick lookup
   const existingMap = new Map(existingCalendars.map(cal => [cal.email, cal]));
   
@@ -82,12 +82,19 @@ export function addCalendarsFromOAuth(oauthCalendars: any[], existingCalendars: 
   const processedCalendars = oauthCalendars.map(oauthCal => {
     const existing = existingMap.get(oauthCal.email || oauthCal.external_id);
     
+    // Determine provider for this calendar
+    const calendarProvider = provider || 
+                            (oauthCal.provider === 'outlook' ? 'Microsoft 365' : 
+                             oauthCal.provider === 'google' ? 'Google Calendar' : 
+                             'Google Calendar'); // fallback
+
     // If calendar already exists, update it
     if (existing) {
       return {
         ...existing,
         isConnected: true,
         name: oauthCal.name || existing.name,
+        provider: calendarProvider, // Update provider in case it changed
         color: oauthCal.color || existing.color,
         isPrimary: oauthCal.primary,
         accessRole: oauthCal.access_role,
@@ -103,7 +110,7 @@ export function addCalendarsFromOAuth(oauthCalendars: any[], existingCalendars: 
       connectionId: oauthCal.connection_id,
       name: oauthCal.name,
       email: oauthCal.email || oauthCal.external_id,
-      provider: "Google Calendar",
+      provider: calendarProvider,
       isConnected: true,
       isDefault: oauthCal.primary || false,
       isPrimary: oauthCal.primary,
@@ -251,14 +258,17 @@ export function getStoredConnections(): CalendarConnection[] {
 /**
  * Save a new connection
  */
-export function saveConnection(accountEmail: string, calendars: Calendar[]): void {
+export function saveConnection(accountEmail: string, calendars: Calendar[], provider?: string): void {
   try {
     const connections = getStoredConnections();
     const existingIndex = connections.findIndex(conn => conn.accountEmail === accountEmail);
     
+    const connectionProvider = provider || 'Google Calendar';
+    const idPrefix = connectionProvider === 'Microsoft 365' ? 'microsoft' : 'google';
+    
     const newConnection: CalendarConnection = {
-      id: `google-${Date.now()}`,
-      provider: 'Google Calendar',
+      id: `${idPrefix}-${Date.now()}`,
+      provider: connectionProvider,
       accountEmail,
       calendars,
       createdAt: existingIndex >= 0 ? connections[existingIndex].createdAt : new Date(),
