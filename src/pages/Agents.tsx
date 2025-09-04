@@ -48,11 +48,11 @@ export default function Agents() {
         
         console.log('🤖 Loading agents for workspace:', primaryWorkspace.id);
         const agents = await agentAPI.getAgents(primaryWorkspace.id);
-        console.log(`✅ Loaded ${agents.length} agents`);
-        console.log('🔍 Agent statuses:', agents.map(a => ({ id: a.agent_id, name: a.name, status: a.status })));
+        
+        
         setAgentList(agents);
       } catch (err) {
-        console.error('❌ Failed to load agents:', err);
+        console.error("[ERROR]:", error);
         setError(err instanceof Error ? err.message : 'Failed to load agents');
       } finally {
         setIsLoading(false);
@@ -65,7 +65,7 @@ export default function Agents() {
   const toggleAgentStatus = async (agentId: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'active' ? 'paused' : 'active';
-      console.log(`🔄 Toggling agent ${agentId} from ${currentStatus} to ${newStatus}`);
+      
       console.log('📤 Sending status update:', { status: newStatus });
       
       // Call API to update status
@@ -84,10 +84,10 @@ export default function Agents() {
       
       toast.success(`Agent ${newStatus === 'active' ? 'aktiviert' : 'pausiert'}`);
     } catch (err: any) {
-      console.error('❌ Failed to toggle agent status:', err);
-      console.error('🔍 Error details:', err.message);
+      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", error);
       if (err.response) {
-        console.error('🔍 Response data:', err.response);
+        console.error("[ERROR]:", error);
       }
       toast.error('Fehler beim Ändern des Agent-Status');
     }
@@ -95,7 +95,7 @@ export default function Agents() {
 
   const deleteAgent = async (agentId: string, name: string) => {
     try {
-      console.log(`🗑️ Deleting agent ${agentId} (${name})`);
+      
       setIsDeleting(agentId);
       
       // Call API to delete agent
@@ -106,7 +106,7 @@ export default function Agents() {
       
       toast.success(`Agent "${name}" wurde gelöscht`);
     } catch (err) {
-      console.error('❌ Failed to delete agent:', err);
+      console.error("[ERROR]:", error);
       toast.error('Fehler beim Löschen des Agents');
     } finally {
       setIsDeleting(null);
@@ -119,7 +119,7 @@ export default function Agents() {
       return;
     }
     try {
-      console.log(`🔄 Duplicating agent ${agentId} (${name})`);
+      
       setIsDuplicating(agentId);
       
       // First, get the agent details
@@ -153,7 +153,7 @@ export default function Agents() {
         throw new Error('API returned invalid agent ID');
       }
       
-      console.log('✅ Agent duplicated successfully:', {
+      
         original: { id: agentId, name: name },
         duplicate: { id: newAgent.agent_id, name: newAgent.name }
       });
@@ -167,7 +167,7 @@ export default function Agents() {
       const updatedAgents = await agentAPI.getAgents(originalAgent.workspace);
       setAgentList(updatedAgents);
     } catch (err) {
-      console.error('❌ Failed to duplicate agent:', err);
+      console.error("[ERROR]:", error);
       toast.error('Fehler beim Duplizieren des Agents');
     } finally {
       setIsDuplicating(null);
@@ -303,7 +303,7 @@ export default function Agents() {
                             navigationUrl: `/dashboard/agents/edit/${agent.agent_id}` 
                           });
                           if (!agent.agent_id || agent.agent_id === 'undefined') {
-                            console.error('❌ Cannot navigate: Invalid agent ID');
+                            console.error("[ERROR]:", error);
                             toast.error('Fehler: Ungültige Agent-ID');
                             return;
                           }

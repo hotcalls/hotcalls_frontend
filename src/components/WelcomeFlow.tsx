@@ -92,7 +92,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       const payment = urlParams.get('payment');
       const priceId = urlParams.get('price');
       
-      console.log('🔍 URL Debug:', {
+      
         fullUrl: window.location.href,
         search: window.location.search,
         payment,
@@ -110,14 +110,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         // Wait a bit for Stripe webhook to reach backend
         setTimeout(async () => {
           try {
-            console.log('🔍 Checking subscription status after payment...');
+            
             console.log('📤 API Call: GET /api/payments/workspaces/' + primaryWorkspace.id + '/subscription/');
             const subscriptionStatus = await paymentAPI.getSubscription(primaryWorkspace.id);
-            console.log('💳 Subscription status response:', subscriptionStatus);
-            console.log('🎯 has_subscription value:', subscriptionStatus.has_subscription);
+            
+            
             
             if (subscriptionStatus.has_subscription) {
-              console.log('✅ Subscription confirmed! Redirecting to dashboard...');
+              
               setHasActiveSubscription(true);
               
               // Clean URL
@@ -132,7 +132,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               return;
             } else {
               // Try workspace details as fallback
-              console.log('🔄 Subscription API returned false, trying workspace details...');
+              
               const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
               const hasActiveSubscription = workspaceDetails.is_subscription_active ||
                                           workspaceDetails.has_active_subscription || 
@@ -141,10 +141,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                                           (workspaceDetails.subscription_status === 'active') ||
                                           (workspaceDetails.plan_status === 'active');
               
-              console.log('🏢 Workspace details subscription check:', hasActiveSubscription);
+              
               
               if (hasActiveSubscription) {
-                console.log('✅ Subscription confirmed via workspace details!');
+                
                 setHasActiveSubscription(true);
                 window.history.replaceState({}, '', '/');
                 toast.success('Zahlung erfolgreich!', {
@@ -170,13 +170,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     checkWorkspaceAndAgents();
                   }
                 } catch (error) {
-                  console.error('❌ Retry subscription check failed:', error);
+                  console.error("[ERROR]:", error);
                   checkWorkspaceAndAgents();
                 }
               }, 5000); // 5 more seconds
             }
           } catch (error) {
-            console.error('❌ Failed to check subscription after payment:', error);
+            console.error("[ERROR]:", error);
             toast.error('Fehler beim Prüfen der Zahlung', {
               description: 'Bitte lade die Seite neu oder kontaktiere den Support.'
             });
@@ -195,11 +195,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       if (workspaceLoading || !primaryWorkspace) return;
       
       try {
-        console.log('🔍 Checking workspace details for subscription status:', primaryWorkspace.id);
+        
         
         // First check workspace details for subscription status
         const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
-        console.log('🏢 Workspace details response:', workspaceDetails);
+        
         
         // Check if workspace has active subscription (check common field names)
         let hasActiveSubscription = workspaceDetails.is_subscription_active ||
@@ -214,14 +214,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           try {
             const sub = await paymentAPI.getSubscription(primaryWorkspace.id);
             const activeByPayments = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
-            console.log('💳 Payment API verification (normal flow):', { activeByPayments, sub });
+            
             hasActiveSubscription = activeByPayments;
           } catch (e) {
             console.warn('⚠️ Payment API verification failed (normal flow):', e);
           }
         }
         
-        console.log('💳 Subscription check result:', {
+        
           workspace_id: primaryWorkspace.id,
           workspace_name: primaryWorkspace.workspace_name,
           hasActiveSubscription,
@@ -229,17 +229,17 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         });
         
         if (hasActiveSubscription) {
-          console.log('✅ User has active subscription, exiting welcome flow');
+          
           onComplete(); // Exit welcome flow completely
           return;
         }
         
         // No active subscription - check for existing agents
-        console.log('🔍 No active subscription found, checking for existing agents');
+        
         const agents = await agentAPI.getAgents(primaryWorkspace.id);
         
         if (agents && agents.length > 0) {
-          console.log('✅ Found existing agent(s), jumping to plan selection (step 7)');
+          
           setCurrentStep(7);
         } else {
           console.log('🆕 No existing agents found, starting from beginning (step 0)');
@@ -265,7 +265,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         
         // Debug each voice
         voicesResponse.results.forEach(voice => {
-          console.log(`🔍 Voice "${voice.name}":`, {
+          
             id: voice.id,
             voice_external_id: voice.voice_external_id,
             voice_picture: voice.voice_picture,
@@ -296,7 +296,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           return a.name.localeCompare(b.name);
         });
         
-        console.log('🎯 Sorted voices order:', sortedVoices.map(v => `${v.name}${v.recommend ? ' (Empfohlen)' : ''}`));
+        
         setVoices(sortedVoices);
       } catch (error) {
         console.error('Failed to load voices:', error);
@@ -315,15 +315,15 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   // Load plans from API when reaching plan selection step
   useEffect(() => {
     const loadPlansFromAPI = async () => {
-      console.log('🔍 Plans useEffect triggered:', { currentStep, plansLength: plans.length });
+      
       
       if (currentStep === 7 && plans.length === 0) {
-        console.log('✅ Conditions met - loading plans from API');
+        
         setIsLoadingPlans(true);
         try {
           console.log('📋 Loading plans from API...');
           const plansResponse = await plansAPI.getPlans();
-          console.log('✅ Plans API response:', plansResponse);
+          
           
           // Handle both array and paginated response formats
           const plansData = Array.isArray(plansResponse) ? plansResponse : (plansResponse.results || []);
@@ -342,7 +342,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           }));
           
           setPlans(transformedPlans);
-          console.log('🔄 Transformed plans:', transformedPlans);
+          
           
           // Extract stripe price IDs from plans
           const newPriceMap: Record<string, string> = {};
@@ -355,14 +355,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           // Update price map with API data
           setPlanPriceMap(newPriceMap);
           
-          console.log('✅ Loaded plans from API:', plansData);
-          console.log('💰 Updated price map:', newPriceMap);
+          
+          
           
           // Also load Stripe products for payment buttons - REAL Price IDs!
           try {
-            console.log('💳 Loading Stripe products...');
+            
             const stripeResponse = await paymentAPI.getStripeProducts();
-            console.log('✅ Stripe products loaded:', stripeResponse);
+            
             
             // Extract REAL Stripe Price IDs from products
             const realPriceMap: Record<string, string> = {};
@@ -374,14 +374,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 if (monthlyPrice && product.name) {
                   const planKey = product.name.toLowerCase(); // "Start" -> "start"
                   realPriceMap[planKey] = monthlyPrice.id;
-                  console.log(`💰 Real Stripe Price: ${planKey} -> ${monthlyPrice.id}`);
+                  
                 }
               });
             }
             
             // Override with REAL Stripe Price IDs
             setPlanPriceMap(realPriceMap);
-            console.log('🎯 Using REAL Stripe Price IDs:', realPriceMap);
+            
             
           } catch (stripeError) {
             console.warn('⚠️ Failed to load Stripe products:', stripeError);
@@ -391,13 +391,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         } catch (error) {
           console.warn('⚠️ Failed to load plans from API, using fallback plans and price IDs:', error);
           // NO FALLBACK PRICE IDs! Force user to fix API issue instead of using wrong IDs
-          console.error('❌ CRITICAL: Cannot load plans from API. Fix the backend before allowing plan selection!');
+          console.error("[ERROR]:", error);
           setPlanPriceMap({
             start: '',
             pro: '',
             enterprise: ''
           });
-          console.log('💰 Set fallback price IDs due to API error');
+          
         } finally {
           setIsLoadingPlans(false);
         }
@@ -570,7 +570,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
        features.push('Individuell - Unbegrenzte Minuten');
        features.push('Individuell - Unbegrenzte User');
        features.push('Individuell - Unbegrenzte Agents');
-       console.log('🏢 Enterprise features before filtering:', features);
+       
      }
     
     return features;
@@ -686,7 +686,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     try {
       // Get user's workspaces using new endpoint
       const workspaces = await workspaceAPI.getMyWorkspaces();
-      console.log('🔍 My Workspaces API response:', workspaces);
+      
       
       if (!workspaces || workspaces.length === 0) {
         throw new Error('Keine Workspace gefunden. Bitte melden Sie sich erneut an.');
@@ -694,7 +694,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       
       // Use the first workspace (user should have exactly one)
       const userWorkspace = workspaces[0];
-      console.log('🏢 Selected workspace:', userWorkspace);
+      
       console.log('🆔 Workspace ID:', userWorkspace?.id);
 
       // Find the selected voice object
@@ -755,7 +755,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       });
       
       const createdAgent = await agentAPI.createAgent(agentData);
-      console.log('✅ Agent created successfully:', createdAgent);
+      
       
       // Store the agent ID for the test call
       if (createdAgent.agent_id) {
@@ -779,7 +779,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const handlePlanSelection = async (plan: 'start' | 'pro' | 'enterprise', planName: string, planPrice: string) => {
     try {
       setIsProcessingPayment(true);
-      console.log('🎯 Plan selected:', plan);
+      
       console.log('📦 Current price map:', planPriceMap);
       
       // Get the Stripe price ID for this plan
@@ -801,7 +801,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         throw new Error(`Keine Price ID für Plan ${plan} gefunden`);
       }
       
-      console.log(`💳 Using price ID: ${finalPriceId} for plan: ${plan}`);
+      
       
       // Save plan details
       setFormData(prev => ({ ...prev, selectedPlan: plan }));
@@ -811,7 +811,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       localStorage.setItem('selectedPlan', plan);
       localStorage.setItem('welcomeFlowStep', '7');
       
-      console.log('💳 Selected plan with price ID:', finalPriceId);
+      
       
       // Create Stripe checkout session using real payment API
       const checkoutResponse = await paymentAPI.createCheckoutSession(
@@ -819,7 +819,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         finalPriceId
       );
       
-      console.log('✅ Checkout session created:', checkoutResponse);
+      
       
       // Redirect to Stripe checkout
       if (checkoutResponse.checkout_url) {
@@ -830,7 +830,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       }
       
     } catch (error: any) {
-      console.error('❌ Plan selection error:', error);
+      console.error("[ERROR]:", error);
       toast.error('Fehler bei der Plan-Auswahl', {
         description: error.message || 'Bitte versuche es erneut.'
       });
@@ -845,11 +845,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     const price = urlParams.get('price');
     
     if (payment === 'success' && price) {
-      console.log('✅ Payment successful for price:', price);
+      
       // Verify actual subscription status with API
       verifySubscriptionAfterPayment();
     } else if (payment === 'cancelled') {
-      console.log('❌ Payment cancelled');
+      
       // Stay on plan selection
       setCurrentStep(7);
       // Clear URL params
@@ -862,10 +862,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
   const verifySubscriptionAfterPayment = async () => {
     try {
-      console.log('🔍 Verifying subscription status after Stripe payment...');
+      
       
       if (!primaryWorkspace) {
-        console.error('❌ No workspace available for subscription verification');
+        console.error("[ERROR]:", error);
         toast.error('Fehler bei der Verifizierung', {
           description: 'Kein Workspace gefunden.'
         });
@@ -874,13 +874,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
       // Check subscription status using the correct endpoint
       const verificationData = await paymentAPI.getSubscription(primaryWorkspace.id);
-      console.log('💳 Subscription verification result:', verificationData);
+      
       
       const hasActiveSubscription = verificationData.has_subscription && 
         verificationData.subscription?.status === 'active';
       
       if (hasActiveSubscription) {
-        console.log('✅ Subscription verified - payment successful!');
+        
         // Set subscription active
         setHasActiveSubscription(true);
         // Jump to last step
@@ -891,7 +891,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           description: `Dein Plan ist jetzt aktiv.`
         });
       } else {
-        console.log('❌ Subscription not active after payment');
+        
         // Stay on plan selection
         setCurrentStep(7);
         // Clear URL params
@@ -901,7 +901,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         });
       }
     } catch (error: any) {
-      console.error('❌ Failed to verify subscription after payment:', error);
+      console.error("[ERROR]:", error);
       // Stay on plan selection on error
       setCurrentStep(7);
       // Clear URL params
@@ -965,7 +965,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      console.log('✅ Test call was initiated (ignoring backend error):', err);
+      
       toast.success('Test-Anruf wurde gestartet!');
       
       // Still proceed to next step
@@ -1110,7 +1110,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     
                     // Debug picture URL
                     if (voice.voice_picture) {
-                      console.log(`🖼️ Voice ${voice.name} has voice_picture: ${voice.voice_picture}`);
+                      
                     } else {
                       console.log(`📷 Voice ${voice.name} has no voice_picture, using fallback initial: ${voiceConfig.initial}`);
                     }
@@ -1132,11 +1132,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             alt={voice.name}
                             onLoad={() => {
                               if (voiceConfig.avatar) {
-                                console.log(`✅ Avatar loaded successfully for ${voice.name}: ${voiceConfig.avatar}`);
+                                
                               }
                             }}
                             onError={(e) => {
-                              console.error(`❌ Avatar failed to load for ${voice.name}:`, {
+                              console.error("[ERROR]:", error);
                                 src: voiceConfig.avatar,
                                 error: e
                               });

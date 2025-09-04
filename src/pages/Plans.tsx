@@ -50,7 +50,7 @@ export default function Plans() {
         setPlans(plansData);
         setSubscriptionStatus(subStatus);
       } catch (error) {
-        console.error('❌ Failed to load data:', error);
+        console.error("Failed to load data:", error);
         toast({
           title: "Error loading plans",
           description: error instanceof Error ? error.message : "Failed to load plan information",
@@ -78,7 +78,7 @@ export default function Plans() {
     setProcessingPlan(plan.id);
     
     try {
-      console.log('🔄 Creating checkout session for plan:', plan.name);
+      
       
       const checkoutSession = await subscriptionService.createCheckoutSession({
         workspace_id: primaryWorkspace.id,
@@ -89,7 +89,7 @@ export default function Plans() {
       window.location.href = checkoutSession.checkout_url;
       
     } catch (error) {
-      console.error('❌ Plan change failed:', error);
+      console.error("Plan change failed:", error);
       toast({
         title: "Plan change failed",
         description: error instanceof Error ? error.message : "Unable to process plan change",
@@ -103,7 +103,7 @@ export default function Plans() {
     if (!primaryWorkspace?.id || !subscriptionStatus?.has_subscription) return;
 
     try {
-      console.log('🚫 Cancelling subscription...');
+      
       
       const result = await subscriptionService.cancelSubscription(primaryWorkspace.id);
       
@@ -117,7 +117,7 @@ export default function Plans() {
       setSubscriptionStatus(newStatus);
       
     } catch (error) {
-      console.error('❌ Cancellation failed:', error);
+      console.error("Cancellation failed:", error);
       toast({
         title: "Cancellation failed", 
         description: error instanceof Error ? error.message : "Unable to cancel subscription",

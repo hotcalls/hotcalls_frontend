@@ -20,7 +20,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   const checkSubscriptionStatus = async () => {
     try {
-      console.log('🔍 Checking subscription status at login...');
+      
       
       // Get user's workspaces
       const workspaces = await workspaceAPI.getMyWorkspaces();
@@ -31,7 +31,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
       
       const primaryWorkspace = workspaces[0];
-      console.log('🏢 Checking subscription for workspace:', primaryWorkspace.workspace_name);
+      
 
       // Detect recent payment success (URL param or local flag)
       const urlParams = new URLSearchParams(window.location.search);
@@ -47,7 +47,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         try {
           const sub = await paymentAPI.getSubscription(primaryWorkspace.id);
           lastResponse = sub;
-          console.log(`💳 Login subscription check (attempt ${attempt}/${maxAttempts}):`, sub);
+          
           activeBySubscription = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
           if (activeBySubscription) break;
         } catch (e) {
@@ -71,7 +71,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             ws?.subscription_status === 'active' ||
             ws?.plan_status === 'active'
           );
-          console.log('🏢 Workspace subscription flags:', {
+          
             is_subscription_active: ws?.is_subscription_active,
             has_active_subscription: ws?.has_active_subscription,
             subscription_active: ws?.subscription_active,
@@ -87,7 +87,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       const finalActive = activeBySubscription || activeByWorkspace;
 
-      console.log('💳 Final subscription decision:', {
+      
         activeBySubscription,
         activeByWorkspace,
         finalActive,
@@ -99,11 +99,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (!finalActive) {
         console.log('🆕 No active subscription at login, will show plan selection');
       } else {
-        console.log('✅ Active subscription confirmed at login, proceeding to dashboard');
+        
       }
       
     } catch (error: any) {
-      console.error('❌ Failed to check subscription status at login:', error);
+      console.error("[ERROR]:", error);
       // On error, assume no subscription and show plan selection
       setShouldShowPlanSelection(true);
       setHasActiveSubscription(false);
@@ -116,7 +116,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       const authToken = localStorage.getItem('authToken');
       const userLoggedIn = localStorage.getItem('userLoggedIn');
       
-      console.log('🔍 Auth state check:', {
+      
         hasAuthToken: !!authToken,
         hasUserLoggedInFlag: userLoggedIn === 'true',
         authTokenLength: authToken?.length || 0
@@ -124,7 +124,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       // FAIL FAST: If no token or flag, immediate redirect
       if (!authToken || userLoggedIn !== 'true') {
-        console.log('❌ Missing auth token or logged in flag - redirecting to login');
+        
         authService.clearUser(); // Clear any stale data
         setIsAuthenticated(false);
         setIsValidating(false);
@@ -136,14 +136,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       
       try {
         const profileResponse = await authAPI.getProfile();
-        console.log('✅ Token validation successful:', { userEmail: profileResponse?.email });
+        
         setIsAuthenticated(true);
         
         // After successful authentication, check subscription status
         await checkSubscriptionStatus();
         
       } catch (error: any) {
-        console.error('❌ Token validation failed:', error);
+        console.error("[ERROR]:", error);
         
         // Handle all API failures as authentication failures
         console.log('🔒 API validation failed - clearing auth and redirecting to login');
@@ -158,7 +158,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
       
     } catch (error) {
-      console.error('❌ Authentication validation error:', error);
+      console.error("[ERROR]:", error);
       
       // On any error, clear auth state and redirect
       authService.clearUser();
@@ -182,7 +182,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // STRICT: Redirect to login if not authenticated
   if (!isAuthenticated) {
-    console.log('❌ User not authenticated - redirecting to login');
+    
     return <Navigate to="/login" replace />;
   }
 
@@ -192,6 +192,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Let the Layout component handle showing the WelcomeFlow for plan selection
   }
 
-  console.log('✅ User authenticated and subscription checked - allowing access to protected content');
+  
   return <>{children}</>;
 } 

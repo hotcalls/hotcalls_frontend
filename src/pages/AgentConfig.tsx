@@ -87,7 +87,7 @@ export default function AgentConfig() {
     
     // If no voices loaded, force refresh
     if (!voicesLoading && voices.length === 0) {
-      console.log('🔄 No voices loaded, forcing refresh...');
+      
       refreshVoices();
     }
   }, []);
@@ -278,9 +278,9 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         id: String(et.id),
       }));
       setAvailableEventTypes(normalized);
-      console.log(`✅ Loaded ${eventTypesData.length} Event Types for Agent Config`);
+      
     } catch (error) {
-      console.error('❌ Error loading Event Types in Agent Config:', error);
+      console.error("[ERROR]:", error);
       setAvailableEventTypes([]);
     } finally {
       setIsLoadingEventTypes(false);
@@ -305,12 +305,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }));
       
       setAvailableLeadForms(formattedForms);
-      console.log(`✅ Loaded ${formattedForms.length} Lead Sources for Agent Config:`, {
+      
         meta: formattedForms.filter(f => !f.is_csv).length,
         csv: formattedForms.filter(f => f.is_csv).length
       });
     } catch (error) {
-      console.error('❌ Error loading Lead Funnels in Agent Config:', error);
+      console.error("[ERROR]:", error);
       setAvailableLeadForms([]);
     } finally {
       setIsLoadingLeadForms(false);
@@ -328,14 +328,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       try {
         const getVarsFn = (funnelAPI as any).getFunnelVariables || (webhookAPI as any).getFunnelVariables;
         if (typeof getVarsFn !== 'function') {
-          console.error('❌ No getFunnelVariables function available on funnelAPI or webhookAPI');
+          console.error("[ERROR]:", error);
           setFunnelVariables([]);
           return;
         }
         const vars = await getVarsFn(funnelId);
         setFunnelVariables(Array.isArray(vars) ? vars : []);
       } catch (e) {
-        console.error('❌ Failed to load funnel variables:', e);
+        console.error("[ERROR]:", error);
         setFunnelVariables([]);
       }
     })();
@@ -449,7 +449,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }
       
       if (!id || id === 'undefined') {
-        console.error('❌ No valid agent ID provided:', { id, isEdit });
+        console.error("[ERROR]:", error);
         setError('Keine gültige Agent-ID gefunden');
         setLoading(false);
         return;
@@ -461,7 +461,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         console.log('🔧 Loading agent data for editing...', id);
         
         const agentData = await agentAPI.getAgent(id);
-        console.log('✅ Agent data loaded:', agentData);
+        
         
         // Debug: Check calendar configuration
         console.log('📅 Checking event type mapping:', {
@@ -576,7 +576,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         });
         
       } catch (err) {
-        console.error('❌ Failed to load agent data:', err);
+        console.error("[ERROR]:", error);
         setError(err instanceof Error ? err.message : 'Failed to load agent data');
         toast.error('Fehler beim Laden der Agent-Daten');
       } finally {
@@ -620,13 +620,13 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     
     audio.addEventListener('error', (e) => {
       setPlayingVoice(null);
-      console.error('❌ Voice sample playback error:', e);
+      console.error("[ERROR]:", error);
       toast.error('Error playing sample');
     });
 
     setPlayingVoice(voiceId);
     audio.play().catch((err) => {
-      console.error('❌ Failed to play audio:', err);
+      console.error("[ERROR]:", error);
       setPlayingVoice(null);
       toast.error('Audio could not be played');
     });
@@ -635,12 +635,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   // Map selected lead forms to funnel IDs for assignment
   const mapLeadFormsToFunnels = async (selectedLeadForms: string[]): Promise<string[]> => {
     if (!selectedLeadForms || selectedLeadForms.length === 0) {
-      console.log('🔍 No lead forms selected, skipping funnel mapping');
+      
       return [];
     }
 
     try {
-      console.log('🔍 Mapping lead forms to funnels:', selectedLeadForms);
+      
       
       // Get all funnels for current workspace
       const funnels = await funnelAPI.getLeadFunnels({
@@ -656,7 +656,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       const funnelIds = matchingFunnels.map(funnel => funnel.id);
       
-      console.log('🎯 Mapped funnels:', {
+      
         selectedLeadForms,
         matchingFunnels: matchingFunnels.map(f => ({
           id: f.id,
@@ -669,7 +669,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       return funnelIds;
     } catch (error) {
-      console.error('❌ Failed to map lead forms to funnels:', error);
+      console.error("[ERROR]:", error);
       return []; // Return empty array on error - silent failure
     }
   };
@@ -677,14 +677,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   // Handle funnel assignment after successful agent save
   const handleFunnelAssignment = async (selectedFunnelIds: string[], agentId: string) => {
     try {
-      console.log('🔗 Starting funnel assignment for agent:', { selectedFunnelIds, agentId });
+      
       
       // selectedFunnelIds are already funnel IDs from the lead-funnels API
       // No need to map them anymore
       const funnelIds = selectedFunnelIds;
       
       if (funnelIds.length === 0) {
-        console.log('ℹ️ No funnels to assign - skipping funnel assignment');
+        
         return;
       }
       
@@ -699,7 +699,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         funnel.agent && funnel.agent.agent_id === agentId
       );
       
-      console.log('🔄 Current funnel assignments:', currentlyAssignedFunnels.map(f => f.id));
+      
       
       // Unassign existing funnels that are not in the new selection
       const funnelsToUnassign = currentlyAssignedFunnels.filter(funnel => 
@@ -709,9 +709,9 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       for (const funnel of funnelsToUnassign) {
         try {
           await funnelAPI.unassignAgent(funnel.id);
-          console.log(`✅ Unassigned funnel ${funnel.id} from agent ${agentId}`);
+          
         } catch (error) {
-          console.error(`❌ Failed to unassign funnel ${funnel.id}:`, error);
+          console.error("[ERROR]:", error);
         }
       }
       
@@ -722,16 +722,16 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       for (const funnelId of funnelsToAssign) {
         try {
           await funnelAPI.assignAgent(funnelId, agentId);
-          console.log(`✅ Assigned funnel ${funnelId} to agent ${agentId}`);
+          
         } catch (error) {
-          console.error(`❌ Failed to assign funnel ${funnelId}:`, error);
+          console.error("[ERROR]:", error);
         }
       }
       
       console.log('🎉 Funnel assignment completed successfully');
       
     } catch (error) {
-      console.error('❌ Funnel assignment failed:', error);
+      console.error("[ERROR]:", error);
       // Silent failure - no user error messages as requested
     }
   };
@@ -742,23 +742,23 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     try {
       setSaving(true);
       setError(null);
-      console.log('🔄 Save state set, validating...');
+      
       
       if (!primaryWorkspace) {
-        console.error('❌ No workspace available');
+        console.error("[ERROR]:", error);
         throw new Error('No workspace available');
       }
-      console.log('✅ Workspace available:', primaryWorkspace.id);
+      
 
       // Validate required fields before sending to API
       if (!config.name || !config.voice) {
-        console.error('❌ Validation failed:', { name: config.name, voice: config.voice });
+        console.error("[ERROR]:", error);
         throw new Error('Name and voice are required');
       }
       
       // Additional validation
       if (!config.incomingGreeting || !config.outgoingGreeting) {
-        console.error('❌ Greetings missing:', { 
+        console.error("[ERROR]:", error);
           incomingGreeting: config.incomingGreeting, 
           outgoingGreeting: config.outgoingGreeting 
         });
@@ -766,11 +766,11 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }
       
       if (!config.script || config.script.trim() === '') {
-        console.error('❌ Script template missing');
+        console.error("[ERROR]:", error);
         throw new Error('Script is required');
       }
       
-      console.log('✅ Validation passed');
+      
       
       // Prepare data for API according to PUT /api/agents/agents/{agent_id}/ schema
       console.log('🔧 Preparing agentData...');
@@ -850,7 +850,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       let agentId: string;
       
       if (isEdit && id) {
-        console.log('🔄 Using PUT /api/agents/agents/{agent_id}/ for update');
+        
         await agentAPI.updateAgent(id, agentData);
         toast.success('Agent updated successfully!');
         agentId = id;
@@ -868,7 +868,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       // Handle funnel assignment after successful agent save (silent background operation)
       if (agentId && config.selectedLeadForm) {
-        console.log('🔗 Agent saved successfully, starting funnel assignment...');
+        
         // The selectedLeadForm is actually a funnel ID from the lead-funnels API
         // This runs in background - no user error messages on failure
         await handleFunnelAssignment([config.selectedLeadForm], agentId);
@@ -879,14 +879,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           setConfig(prev => ({ ...prev, selectedLeadForm: refreshedFunnelId }));
         } catch {}
       } else {
-        console.log('ℹ️ No lead funnel selected, skipping funnel assignment');
+        
       }
       
       // Stay on the current page - don't navigate away
       // This allows the user to continue editing
       
     } catch (err) {
-      console.error('❌ Failed to save agent:', err);
+      console.error("[ERROR]:", error);
       
       // Enhanced error handling for different HTTP status codes
       let errorMessage = 'Please fill in name, voice and script to save the agent.';
@@ -925,7 +925,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       const data = await knowledgeAPI.listDocuments(id);
       setKb(data);
     } catch (e: any) {
-      console.error("❌ KB list failed", e);
+      console.error("[ERROR]:", error);
       toast.error(e?.message || "Failed to load knowledge base");
       setKb({ version: 1, files: [] });
     } finally {
@@ -1034,7 +1034,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      console.log('✅ Test call was initiated (ignoring backend error):', err);
+      
       toast.success('Test call started!');
     } finally {
       setIsTestCalling(false);

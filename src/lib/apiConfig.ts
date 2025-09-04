@@ -2,19 +2,13 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-console.log('🔧 API Configuration:', {
-  baseUrl: API_BASE_URL,
-  environment: import.meta.env.MODE,
-  authMethod: 'token'
-});
+// API Configuration logging removed
 
 // Store auth token
 let authToken: string | null = localStorage.getItem('authToken');
 
 // Helper function to get auth headers
 const getAuthHeaders = (): Record<string, string> => {
-  console.log('🔐 Using token-based authentication');
-  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -24,15 +18,7 @@ const getAuthHeaders = (): Record<string, string> => {
   
   if (token) {
     headers['Authorization'] = `Token ${token}`;
-    console.log('🔑 Added auth token to headers');
-  } else {
-    console.warn('⚠️ No auth token available - request might fail');
   }
-  
-  console.log('📋 Request headers:', {
-    hasAuthToken: !!token,
-    contentType: headers['Content-Type']
-  });
   
   return headers;
 };
@@ -55,7 +41,6 @@ export const apiClient = {
       }
     }
     
-    console.log(`📡 GET ${url}`);
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders(),
@@ -64,27 +49,17 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      console.error(`❌ GET ${url} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
     
     const data = await response.json();
-    console.log(`✅ GET ${url} successful`);
     return data;
   },
 
   async post<T>(endpoint: string, data: any): Promise<T> {
-    console.log(`📡 POST ${endpoint}`, data);
-    
     const headers = getAuthHeaders();
     const body = JSON.stringify(data);
-    
-    console.log('🔍 Request details:', {
-      url: `${API_BASE_URL}${endpoint}`,
-      headers,
-      bodyString: body,
-      bodyLength: body.length
-    });
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
@@ -95,17 +70,15 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      console.error(`❌ POST ${endpoint} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
     
     const responseData = await response.json();
-    console.log(`✅ POST ${endpoint} successful`);
     return responseData;
   },
 
   async put<T>(endpoint: string, data: any): Promise<T> {
-    console.log(`📡 PUT ${endpoint}`, data);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -115,17 +88,15 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      console.error(`❌ PUT ${endpoint} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
     
     const responseData = await response.json();
-    console.log(`✅ PUT ${endpoint} successful`);
     return responseData;
   },
 
   async patch<T>(endpoint: string, data: any): Promise<T> {
-    console.log(`📡 PATCH ${endpoint}`, data);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PATCH',
       headers: getAuthHeaders(),
@@ -135,17 +106,15 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      console.error(`❌ PATCH ${endpoint} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
     
     const responseData = await response.json();
-    console.log(`✅ PATCH ${endpoint} successful`);
     return responseData;
   },
 
   async delete(endpoint: string): Promise<void> {
-    console.log(`📡 DELETE ${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
@@ -154,17 +123,13 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Request failed' }));
-      console.error(`❌ DELETE ${endpoint} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
-    
-    console.log(`✅ DELETE ${endpoint} successful`);
   },
 
   // Special method for multipart/form-data uploads
   async uploadFiles<T>(endpoint: string, formData: FormData): Promise<T> {
-    console.log(`📡 POST ${endpoint} (multipart upload)`);
-    
     // Get token but don't set Content-Type (let browser set it for FormData)
     const token = authToken || localStorage.getItem('authToken');
     const headers: Record<string, string> = {};
@@ -182,12 +147,11 @@ export const apiClient = {
     
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
-      console.error(`❌ Upload to ${endpoint} failed:`, error);
+      console.error("[ERROR]:", error);
       throw error;
     }
     
     const responseData = await response.json();
-    console.log(`✅ Upload to ${endpoint} successful`);
     return responseData;
   }
 };

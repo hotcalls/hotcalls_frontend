@@ -72,7 +72,7 @@ export default function Leads() {
         params.integration_provider = filters.integration_provider;
       }
       
-      console.log('🔍 Loading leads with params:', params);
+      
       const response: LeadsListResponse = await leadAPI.getLeads(params);
       const results = response.results || [];
       if (results.length === 0) {
@@ -88,9 +88,9 @@ export default function Leads() {
         });
       }
       
-      console.log(`✅ Loaded ${response.results?.length || 0} leads`);
+      
     } catch (err) {
-      console.error('❌ Error loading leads:', err);
+      console.error("[ERROR]:", error);
       setError('Failed to load leads');
       toast({
         title: "Error",
@@ -112,9 +112,9 @@ export default function Leads() {
   // Listen for leads updates from CSV imports or other sources
   useEffect(() => {
     const handleLeadsUpdated = (event: CustomEvent) => {
-      console.log('🔄 Received leadsUpdated event:', event.detail);
+      
       if (event.detail?.workspace === workspaceDetails?.id) {
-        console.log('✅ Refreshing leads after CSV import');
+        
         loadLeads();
       }
     };
@@ -135,7 +135,7 @@ export default function Leads() {
         csvOnly.forEach((f: any) => { map[f.id] = f.name; });
         setFunnelIdToName(map);
       } catch (e) {
-        console.error('❌ Failed to load CSV funnels/agents:', e);
+        console.error("[ERROR]:", error);
       }
     })();
   }, [workspaceDetails?.id]);

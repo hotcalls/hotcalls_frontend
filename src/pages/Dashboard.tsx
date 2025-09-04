@@ -480,10 +480,10 @@ export default function Dashboard() {
         // Transform API → Frontend
         const transformedCalls = apiCalls.map((c) => transformCallLogToRecentCall(c, agentNameById));
         setRealRecentCalls(transformedCalls);
-        console.log(`✅ Recent calls loaded: ${transformedCalls.length} calls`);
+        
         
       } catch (error) {
-        console.error('❌ Error fetching recent calls:', error);
+        console.error("[ERROR]:", error);
         setRecentCallsError('Fehler beim Laden der Anrufe');
       } finally {
         setRecentCallsLoading(false);
@@ -506,11 +506,11 @@ export default function Dashboard() {
       // DON'T clear realChartData immediately - keep previous data during loading
       
       try {
-        console.log('🔍 Starting real chart data fetch...');
+        
         
         // Get real chart data from APIs with workspace filter
         const chartData = await chartAPI.generateRealChartData(dateRange, primaryWorkspace?.id ? String(primaryWorkspace.id) : undefined);
-        console.log('✅ Chart data received:', chartData);
+        
         setRealChartData(chartData);
       } catch (error) {
         console.error('Error fetching real chart data:', error);
@@ -554,7 +554,7 @@ export default function Dashboard() {
     const fromDate = format(dateRange.from, 'yyyy-MM-dd');
     const toDate = format(dateRange.to, 'yyyy-MM-dd');
     const isSingle = fromDate === toDate;
-    console.log('🔍 isSingleDay check:', { fromDate, toDate, isSingle, dateRange });
+    
     return isSingle;
   }, [dateRange]);
   
@@ -563,7 +563,7 @@ export default function Dashboard() {
     // For single day, we expect 24 points; for multi-day, days count
     const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    console.log('🔍 Chart data decision:', {
+    
       isSingleDay,
       expectedDataPoints,
       realDataLength: realChartData.length,
@@ -572,12 +572,12 @@ export default function Dashboard() {
     
     // If we have sufficient real chart data, use it
     if (realChartData.length >= expectedDataPoints) {
-      console.log('✅ Using real chart data');
+      
       return realChartData;
     }
     
     // Zero-fill structure, no fake numbers
-    console.log('📊 Using zero-filled fallback');
+    
     if (isSingleDay) {
       // Generate 24 hours of ZERO data for single day
       const minimalData = [];
@@ -592,7 +592,7 @@ export default function Dashboard() {
           conversion: 0
         });
       }
-      console.log('📊 Generated 24 hours of zero data');
+      
       return minimalData;
     } else {
       // For multi-day, generate zero-filled days
@@ -607,7 +607,7 @@ export default function Dashboard() {
         d.setDate(start.getDate()+i);
         zeros.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
       }
-      console.log('📊 Using zero-filled data for multi-day range');
+      
       return zeros;
     }
   }, [realChartData, isSingleDay, dateRange]);
@@ -710,7 +710,7 @@ export default function Dashboard() {
   const staticAppointments = useMemo(() => {
     // If we have real appointments and no error, use them
     if (!appointmentListLoading && !appointmentListError && realAppointments.length > 0) {
-      console.log('✅ Using static appointment data (next 2 weeks)');
+      
       return realAppointments;
     }
     

@@ -29,18 +29,18 @@ export default function MetaIntegration() {
   const { toast } = useToast();
 
   const loadMetaIntegrations = async () => {
-    console.log('🔍 Loading Meta integrations...');
+    
     setIsLoading(true);
     try {
       const integrations = await metaAPI.getIntegrations();
       if (Array.isArray(integrations)) {
         setMetaIntegrations(integrations);
-        console.log(`✅ Loaded ${integrations.length} Meta integrations`);
+        
       } else {
         setMetaIntegrations([]);
       }
     } catch (error) {
-      console.error('❌ Error loading Meta integrations:', error);
+      console.error("Error loading Meta integrations:", error);
       setMetaIntegrations([]);
       toast({
         title: "Error",
@@ -60,7 +60,7 @@ export default function MetaIntegration() {
 
   const handleAddMetaIntegration = async () => {
     if (!workspaceDetails?.id) {
-      console.error('❌ No workspace ID available');
+      console.error("No workspace ID available");
       toast({
         title: "Error",
         description: "No workspace selected.",
@@ -70,13 +70,13 @@ export default function MetaIntegration() {
     }
     
     try {
-      console.log('🔗 Starting Meta OAuth flow for workspace:', workspaceDetails.id);
+      
       const { oauth_url } = await metaAPI.getOAuthUrl(workspaceDetails.id);
       
       // Redirect to Meta OAuth
       window.location.href = oauth_url;
     } catch (error) {
-      console.error('❌ Failed to get Meta OAuth URL:', error);
+      console.error("Failed to get Meta OAuth URL:", error);
       toast({
         title: "Error",
         description: "Meta Integration could not be started.",
@@ -87,7 +87,7 @@ export default function MetaIntegration() {
 
   const handleDeleteIntegration = async (integrationId: string) => {
     try {
-      console.log('🗑️ Deleting Meta integration:', integrationId);
+      
       await metaAPI.deleteIntegration(integrationId);
       
       // Remove from local state
@@ -100,7 +100,7 @@ export default function MetaIntegration() {
         description: "Meta Integration was successfully removed.",
       });
     } catch (error) {
-      console.error('❌ Failed to delete Meta integration:', error);
+      console.error("Failed to delete Meta integration:", error);
       toast({
         title: "Error",
         description: "Integration could not be deleted.",

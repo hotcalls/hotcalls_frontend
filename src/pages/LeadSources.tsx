@@ -120,7 +120,7 @@ export default function LeadSources() {
 
   // Load all lead sources
   const loadAllSources = useCallback(async () => {
-    console.log('🔍 Starting to load all lead sources...');
+    
     setIsLoading(true);
     try {
       // Load real connections (Meta + Webhook) and CSV funnels for this workspace
@@ -135,12 +135,12 @@ export default function LeadSources() {
         const integrations = metaIntegrationsResult.value;
         if (Array.isArray(integrations)) {
           setMetaIntegrations(integrations);
-          console.log(`✅ Loaded ${integrations.length} Meta integrations`);
+          
         } else {
           setMetaIntegrations([]);
         }
       } else {
-        console.error('❌ Error loading Meta integrations:', metaIntegrationsResult.reason);
+        console.error("[ERROR]:", error);
         setMetaIntegrations([]);
       }
 
@@ -168,7 +168,7 @@ export default function LeadSources() {
         // keep empty state
       }
     } catch (error) {
-      console.error('❌ Unexpected error loading sources:', error);
+      console.error("[ERROR]:", error);
       setMetaIntegrations([]);
       setWebhookSources([]);
       setLeadFunnels([]);
@@ -189,7 +189,7 @@ export default function LeadSources() {
         const vars = await funnelAPI.getFunnelVariables(funnelId);
         variableKeys = Array.isArray(vars) ? vars.map((v: any) => v.key) : [];
       } catch (e) {
-        console.error('⚠️ Funnel variables API error', e);
+        console.error("[ERROR]:", error);
       }
 
       // 2) Lead count for this funnel
@@ -221,7 +221,7 @@ export default function LeadSources() {
           }
           variableKeys = Array.from(keys);
         } catch (e) {
-          console.error('⚠️ Variable inference fallback failed', e);
+          console.error("[ERROR]:", error);
         }
       }
 
@@ -257,7 +257,7 @@ export default function LeadSources() {
         setSelectedAgentId(first.agent_id);
       }
     } catch (e) {
-      console.error('❌ Failed to load agents:', e);
+      console.error("[ERROR]:", error);
       setScheduleAgents([]);
     }
   };
@@ -302,18 +302,18 @@ export default function LeadSources() {
   const handleAddLeadSource = async (type: string) => {
     if (type === "Meta") {
       if (!workspaceDetails?.id) {
-        console.error('❌ No workspace ID available');
+        console.error("[ERROR]:", error);
         return;
       }
       
       try {
-        console.log('🔗 Starting Meta OAuth flow for workspace:', workspaceDetails.id);
+        
         const { oauth_url } = await metaAPI.getOAuthUrl(workspaceDetails.id);
         
         // Redirect to Meta OAuth
         window.location.href = oauth_url;
       } catch (error) {
-        console.error('❌ Failed to get Meta OAuth URL:', error);
+        console.error("[ERROR]:", error);
         toast({
           title: "Error",
           description: "Meta Integration could not be started.",
@@ -335,7 +335,7 @@ export default function LeadSources() {
 
   const handleCreateWebhook = async () => {
     if (!workspaceDetails?.id) {
-      console.error('❌ No workspace ID available');
+      console.error("[ERROR]:", error);
       return;
     }
     if (!webhookName.trim()) {
@@ -353,7 +353,7 @@ export default function LeadSources() {
       setIsAddDialogOpen(false);
       setIsCreatedDialogOpen(true);
     } catch (error) {
-      console.error('❌ Failed to create webhook source:', error);
+      console.error("[ERROR]:", error);
       toast({ title: 'Error', description: 'Webhook source could not be created.', variant: 'destructive' });
     } finally {
       setIsCreatingWebhook(false);
@@ -387,7 +387,7 @@ export default function LeadSources() {
 
   const handleDeleteIntegration = async (integrationId: string) => {
     try {
-      console.log('🗑️ Deleting Meta integration:', integrationId);
+      
       await metaAPI.deleteIntegration(integrationId);
       
       // Remove from local state
@@ -400,7 +400,7 @@ export default function LeadSources() {
         description: "Meta Integration was successfully removed.",
       });
     } catch (error) {
-      console.error('❌ Failed to delete Meta integration:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Error",
         description: "Integration could not be deleted.",
@@ -424,7 +424,7 @@ export default function LeadSources() {
         description: `Webhook was ${!currentStatus ? "activated" : "deactivated"}.`,
       });
     } catch (error) {
-      console.error('❌ Failed to toggle funnel:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Error",
         description: "Status could not be changed.",
@@ -450,7 +450,7 @@ export default function LeadSources() {
         description: "New token generated. Please copy!",
       });
     } catch (error) {
-      console.error('❌ Failed to rotate token:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Error",
         description: "Token could not be rotated.",
@@ -463,7 +463,7 @@ export default function LeadSources() {
 
   const handleDeleteWebhook = async (webhookId: string) => {
     try {
-      console.log('🗑️ Deleting webhook source:', webhookId);
+      
       await webhookAPI.deleteSource(webhookId);
       
       // Remove from local state
@@ -474,7 +474,7 @@ export default function LeadSources() {
         description: "Webhook source was successfully removed.",
       });
     } catch (error) {
-      console.error('❌ Failed to delete webhook:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Error",
         description: "Webhook could not be deleted.",
@@ -706,7 +706,7 @@ export default function LeadSources() {
                                 }
                               });
                               
-                              console.log('🔍 Mapped lead row with workspace:', {
+                              
                                 workspace: mappedRow.workspace,
                                 name: mappedRow.name,
                                 email: mappedRow.email
@@ -718,7 +718,7 @@ export default function LeadSources() {
                             // Create leads and wait briefly so backend prepares variables
                             console.log('📤 Uploading leads to workspace:', workspaceDetails?.id, 'Lead count:', mappedRows.length);
                             const res = await leadAPI.bulkCreateLeads(mappedRows);
-                            console.log('✅ CSV import result:', res);
+                            
                             
                             await new Promise(r => setTimeout(r, 1200));
                             setCsvImportResult({
@@ -1073,7 +1073,7 @@ export default function LeadSources() {
                   setDeleteConfirmFunnelId(null);
                   toast({ title: 'Deleted', description: 'Lead source removed.' });
                 } catch (e) {
-                  console.error('❌ Delete funnel failed', e);
+                  console.error("[ERROR]:", error);
                   toast({ title: 'Error', description: 'Could not delete lead source.', variant: 'destructive' });
                 } finally {
                   setDeletingFunnelId(null);

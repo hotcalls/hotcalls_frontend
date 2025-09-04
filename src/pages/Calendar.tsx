@@ -442,12 +442,12 @@ function EventTypeModal({
   });
 
   const handleNext = () => {
-    console.log('🔄 handleNext called - currentStep:', currentStep);
+    
     if (currentStep < 5) {
-      console.log('✅ Moving to next step:', currentStep + 1);
+      
       setCurrentStep(currentStep + 1);
     } else {
-      console.log('❌ Already at last step:', currentStep);
+      
     }
   };
 
@@ -479,7 +479,7 @@ function EventTypeModal({
 
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
       const response = await eventTypeAPI.createEventType(String(workspaceId || ''), payload);
-      console.log('✅ Event Type created:', response);
+      
       
       // Reload Event Types to show the new one
       onEventTypeCreated();
@@ -502,7 +502,7 @@ function EventTypeModal({
         meeting_address: ''
       });
     } catch (error) {
-      console.error('❌ Error creating Event Type:', error);
+      console.error("[ERROR]:", error);
     }
   };
 
@@ -712,13 +712,13 @@ function EventTypeEditModal({
 
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
       await eventTypeAPI.updateEventType(String(workspaceId || ''), eventType.id, payload);
-      console.log('✅ Event Type updated');
+      
       
       onEventTypeUpdated();
       onOpenChange(false);
       
     } catch (error) {
-      console.error('❌ Error updating Event Type:', error);
+      console.error("[ERROR]:", error);
     }
   };
 
@@ -861,7 +861,7 @@ export default function Calendar() {
   const hasAnyCalendarConnected = React.useMemo(() => {
     // If the generic /api/calendars/ API returns any calendars, ALWAYS allow event type creation
     const hasCalendars = connectedCalendars.length > 0;
-    console.log('🔍 Calendar Detection Debug:', {
+    
       connectedCalendarsCount: connectedCalendars.length,
       hasCalendars,
       calendars: connectedCalendars.map(c => ({ id: c.id, name: c.name, provider: c.provider, active: c.active }))
@@ -909,7 +909,7 @@ export default function Calendar() {
     try {
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
       await eventTypeAPI.deleteEventType(String(primaryWorkspace?.id || ''), showDeleteConfirm.eventType.id);
-      console.log('✅ Event Type deleted');
+      
       
       // Reload Event Types
       await loadEventTypes();
@@ -919,7 +919,7 @@ export default function Calendar() {
         description: "Der Event Type wurde erfolgreich gelöscht.",
       });
     } catch (error) {
-      console.error('❌ Error deleting Event Type:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Fehler beim Löschen",
         description: "Der Event Type konnte nicht gelöscht werden.",
@@ -938,9 +938,9 @@ export default function Calendar() {
       const [{ eventTypeAPI }] = await Promise.all([import("@/lib/apiService")]);
       const eventTypesData = await eventTypeAPI.listEventTypes(String(primaryWorkspace.id));
       setEventTypes(eventTypesData);
-      console.log(`✅ Loaded ${eventTypesData.length} Event Types`);
+      
     } catch (error) {
-      console.error('❌ Error loading Event Types:', error);
+      console.error("[ERROR]:", error);
       setEventTypes([]);
     } finally {
       setIsLoadingEventTypes(false);
@@ -960,7 +960,7 @@ export default function Calendar() {
       console.log('📅 Raw calendar API response:', { calendarsResponse, calendars, count: calendars.length });
 
       if (!Array.isArray(calendars)) {
-        console.error('❌ Expected calendars array, got:', typeof calendars, calendars);
+        console.error("[ERROR]:", error);
         throw new Error('Invalid calendars response');
       }
 
@@ -1043,7 +1043,7 @@ export default function Calendar() {
       setAllBackendCalendars(calendars);
 
     } catch (error) {
-      console.error('❌ Error loading calendars:', error);
+      console.error("[ERROR]:", error);
       setConnectedCalendars([]);
       setGoogleConnections([]);
       setMicrosoftConnections([]);
@@ -1062,7 +1062,7 @@ export default function Calendar() {
       if (cal) await calendarAPI.syncCalendar(cal.id);
       toast({ title: 'Aktualisiert', description: 'Kalender synchronisiert.' });
     } catch (e) {
-      console.error('❌ Refresh Microsoft error:', e);
+      console.error("[ERROR]:", error);
       toast({ title: 'Fehler', description: 'Aktualisieren fehlgeschlagen.', variant: 'destructive' });
     } finally {
       setMsRefreshingConnectionId(null);
@@ -1093,7 +1093,7 @@ export default function Calendar() {
         throw new Error(res?.message || 'Trennen fehlgeschlagen');
       }
     } catch (e) {
-      console.error('❌ Disconnect Microsoft error:', e);
+      console.error("[ERROR]:", error);
       toast({ title: 'Fehler', description: 'Trennen fehlgeschlagen.', variant: 'destructive' });
     } finally {
       setMsDisconnectingConnectionId(null);
@@ -1108,7 +1108,7 @@ export default function Calendar() {
       const oauthResponse = await calendarAPI.getGoogleOAuthURL(workspaceId);
       window.location.href = oauthResponse.authorization_url;
     } catch (error) {
-      console.error('❌ Failed to initiate Google OAuth:', error);
+      console.error("[ERROR]:", error);
       toast({ title: "Verbindung fehlgeschlagen", description: "Google Kalender konnte nicht verbunden werden.", variant: "destructive" });
     }
   };
@@ -1119,7 +1119,7 @@ export default function Calendar() {
       const oauthResponse = await calendarAPI.getMicrosoftOAuthURL(String(primaryWorkspace.id));
       window.location.href = oauthResponse.authorization_url;
     } catch (error) {
-      console.error('❌ Failed to initiate Microsoft OAuth:', error);
+      console.error("[ERROR]:", error);
       toast({ title: "Verbindung fehlgeschlagen", description: "Microsoft 365 Kalender konnte nicht verbunden werden.", variant: "destructive" });
     }
   };
@@ -1154,7 +1154,7 @@ export default function Calendar() {
       toast({ title: "Verbindung getrennt", description: `Google Calendar für ${connection.account_email} wurde getrennt.` });
       try { await loadEventTypes(); } catch {}
     } catch (error) {
-      console.error('❌ Error disconnecting:', error);
+      console.error("[ERROR]:", error);
       toast({ title: "Fehler beim Trennen", description: "Verbindung konnte nicht getrennt werden.", variant: "destructive" });
     } finally {
       setDisconnectingConnectionId(null);
@@ -1714,7 +1714,7 @@ function CalendarCard({
       // Optimistic UI: remove from local state by reloading calendars/events in parent via storage/event
       window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
     } catch (e) {
-      console.error('❌ Kalender löschen fehlgeschlagen', e);
+      console.error("[ERROR]:", error);
     } finally {
       setIsDeleting(false);
     }

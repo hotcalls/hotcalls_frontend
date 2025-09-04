@@ -166,7 +166,7 @@ export interface Agent {
 export const getVoiceSampleUrl = (voice: Voice): string => {
   // If backend provides voice_sample, use it directly
   if (voice.voice_sample) {
-    console.log(`✅ Using API voice_sample for ${voice.name}: ${voice.voice_sample}`);
+    
     return voice.voice_sample;
   }
   
@@ -276,7 +276,7 @@ export const authService = {
   // Login method
   async login(email: string, password: string): Promise<LoginResponse> {
     const loginRequest: LoginRequest = { email, password };
-    console.log('🔑 Logging in user (cookie-based auth, no auth header):', { email, password: '[REDACTED]' });
+    
 
     try {
       // Use direct fetch to avoid Authorization header from apiClient
@@ -292,7 +292,7 @@ export const authService = {
       }
       const response: LoginResponse = await res.json();
       
-      console.log('✅ Login API response received:', {
+      
         hasUser: !!response.user,
         userEmail: response.user?.email,
         hasToken: !!response.token,
@@ -302,12 +302,12 @@ export const authService = {
       // Store the auth token
       if (response.token) {
         localStorage.setItem('authToken', response.token);
-        console.log('🔑 Auth token stored in localStorage');
+        
         
         // Set the token in apiConfig for future requests
         apiConfig.setAuthToken(response.token);
       } else {
-        console.error('❌ No token received from login endpoint!');
+        console.error("[ERROR]:", error);
         throw new Error('Authentication failed - no token received');
       }
 
@@ -317,7 +317,7 @@ export const authService = {
       // Set logged in flag
       localStorage.setItem('userLoggedIn', 'true');
       
-      console.log('✅ Authentication state saved:', {
+      
         userLoggedIn: localStorage.getItem('userLoggedIn'),
         authMethod: 'token',
         user: this.getStoredUser()?.email,
@@ -326,7 +326,7 @@ export const authService = {
       
       return response;
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      console.error("[ERROR]:", error);
       // Clear any partial authentication state
       this.clearUser();
       throw error;
@@ -351,7 +351,7 @@ export const authService = {
     });
 
     // Additional debug logging
-    console.log('🔍 Debug - Registration request details:');
+    
     console.log('- Email:', registerRequest.email);
     console.log('- First Name:', registerRequest.first_name);
     console.log('- Last Name:', registerRequest.last_name);

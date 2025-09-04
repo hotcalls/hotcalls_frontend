@@ -25,12 +25,12 @@ export function useTeamMembers(workspaceId: string | null) {
     try {
       setLoading(true);
       setError(null);
-      console.log('👥 Fetching team members for workspace:', workspaceId);
+      
       
       // Try to fetch real team members
       try {
         const membersData = await workspaceAPI.getWorkspaceMembers(workspaceId);
-        console.log('✅ Team members loaded:', membersData);
+        
         
         // Transform API data to our interface
         const transformedMembers: TeamMember[] = membersData.map((member: any) => ({
@@ -63,7 +63,7 @@ export function useTeamMembers(workspaceId: string | null) {
         setMembers(mockMembers);
       }
     } catch (err) {
-      console.error('❌ Failed to fetch team members:', err);
+      console.error("[ERROR]:", error);
       setError(err instanceof Error ? err.message : 'Failed to load team members');
     } finally {
       setLoading(false);

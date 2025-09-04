@@ -50,13 +50,13 @@ export function useUsageStatus(
 
     try {
       setError(null);
-      console.log(`🔍 Fetching usage for workspace: ${workspaceId}`);
+      
       
       const usageData = await usageService.getUsageStatus(workspaceId);
       setUsage(usageData);
       setLastUpdated(new Date());
       
-      console.log('✅ Usage data loaded:', {
+      
         plan: usageData.workspace.plan,
         callMinutes: usageData.features.call_minutes,
         billingPeriod: usageData.billing_period,
@@ -64,7 +64,7 @@ export function useUsageStatus(
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load usage data';
-      console.error('❌ Usage fetch error:', err);
+      console.error("[ERROR]:", error);
       
       setError(errorMessage);
       
@@ -102,7 +102,7 @@ export function useUsageStatus(
     if (!autoRefresh || !workspaceId) return;
 
     const interval = setInterval(() => {
-      console.log(`🔄 Auto-refreshing usage data for workspace: ${workspaceId}`);
+      
       fetchUsage();
     }, refreshInterval * 60 * 1000); // Convert minutes to milliseconds
 

@@ -200,7 +200,7 @@ export function AppSidebar() {
       });
       
       if (response.ok) {
-        console.log("✅ Logout successful");
+        
       }
     } catch (error) {
       console.error("Logout API call failed:", error);

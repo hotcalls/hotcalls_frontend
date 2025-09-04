@@ -78,11 +78,11 @@ export async function getGoogleOAuthURL(state?: string): Promise<string> {
     console.log('🔐 Getting Google OAuth URL from backend...');
     const response = await calendarAPI.getGoogleOAuthURL();
     
-    console.log('✅ Google OAuth URL erhalten:', response.authorization_url);
+    
     return response.authorization_url;
     
   } catch (error) {
-    console.error('❌ Backend OAuth URL generation failed:', error);
+    console.error("[ERROR]:", error);
     throw error; // Kein Fallback mehr - Backend muss funktionieren
   }
 }
@@ -159,7 +159,7 @@ export async function getGoogleConnections(): Promise<GoogleConnection[]> {
   const { calendarAPI } = await import('./apiService');
   
   try {
-    console.log('🔗 Loading Google connections via calendars list...');
+    
     const calendars = await calendarAPI.getCalendars();
     const list = (Array.isArray(calendars) ? calendars : (calendars as any)?.results || []) as any[];
     const map = new Map<string, GoogleConnection>();
@@ -173,10 +173,10 @@ export async function getGoogleConnections(): Promise<GoogleConnection[]> {
       }
     });
     const connections = Array.from(map.values());
-    console.log('✅ Google Connections constructed:', connections);
+    
     return connections;
   } catch (error) {
-    console.error('❌ Error loading Google connections:', error);
+    console.error("[ERROR]:", error);
     throw error;
   }
 }
@@ -194,7 +194,7 @@ export async function disconnectGoogleCalendar(connectionId: string): Promise<{ 
     await calendarAPI.deleteCalendar(connectionId);
     return { success: true };
   } catch (error) {
-    console.error('❌ Error disconnecting Google Calendar:', error);
+    console.error("[ERROR]:", error);
     throw error;
   }
 }
@@ -209,14 +209,14 @@ export async function handleOAuthCallback(): Promise<{
   error?: string;
 }> {
   try {
-    console.log('🔄 OAuth completed - loading calendars from backend...');
+    
     const { calendarAPI } = await import('./apiService');
     const calendars = await calendarAPI.getCalendars();
     sessionStorage.removeItem('oauth_state');
     sessionStorage.removeItem('oauth_user_email');
     return { success: true, calendars: Array.isArray(calendars) ? calendars : (calendars as any)?.results || [] };
   } catch (error) {
-    console.error('❌ OAuth callback error:', error);
+    console.error("[ERROR]:", error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
   }
 } 

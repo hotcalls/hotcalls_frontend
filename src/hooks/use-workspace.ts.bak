@@ -24,6 +24,7 @@ export function useWorkspace() {
     try {
       setLoading(true);
       setError(null);
+      console.log('🏢 Fetching user workspaces and profile...');
       
       // Fetch current user and workspaces in parallel
       const [workspaceData, userProfile] = await Promise.all([
@@ -31,6 +32,8 @@ export function useWorkspace() {
         authAPI.getProfile()
       ]);
       
+      console.log('✅ Workspaces loaded:', workspaceData);
+      console.log('✅ User profile loaded:', userProfile);
       
       setWorkspaces(workspaceData);
       setCurrentUser(userProfile);
@@ -59,6 +62,7 @@ export function useWorkspace() {
         // Load details for the selected workspace
         try {
           const details = await workspaceAPI.getWorkspaceDetails(initialWorkspace.id);
+          console.log('✅ Workspace details loaded:', details);
           const normalized: WorkspaceDetails = {
             ...details,
             members: (details as any)?.members || (details as any)?.users || []
@@ -70,7 +74,7 @@ export function useWorkspace() {
             setIsAdmin(!!roleResp?.is_admin);
           } catch (e) { setIsAdmin(false); }
         } catch (detailsError) {
-          console.warn('Could not fetch workspace details:', detailsError);
+          console.warn('⚠️ Could not fetch workspace details:', detailsError);
           setWorkspaceDetails(initialWorkspace);
           setIsAdmin(false);
         }
@@ -88,7 +92,7 @@ export function useWorkspace() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch workspaces:', err);
+      console.error('❌ Failed to fetch workspaces:', err);
       setError(err instanceof Error ? err.message : 'Failed to load workspaces');
     } finally {
       setLoading(false);
@@ -143,6 +147,7 @@ export function useWorkspace() {
       });
     }
     
+    console.log('👥 Team members assembled:', members);
     return members;
   };
 
@@ -164,7 +169,10 @@ export function useWorkspace() {
     try {
       setUpdating(true);
       setError(null);
+      console.log('🔄 Updating workspace:', workspaceId, updates);
+      
       const updatedWorkspace = await workspaceAPI.updateWorkspace(workspaceId, updates);
+      console.log('✅ Workspace updated successfully:', updatedWorkspace);
       
       // Update local state
       setWorkspaces(prev => 
@@ -178,7 +186,7 @@ export function useWorkspace() {
       
       return updatedWorkspace;
     } catch (err) {
-      console.error('Failed to update workspace:', err);
+      console.error('❌ Failed to update workspace:', err);
       setError(err instanceof Error ? err.message : 'Failed to update workspace');
       throw err;
     } finally {

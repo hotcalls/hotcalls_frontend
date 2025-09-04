@@ -85,9 +85,9 @@ class UsageService {
 
       const data: UsageAPIResponse = await response.json();
       
-      console.log('🔍 Raw API response data:', data);
-      console.log('🔍 Workspace data from API:', data.workspace);
-      console.log('🔍 Plan from API:', data.workspace.plan);
+      
+      
+      
       
       const result = {
         workspace: {
@@ -100,13 +100,13 @@ class UsageService {
         cosmetic_features: data.cosmetic_features,
       };
       
-      console.log('🔍 Processed result:', result);
-      console.log('🔍 Result workspace plan:', result.workspace.plan);
+      
+      
       
       return result;
 
     } catch (error) {
-      console.error('❌ Usage Service Error:', error);
+      console.error("[ERROR]:", error);
       if (error instanceof Error) {
         throw error;
       }

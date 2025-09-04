@@ -22,7 +22,7 @@ export default function OAuthCallback() {
 
         // NEW: Handle Backend redirect format
         if (success === 'true' && calendarsCount && email) {
-          console.log(`✅ Backend redirect: ${calendarsCount} calendars connected for ${email}`);
+          
           setStatus('success');
           setMessage(`Google Kalender erfolgreich verbunden! ${calendarsCount} Kalender synchronisiert.`);
           
@@ -73,7 +73,7 @@ export default function OAuthCallback() {
           throw new Error('No authorization code received');
         }
 
-        console.log('✅ OAuth callback received - Backend handles token exchange automatically');
+        
 
         // VEREINFACHT: Backend hat bereits alles verarbeitet
         // Frontend lädt nur die neuen Kalender-Verbindungen
@@ -100,7 +100,7 @@ export default function OAuthCallback() {
         }
 
       } catch (err) {
-        console.error('❌ OAuth callback error:', err);
+        console.error("[ERROR]:", error);
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         

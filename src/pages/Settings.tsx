@@ -114,10 +114,10 @@ export default function Settings() {
         if (!hasEnterprise) {
           list = [...list, enterpriseCard];
         }
-        console.log('✅ Plans loaded:', list);
+        
         setAvailablePlans(list);
       } catch (e) {
-        console.error('❌ Failed to load plans:', e);
+        console.error("[ERROR]:", error);
       } finally {
         setLoadingPlans(false);
       }
@@ -128,11 +128,11 @@ export default function Settings() {
   useEffect(() => {
     const loadPlanDetails = async () => {
       const planName = usage?.workspace?.plan;
-      console.log('🔄 Loading plan details for:', planName);
-      console.log('🔍 Current usage data:', usage);
+      
+      
       
       if (!planName) {
-        console.log('⚠️ No plan name available yet');
+        
         return;
       }
 
@@ -140,7 +140,7 @@ export default function Settings() {
       try {
         console.log('📡 Calling subscriptionService.getPlanDetailsByName...');
         const details = await subscriptionService.getPlanDetailsByName(planName);
-        console.log('✅ Got plan details:', details);
+        
         
         if (details) {
           const planDetails = {
@@ -155,7 +155,7 @@ export default function Settings() {
           console.log('📋 Setting plan details:', planDetails);
           setPlanDetails(planDetails);
         } else {
-          console.log('⚠️ No plan details found, using fallback');
+          
           // Fallback for unknown plans
           setPlanDetails({
             name: planName,
@@ -165,8 +165,8 @@ export default function Settings() {
           });
         }
       } catch (error) {
-        console.error('❌ Failed to load plan details:', error);
-        console.error('❌ Error details:', error.message, error.stack);
+        console.error("[ERROR]:", error);
+        console.error("[ERROR]:", error);
         // FORCE FALLBACK - Don't stay in loading state!
         setPlanDetails({
           name: planName,
@@ -187,15 +187,15 @@ export default function Settings() {
   // Get real plan data from database instead of hardcoding
   const getCurrentPlanDetails = () => {
     const planName = usage?.workspace?.plan;
-    console.log('🎯 getCurrentPlanDetails called with planName:', planName);
-    console.log('🎯 Full usage object:', usage);
-    console.log('🎯 Workspace object:', usage?.workspace);
-    console.log('🎯 planDetails state:', planDetails);
-    console.log('🎯 loadingPlanDetails state:', loadingPlanDetails);
+    
+    
+    
+    
+    
     
     // If we have loaded plan details, use them
     if (planDetails) {
-      console.log('✅ Using loaded planDetails');
+      
       return planDetails;
     }
 
@@ -211,7 +211,7 @@ export default function Settings() {
 
     // If we have a plan name but no details yet, show plan-specific fallback
     if (planName) {
-      console.log('🔄 Using planName fallback for:', planName);
+      
       return {
         name: planName,
         price: planName === 'Enterprise' ? 'Individuell' : 
@@ -269,7 +269,7 @@ export default function Settings() {
     setChangingPlan(true);
     
     try {
-      console.log('🔄 Changing to plan:', planName);
+      
       
       // Get price ID from backend API (NO HARDCODED BULLSHIT!)
       const planDetails = await subscriptionService.getPlanDetailsByName(planName);
@@ -290,13 +290,13 @@ export default function Settings() {
         price_id: priceId,
       });
       
-      console.log('✅ Checkout session created, redirecting to Stripe...');
+      
       
       // Redirect to Stripe Checkout
       window.location.href = checkoutSession.checkout_url;
       
     } catch (error) {
-      console.error('❌ Plan change failed:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : 'Plan-Änderung fehlgeschlagen',
@@ -345,12 +345,12 @@ export default function Settings() {
       
       setIsLoadingSubscription(true);
       try {
-        console.log('📊 Loading subscription status for workspace:', primaryWorkspace.id);
+        
         const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
-        console.log('💳 Subscription status loaded:', subscriptionData);
+        
         setSubscriptionStatus(subscriptionData);
       } catch (error) {
-        console.error('❌ Failed to load subscription status:', error);
+        console.error("[ERROR]:", error);
         toast({
           title: "Fehler",
           description: "Fehler beim Laden des Abonnement-Status",
@@ -383,9 +383,9 @@ export default function Settings() {
 
     setIsCancellingSubscription(true);
     try {
-      console.log('🚫 Cancelling subscription for workspace:', primaryWorkspace.id);
+      
       const result = await subscriptionService.cancelSubscription(primaryWorkspace.id);
-      console.log('✅ Subscription cancelled:', result);
+      
       
       toast({
         title: "Abonnement gekündigt",
@@ -397,7 +397,7 @@ export default function Settings() {
       setSubscriptionStatus(subscriptionData);
       
     } catch (error: any) {
-      console.error('❌ Failed to cancel subscription:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Fehler beim Kündigen",
         description: error.message || 'Bitte versuche es erneut oder kontaktiere den Support.',
@@ -431,14 +431,14 @@ export default function Settings() {
   const handleResumeSubscription = async () => {
     if (!primaryWorkspace?.id) return;
     try {
-      console.log('✅ Resuming subscription for workspace:', primaryWorkspace.id);
+      
       const result = await subscriptionService.resumeSubscription(primaryWorkspace.id);
-      console.log('✅ Subscription resumed:', result);
+      
       toast({ title: 'Kündigung zurückgenommen' });
       const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
       setSubscriptionStatus(subscriptionData);
     } catch (error: any) {
-      console.error('❌ Failed to resume subscription:', error);
+      console.error("[ERROR]:", error);
       toast({ title: 'Fehler beim Zurücknehmen', description: error.message || 'Bitte erneut versuchen', variant: 'destructive' });
     }
   };
@@ -455,15 +455,15 @@ export default function Settings() {
     }
 
     try {
-      console.log('🔗 Opening Stripe customer portal for workspace:', primaryWorkspace.id);
+      
       const portalSession = await paymentAPI.createPortalSession(primaryWorkspace.id);
-      console.log('✅ Portal session created:', portalSession);
+      
       
       // Redirect to Stripe customer portal
       window.open(portalSession.url, '_blank');
       
     } catch (error: any) {
-      console.error('❌ Failed to create portal session:', error);
+      console.error("[ERROR]:", error);
       toast({
         title: "Fehler",
         description: error.message || 'Fehler beim Öffnen der Abonnement-Verwaltung. Bitte versuche es erneut.',
@@ -496,7 +496,7 @@ export default function Settings() {
     const fieldName = e.target.name;
     const fieldValue = e.target.value;
     
-    console.log('🏢 Workspace field changed:', {
+    
       fieldName,
       fieldValue,
       currentWorkspaceData: workspaceFormData
@@ -520,7 +520,7 @@ export default function Settings() {
     }
 
     try {
-      console.log('🏢 Settings - preparing to save workspace:', {
+      
         workspaceId: workspaceDetails.id,
         originalWorkspace: workspaceDetails,
         formData: workspaceFormData,

@@ -24,14 +24,14 @@ export function useUserProfile() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Fetching user profile...');
+      
       
       const profileData = await authAPI.getProfile();
-      console.log('✅ User profile loaded:', profileData);
+      
       
       setProfile(profileData);
     } catch (err) {
-      console.error('❌ Failed to fetch user profile:', err);
+      console.error("[ERROR]:", error);
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setLoading(false);
@@ -55,7 +55,7 @@ export function useUserProfile() {
   };
 
   const updateProfile = async (updatedData: Partial<UserProfile>) => {
-    console.log('🔍 Profile debug - checking profile state:', { 
+    
       profile, 
       hasProfile: !!profile, 
       profileId: profile?.id,
@@ -67,7 +67,7 @@ export function useUserProfile() {
     const userId = profile?.id || (profile as any)?.user_id || (profile as any)?.pk;
     
     if (!profile || !userId) {
-      console.error('❌ Update failed - profile state:', { 
+      console.error("[ERROR]:", error);
         profile, 
         hasProfile: !!profile, 
         profileId: profile?.id,
@@ -80,7 +80,7 @@ export function useUserProfile() {
                 try {
         setUpdating(true);
         setError(null);
-        console.log('🔄 Updating user profile:', { 
+        
           profileId: profile.id, 
           userId: userId, 
           updatedData,
@@ -91,14 +91,14 @@ export function useUserProfile() {
         });
         
         const updatedProfile = await authAPI.updateUser(userId.toString(), updatedData);
-        console.log('✅ Profile updated successfully:', updatedProfile);
+        
       
       // Update local state
       setProfile(updatedProfile);
       
       return updatedProfile;
     } catch (err) {
-      console.error('❌ Failed to update profile:', err);
+      console.error("[ERROR]:", error);
       setError(err instanceof Error ? err.message : 'Update failed');
       throw err;
     } finally {

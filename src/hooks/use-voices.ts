@@ -31,7 +31,7 @@ export function useVoices(options: UseVoicesOptions = {}) {
       if (gender) params.gender = gender;
 
       const response: VoicesResponse = await voiceAPI.getVoices(params);
-      console.log('✅ Voices loaded:', response);
+      
 
       // Set voices (replace or append based on page)
       if (page === 1) {
@@ -43,7 +43,7 @@ export function useVoices(options: UseVoicesOptions = {}) {
       setTotalCount(response.count);
       setCurrentPage(page);
     } catch (err) {
-      console.error('❌ Failed to fetch voices:', err);
+      console.error("[ERROR]:", error);
       setError(err instanceof Error ? err.message : 'Failed to load voices');
     } finally {
       setLoading(false);
@@ -79,13 +79,13 @@ export function useVoices(options: UseVoicesOptions = {}) {
       console.log('🌟 Fetching recommended voices...');
       
       const recommendedVoices = await voiceAPI.getRecommendedVoices();
-      console.log('✅ Recommended voices loaded:', recommendedVoices);
+      
       
       setVoices(recommendedVoices);
       setTotalCount(recommendedVoices.length);
       setCurrentPage(1);
     } catch (err) {
-      console.error('❌ Failed to fetch recommended voices:', err);
+      console.error("[ERROR]:", error);
       setError(err instanceof Error ? err.message : 'Failed to load recommended voices');
     } finally {
       setLoading(false);

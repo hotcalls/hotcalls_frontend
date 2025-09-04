@@ -83,7 +83,7 @@ class SubscriptionService {
       const response = await this.fetchWithAuth('/api/plans/');
       return response.results || response || [];
     } catch (error) {
-      console.error('❌ Failed to fetch plans:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -96,7 +96,7 @@ class SubscriptionService {
       const response = await this.fetchWithAuth('/api/plans/pricing/');
       return response.pricing || [];
     } catch (error) {
-      console.error('❌ Failed to fetch plan pricing:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -110,7 +110,7 @@ class SubscriptionService {
       const plans = await this.getPlans();
       return plans.find(plan => plan.plan_name === planName) || null;
     } catch (error) {
-      console.error('❌ Failed to get plan details:', error);
+      console.error("[ERROR]:", error);
       return null;
     }
   }
@@ -122,7 +122,7 @@ class SubscriptionService {
     try {
       return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/subscription/`);
     } catch (error) {
-      console.error('❌ Failed to fetch subscription status:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -144,7 +144,7 @@ class SubscriptionService {
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      console.error('❌ Failed to create checkout session:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -169,7 +169,7 @@ class SubscriptionService {
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      console.error('❌ Failed to change plan:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -183,7 +183,7 @@ class SubscriptionService {
         method: 'POST',
       });
     } catch (error) {
-      console.error('❌ Failed to cancel subscription:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -197,7 +197,7 @@ class SubscriptionService {
         method: 'POST',
       });
     } catch (error) {
-      console.error('❌ Failed to resume subscription:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
@@ -216,7 +216,7 @@ class SubscriptionService {
         }),
       });
     } catch (error) {
-      console.error('❌ Failed to create customer portal session:', error);
+      console.error("[ERROR]:", error);
       throw error;
     }
   }
