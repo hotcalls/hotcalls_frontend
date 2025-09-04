@@ -291,12 +291,11 @@ export const authService = {
         throw err;
       }
       const response: LoginResponse = await res.json();
-      
-      
+      console.log('Login response summary', {
         hasUser: !!response.user,
         userEmail: response.user?.email,
         hasToken: !!response.token,
-        message: response.message
+        message: response.message,
       });
 
       // Store the auth token
@@ -307,7 +306,7 @@ export const authService = {
         // Set the token in apiConfig for future requests
         apiConfig.setAuthToken(response.token);
       } else {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR]: Authentication failed - no token received");
         throw new Error('Authentication failed - no token received');
       }
 
@@ -316,12 +315,11 @@ export const authService = {
       
       // Set logged in flag
       localStorage.setItem('userLoggedIn', 'true');
-      
-      
+      console.log('Auth state after login', {
         userLoggedIn: localStorage.getItem('userLoggedIn'),
         authMethod: 'token',
         user: this.getStoredUser()?.email,
-        hasToken: !!localStorage.getItem('authToken')
+        hasToken: !!localStorage.getItem('authToken'),
       });
       
       return response;

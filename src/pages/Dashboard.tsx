@@ -563,13 +563,6 @@ export default function Dashboard() {
     // For single day, we expect 24 points; for multi-day, days count
     const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    
-      isSingleDay,
-      expectedDataPoints,
-      realDataLength: realChartData.length,
-      willUseZeroFill: realChartData.length < expectedDataPoints
-    });
-    
     // If we have sufficient real chart data, use it
     if (realChartData.length >= expectedDataPoints) {
       

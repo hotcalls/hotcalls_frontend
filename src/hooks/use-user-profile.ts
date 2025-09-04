@@ -31,7 +31,7 @@ export function useUserProfile() {
       
       setProfile(profileData);
     } catch (err) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       setError(err instanceof Error ? err.message : 'Failed to load profile');
     } finally {
       setLoading(false);
@@ -55,7 +55,7 @@ export function useUserProfile() {
   };
 
   const updateProfile = async (updatedData: Partial<UserProfile>) => {
-    
+    console.log('🔧 Updating profile:', {
       profile, 
       hasProfile: !!profile, 
       profileId: profile?.id,
@@ -67,9 +67,9 @@ export function useUserProfile() {
     const userId = profile?.id || (profile as any)?.user_id || (profile as any)?.pk;
     
     if (!profile || !userId) {
-      console.error("[ERROR]:", error);
-        profile, 
-        hasProfile: !!profile, 
+      console.error("[ERROR]: Missing profile or userId for update", {
+        profile,
+        hasProfile: !!profile,
         profileId: profile?.id,
         userId: userId,
         allProfileFields: profile ? Object.keys(profile) : []
@@ -77,28 +77,24 @@ export function useUserProfile() {
       throw new Error('Kein User-Profil geladen - bitte Seite neu laden');
     }
 
-                try {
-        setUpdating(true);
-        setError(null);
-        
-          profileId: profile.id, 
-          userId: userId, 
-          updatedData,
-          apiEndpoint: `/api/users/users/${userId.toString()}/`,
-          dataFields: Object.keys(updatedData),
-          firstNameInData: updatedData.first_name,
-          currentProfileFirstName: profile.first_name
-        });
-        
-        const updatedProfile = await authAPI.updateUser(userId.toString(), updatedData);
-        
-      
+    try {
+      setUpdating(true);
+      setError(null);
+      console.log('Updating profile context', {
+        profileId: profile.id,
+        userId: userId,
+        updatedData,
+        apiEndpoint: `/api/users/users/${userId.toString()}/`,
+        dataFields: Object.keys(updatedData),
+        firstNameInData: (updatedData as any).first_name,
+        currentProfileFirstName: profile.first_name
+      });
+      const updatedProfile = await authAPI.updateUser(userId.toString(), updatedData);
       // Update local state
       setProfile(updatedProfile);
-      
       return updatedProfile;
     } catch (err) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       setError(err instanceof Error ? err.message : 'Update failed');
       throw err;
     } finally {

@@ -52,7 +52,7 @@ export default function Agents() {
         
         setAgentList(agents);
       } catch (err) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR]:", err);
         setError(err instanceof Error ? err.message : 'Failed to load agents');
       } finally {
         setIsLoading(false);
@@ -84,10 +84,9 @@ export default function Agents() {
       
       toast.success(`Agent ${newStatus === 'active' ? 'aktiviert' : 'pausiert'}`);
     } catch (err: any) {
-      console.error("[ERROR]:", error);
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       if (err.response) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] Response:", err.response);
       }
       toast.error('Fehler beim Ändern des Agent-Status');
     }
@@ -106,7 +105,7 @@ export default function Agents() {
       
       toast.success(`Agent "${name}" wurde gelöscht`);
     } catch (err) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       toast.error('Fehler beim Löschen des Agents');
     } finally {
       setIsDeleting(null);
@@ -153,11 +152,6 @@ export default function Agents() {
         throw new Error('API returned invalid agent ID');
       }
       
-      
-        original: { id: agentId, name: name },
-        duplicate: { id: newAgent.agent_id, name: newAgent.name }
-      });
-      
       // Add to the list
       setAgentList(prevAgents => [...prevAgents, newAgent]);
       
@@ -167,7 +161,7 @@ export default function Agents() {
       const updatedAgents = await agentAPI.getAgents(originalAgent.workspace);
       setAgentList(updatedAgents);
     } catch (err) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       toast.error('Fehler beim Duplizieren des Agents');
     } finally {
       setIsDuplicating(null);
@@ -303,7 +297,7 @@ export default function Agents() {
                             navigationUrl: `/dashboard/agents/edit/${agent.agent_id}` 
                           });
                           if (!agent.agent_id || agent.agent_id === 'undefined') {
-                            console.error("[ERROR]:", error);
+                            console.error("[ERROR]: Invalid agent ID", agent.agent_id);
                             toast.error('Fehler: Ungültige Agent-ID');
                             return;
                           }

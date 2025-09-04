@@ -53,6 +53,12 @@ export const buttonStyles = {
     iconDelete: "p-2 border-2 border-red-200 bg-red-50 text-red-600 text-sm font-medium rounded-lg hover:bg-red-100 transition-colors",
   },
 
+  // 6b. DANGER BUTTONS (Rot für destruktive Aktionen)
+  danger: {
+    default: "px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors flex items-center space-x-2",
+    outline: "px-4 py-2 border border-red-300 bg-white text-red-700 text-sm font-medium rounded-md hover:bg-red-50 transition-colors flex items-center space-x-2",
+  },
+
   // 7. NAVIGATION BUTTONS
   navigation: {
     back: "px-3 py-2 border border-gray-300 bg-white text-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors flex items-center space-x-2",
@@ -71,6 +77,8 @@ export const layoutStyles = {
   // Page Layout (ÜBERALL gleich!)
   pageContainer: "p-6 space-y-6",
   pageHeader: "flex items-center justify-between mb-6",
+  // Alias für bestehende Verwendungen
+  page: "p-6 space-y-6",
   
   // Card Layout
   cardGrid: "grid gap-6 md:grid-cols-2",
@@ -81,6 +89,8 @@ export const textStyles = {
   // Page Headers (EXAKT gleiche Größen und Abstände)
   pageTitle: "text-2xl font-bold text-gray-900 leading-tight",
   pageSubtitle: "text-sm font-medium text-gray-500 mt-1",
+  // Alias für bestehende Verwendungen
+  description: "text-sm font-medium text-gray-500 mt-1",
   
   // Section Headers  
   sectionTitle: "text-xl font-semibold text-gray-900 leading-tight",

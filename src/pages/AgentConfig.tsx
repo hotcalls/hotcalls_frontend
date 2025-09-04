@@ -305,10 +305,6 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }));
       
       setAvailableLeadForms(formattedForms);
-      
-        meta: formattedForms.filter(f => !f.is_csv).length,
-        csv: formattedForms.filter(f => f.is_csv).length
-      });
     } catch (error) {
       console.error("[ERROR]:", error);
       setAvailableLeadForms([]);
@@ -656,17 +652,6 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       const funnelIds = matchingFunnels.map(funnel => funnel.id);
       
-      
-        selectedLeadForms,
-        matchingFunnels: matchingFunnels.map(f => ({
-          id: f.id,
-          name: f.name,
-          type: f.meta_lead_form ? 'Meta' : 'CSV',
-          meta_form_id: f.meta_lead_form?.meta_form_id
-        })),
-        funnelIds
-      });
-      
       return funnelIds;
     } catch (error) {
       console.error("[ERROR]:", error);
@@ -758,7 +743,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       // Additional validation
       if (!config.incomingGreeting || !config.outgoingGreeting) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] Missing greetings:", {
           incomingGreeting: config.incomingGreeting, 
           outgoingGreeting: config.outgoingGreeting 
         });

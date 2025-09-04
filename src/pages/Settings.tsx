@@ -496,12 +496,6 @@ export default function Settings() {
     const fieldName = e.target.name;
     const fieldValue = e.target.value;
     
-    
-      fieldName,
-      fieldValue,
-      currentWorkspaceData: workspaceFormData
-    });
-    
     setWorkspaceFormData(prev => ({
       ...prev,
       [fieldName]: fieldValue
@@ -520,7 +514,7 @@ export default function Settings() {
     }
 
     try {
-      
+      console.log('🔧 Updating workspace:', {
         workspaceId: workspaceDetails.id,
         originalWorkspace: workspaceDetails,
         formData: workspaceFormData,

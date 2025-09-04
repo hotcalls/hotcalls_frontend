@@ -55,16 +55,10 @@ export function useUsageStatus(
       const usageData = await usageService.getUsageStatus(workspaceId);
       setUsage(usageData);
       setLastUpdated(new Date());
-      
-      
-        plan: usageData.workspace.plan,
-        callMinutes: usageData.features.call_minutes,
-        billingPeriod: usageData.billing_period,
-      });
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load usage data';
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", err);
       
       setError(errorMessage);
       

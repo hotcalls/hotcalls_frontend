@@ -706,12 +706,6 @@ export default function LeadSources() {
                                 }
                               });
                               
-                              
-                                workspace: mappedRow.workspace,
-                                name: mappedRow.name,
-                                email: mappedRow.email
-                              });
-                              
                               return mappedRow;
                             });
                             

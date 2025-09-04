@@ -862,10 +862,6 @@ export default function Calendar() {
     // If the generic /api/calendars/ API returns any calendars, ALWAYS allow event type creation
     const hasCalendars = connectedCalendars.length > 0;
     
-      connectedCalendarsCount: connectedCalendars.length,
-      hasCalendars,
-      calendars: connectedCalendars.map(c => ({ id: c.id, name: c.name, provider: c.provider, active: c.active }))
-    });
     return hasCalendars;
   }, [connectedCalendars.length]);
 

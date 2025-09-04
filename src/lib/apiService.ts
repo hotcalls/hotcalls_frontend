@@ -190,6 +190,7 @@ async function apiCall<T>(
   // Add body if provided
   if (options?.body) {
     defaultOptions.body = options.body;
+    console.log('📤 Request body details:', {
       bodyType: typeof options.body,
       bodyContent: options.body,
       parsedBody: (() => {
@@ -214,7 +215,7 @@ async function apiCall<T>(
     const errorData = await response.json().catch(() => ({
       error: `HTTP ${response.status}: ${response.statusText}`
     }));
-    console.error("[ERROR]:", error);
+    console.error("[ERROR]:", error, {
       status: response.status,
       statusText: response.statusText,
       url: url,
@@ -520,7 +521,7 @@ export const agentAPI = {
    * Update an existing agent using PUT /api/agents/agents/{agent_id}/
    */
   async updateAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentResponse> {
-    
+    console.log('🔧 Updating agent:', {
       agentId,
       dataKeys: Object.keys(agentData),
       agentData,
@@ -544,7 +545,7 @@ export const agentAPI = {
    * Used for status changes and other partial updates
    */
   async patchAgent(agentId: string, agentData: Partial<CreateAgentRequest>): Promise<AgentResponse> {
-    
+    console.log('🔧 Patching agent:', {
       agentId,
       dataKeys: Object.keys(agentData),
       agentData
@@ -2363,6 +2364,7 @@ export const chartAPI = {
       // Debug: Log lead distribution
       const totalLeadsInChart = hourlyData.reduce((sum, hour) => sum + hour.leads, 0);
       const hoursWithLeads = hourlyData.filter(hour => hour.leads > 0);
+      console.log('📊 Lead distribution debug:', {
         totalLeadsFromAPI: leadsInDay.results.length,
         totalLeadsInChart,
         hoursWithLeads: hoursWithLeads.map(h => ({
