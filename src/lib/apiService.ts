@@ -2063,7 +2063,8 @@ export const funnelAPI = {
     workspace?: string;
     is_active?: boolean;
     has_agent?: boolean;
-  }): Promise<any[]> {
+    returnPaginated?: boolean; // New option to return full pagination response
+  }): Promise<any[] | { results: any[]; count: number; next: string | null; previous: string | null }> {
     
     try {
       const queryParams = new URLSearchParams();
@@ -2083,11 +2084,25 @@ export const funnelAPI = {
       
       // Handle paginated response
       if (response && typeof response === 'object' && 'results' in response) {
+        // If returnPaginated is true, return the full pagination response
+        if (params?.returnPaginated) {
+          return {
+            results: response.results,
+            count: response.count,
+            next: response.next,
+            previous: response.previous
+          };
+        }
+        // Default behavior - return just the results array
         return response.results;
       }
       
       // Handle direct array response
-      return Array.isArray(response) ? response : [];
+      const results = Array.isArray(response) ? response : [];
+      if (params?.returnPaginated) {
+        return { results, count: results.length, next: null, previous: null };
+      }
+      return results;
     } catch (error) {
       console.error("[ERROR]:", error);
       throw error;

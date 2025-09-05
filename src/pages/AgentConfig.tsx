@@ -222,6 +222,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   const [isLoadingEventTypes, setIsLoadingEventTypes] = useState(false);
   const [availableLeadForms, setAvailableLeadForms] = useState<any[]>([]);
   const [isLoadingLeadForms, setIsLoadingLeadForms] = useState(false);
+  const [leadFormsPagination, setLeadFormsPagination] = useState<{
+    hasMore: boolean;
+    currentPage: number;
+    totalCount: number;
+  }>({ hasMore: false, currentPage: 1, totalCount: 0 });
+  const [isLoadingMoreLeadForms, setIsLoadingMoreLeadForms] = useState(false);
   const [selectedEventTypeDetails, setSelectedEventTypeDetails] = useState<any | null>(null);
   const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
 
@@ -288,15 +294,27 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   };
 
   // Load Lead Funnels from Funnel API (including CSV Sources)
-  const loadLeadForms = async () => {
-    setIsLoadingLeadForms(true);
+  const loadLeadForms = async (page: number = 1, append: boolean = false) => {
+    if (page === 1) {
+      setIsLoadingLeadForms(true);
+    } else {
+      setIsLoadingMoreLeadForms(true);
+    }
+    
     try {
-      const leadFunnelsData = await funnelAPI.getLeadFunnels({
-        workspace: primaryWorkspace?.id
+      const response = await funnelAPI.getLeadFunnels({
+        workspace: primaryWorkspace?.id,
+        page: page,
+        returnPaginated: true
       });
       
+      // Handle both paginated and non-paginated responses
+      const paginatedResponse = Array.isArray(response) 
+        ? { results: response, count: response.length, next: null, previous: null }
+        : response as { results: any[]; count: number; next: string | null; previous: string | null };
+      
       // Format all funnels (Meta + CSV) for the dropdown
-      const formattedForms = (leadFunnelsData || []).map(funnel => ({
+      const formattedForms = (paginatedResponse.results || []).map(funnel => ({
         id: String(funnel.id),
         name: funnel.name,
         meta_form_id: funnel.meta_lead_form?.meta_form_id || null,
@@ -304,13 +322,37 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         is_csv: !funnel.meta_lead_form && !funnel.webhook_source // CSV if no meta or webhook
       }));
       
-      setAvailableLeadForms(formattedForms);
+      if (append && page > 1) {
+        // Append to existing forms for pagination
+        setAvailableLeadForms(prev => [...prev, ...formattedForms]);
+      } else {
+        // Replace forms for initial load
+        setAvailableLeadForms(formattedForms);
+      }
+      
+      // Update pagination state
+      setLeadFormsPagination({
+        hasMore: !!paginatedResponse.next,
+        currentPage: page,
+        totalCount: paginatedResponse.count
+      });
+      
     } catch (error) {
       console.error("[ERROR]:", error);
-      setAvailableLeadForms([]);
+      if (!append) {
+        setAvailableLeadForms([]);
+        setLeadFormsPagination({ hasMore: false, currentPage: 1, totalCount: 0 });
+      }
     } finally {
       setIsLoadingLeadForms(false);
+      setIsLoadingMoreLeadForms(false);
     }
+  };
+
+  // Load more lead forms (for pagination)
+  const loadMoreLeadForms = async () => {
+    if (!leadFormsPagination.hasMore || isLoadingMoreLeadForms) return;
+    await loadLeadForms(leadFormsPagination.currentPage + 1, true);
   };
 
   // Load variables for selected funnel
@@ -1776,6 +1818,10 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                     <Select 
                       value={config.selectedLeadForm || "none"} 
                       onValueChange={(value) => {
+                        if (value === "load-more") {
+                          loadMoreLeadForms();
+                          return;
+                        }
                         setConfig(prev => ({ 
                           ...prev, 
                           selectedLeadForm: value === "none" ? "" : value
@@ -1795,6 +1841,26 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                             </div>
                           </SelectItem>
                         ))}
+                        {leadFormsPagination.hasMore && (
+                          <SelectItem 
+                            value="load-more" 
+                            className="text-[#3d5097] font-medium cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isLoadingMoreLeadForms ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Plus className="h-4 w-4" />
+                              )}
+                              <span>
+                                {isLoadingMoreLeadForms 
+                                  ? "Loading more..." 
+                                  : `Load more (${availableLeadForms.length} of ${leadFormsPagination.totalCount})`
+                                }
+                              </span>
+                            </div>
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </>
