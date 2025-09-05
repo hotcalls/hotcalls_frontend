@@ -1801,7 +1801,7 @@ export const leadAPI = {
   /**
    * Bulk create leads
    */
-  async bulkCreateLeads(leads: CreateLeadRequest[]): Promise<{
+  async bulkCreateLeads(payload: { workspace_id: string; leads: Array<{ name: string; surname: string; email: string; phone_number: string; variables: Record<string, any> }> } | CreateLeadRequest[]): Promise<{
     total_leads: number;
     successful_creates: number;
     failed_creates: number;
@@ -1812,9 +1812,12 @@ export const leadAPI = {
   }> {
     
     try {
+      // Handle both new format (object with workspace_id and leads) and legacy format (array of leads)
+      const requestBody = Array.isArray(payload) ? { leads: payload } : payload;
+      
       const response = await apiCall<any>('/api/leads/bulk_create/', {
         method: 'POST',
-        body: JSON.stringify({ leads }),
+        body: JSON.stringify(requestBody),
       });
       return response;
     } catch (error) {

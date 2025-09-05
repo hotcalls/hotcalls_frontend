@@ -574,7 +574,7 @@ export default function LeadSources() {
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Upload CSV</h4>
                   <p className="text-sm text-muted-foreground">
-                    Required columns: name, surname, email, phone. Extra columns are captured as variables.
+                    Required columns: name, surname, email, phone_number. Extra columns are captured as variables.
                   </p>
                 </div>
 
@@ -587,12 +587,31 @@ export default function LeadSources() {
                         setCsvParseInfo(info);
                         setCsvImportResult(null);
                         // reset demo indicator if any (no-op now)
-                        // Pre-calc preview variables from header (exclude core fields)
+                        // Validate required columns and detect variables
                         try {
                           const header = (info?.header || []) as string[];
-                          const core = new Set(['name','first name','firstname','surname','last name','lastname','email','e-mail','phone','telefon','mobile','tel','full_name','full name']);
-                          const preview = header.filter(h => !core.has(h.toLowerCase().trim()));
-                          setDialogDetectedVars(preview);
+                          const requiredColumns = ['name', 'surname', 'email', 'phone_number'];
+                          const missingColumns = requiredColumns.filter(col => 
+                            !header.some(h => h.toLowerCase().trim() === col.toLowerCase())
+                          );
+                          
+                          if (missingColumns.length > 0) {
+                            // Show error and don't proceed
+                            setCsvParsedRows([]);
+                            setCsvParseInfo(null);
+                            toast({
+                              title: 'Invalid CSV format',
+                              description: `Missing required columns: ${missingColumns.join(', ')}. Required: name, surname, email, phone_number`,
+                              variant: 'destructive'
+                            });
+                            return;
+                          }
+                          
+                          // Detect variables (any column that's not required)
+                          const variableColumns = header.filter(h => 
+                            !requiredColumns.some(req => req.toLowerCase() === h.toLowerCase().trim())
+                          );
+                          setDialogDetectedVars(variableColumns);
                         } catch {}
                       }}
                     />
@@ -681,37 +700,46 @@ export default function LeadSources() {
                           try {
                             setIsUploadingCsv(true);
                             
-                            // Map common column names to expected backend fields
-                            const mappedRows = csvParsedRows.map(row => {
-                              const mappedRow: any = {
-                                // Add workspace ID to ensure proper filtering
-                                workspace: workspaceDetails?.id
+                            // Create new JSON structure with strict column validation
+                            const leads = csvParsedRows.map(row => {
+                              const lead: any = {
+                                name: '',
+                                surname: '',
+                                email: '',
+                                phone_number: '',
+                                variables: {}
                               };
+                              
+                              // Map required columns (exact match, case-insensitive)
                               Object.keys(row).forEach(key => {
                                 const lowerKey = key.toLowerCase().trim();
-                                if (lowerKey === 'first name' || lowerKey === 'firstname' || lowerKey === 'vorname') {
-                                  mappedRow.name = row[key];
-                                } else if (lowerKey === 'last name' || lowerKey === 'lastname' || lowerKey === 'nachname' || lowerKey === 'surname') {
-                                  mappedRow.surname = row[key];
-                                } else if (lowerKey === 'email' || lowerKey === 'e-mail') {
-                                  mappedRow.email = row[key];
-                                } else if (lowerKey === 'phone' || lowerKey === 'telefon' || lowerKey === 'mobile' || lowerKey === 'tel') {
-                                  mappedRow.phone = row[key];
-                                } else if (lowerKey === 'name') {
-                                  mappedRow.name = row[key];
+                                const value = row[key] || '';
+                                
+                                if (lowerKey === 'name') {
+                                  lead.name = value;
+                                } else if (lowerKey === 'surname') {
+                                  lead.surname = value;
+                                } else if (lowerKey === 'email') {
+                                  lead.email = value;
+                                } else if (lowerKey === 'phone_number') {
+                                  lead.phone_number = value;
                                 } else {
-                                  // Other columns go to meta_data
-                                  if (!mappedRow.meta_data) mappedRow.meta_data = {};
-                                  mappedRow.meta_data[key] = row[key];
+                                  // All other columns go to variables, including null/empty ones
+                                  lead.variables[key] = value;
                                 }
                               });
                               
-                              return mappedRow;
+                              return lead;
                             });
                             
-                            // Create leads and wait briefly so backend prepares variables
-                            console.log('📤 Uploading leads to workspace:', workspaceDetails?.id, 'Lead count:', mappedRows.length);
-                            const res = await leadAPI.bulkCreateLeads(mappedRows);
+                            const payload = {
+                              workspace_id: workspaceDetails?.id,
+                              leads: leads
+                            };
+                            
+                            // Create leads with new JSON structure
+                            console.log('📤 Uploading leads to workspace:', workspaceDetails?.id, 'Lead count:', leads.length);
+                            const res = await leadAPI.bulkCreateLeads(payload);
                             
                             
                             await new Promise(r => setTimeout(r, 1200));
@@ -762,17 +790,17 @@ export default function LeadSources() {
                                   try {
                                     const v = await funnelAPI.getFunnelVariables(pick.id);
                                     const keys = Array.isArray(v) ? v.map((x:any)=>x.key) : [];
-                                    // fallback: compute keys from uploaded rows meta_data
+                                    // fallback: compute keys from uploaded rows variables
                                     let fallbackKeys: string[] = [];
                                     try {
                                       const set = new Set<string>();
-                                      mappedRows.forEach((m:any)=> Object.keys(m?.meta_data || {}).forEach(k=> set.add(k)));
+                                      leads.forEach((lead:any)=> Object.keys(lead?.variables || {}).forEach(k=> set.add(k)));
                                       fallbackKeys = Array.from(set);
                                     } catch {}
                                     const finalKeys = (keys && keys.length > 0) ? keys : fallbackKeys;
                                     if (finalKeys.length > 0) {
                                       setDialogDetectedVars(finalKeys);
-                                      setCsvStatsByFunnel(prev => ({ ...prev, [pick.id]: { count: res.total_leads || csvParsedRows.length, variables: finalKeys } }));
+                                      setCsvStatsByFunnel(prev => ({ ...prev, [pick.id]: { count: res.total_leads || leads.length, variables: finalKeys } }));
                                     }
                                   } catch {}
                                 }
