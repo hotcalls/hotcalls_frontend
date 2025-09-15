@@ -11,11 +11,11 @@ import { apiConfig } from "@/lib/apiConfig";
 
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Agents", url: "/dashboard/agents", icon: Users },
+  { title: "Agenten", url: "/dashboard/agents", icon: Users },
   { title: "Leads", url: "/dashboard/leads", icon: FileText },
-  { title: "Calendar", url: "/dashboard/calendar", icon: Calendar },
-  { title: "Meta Integration", url: "/dashboard/meta-integration", icon: Share2 },
-  { title: "CSV Upload", url: "/dashboard/lead-sources", icon: Webhook },
+  { title: "Kalender", url: "/dashboard/calendar", icon: Calendar },
+  { title: "Leadquelle", url: "/dashboard/meta-integration", icon: Share2 },
+  // { title: "CSV Upload", url: "/dashboard/lead-sources", icon: Webhook }, // hidden per request
 ];
 
 const PlanSection = () => {
@@ -53,14 +53,14 @@ const PlanSection = () => {
         <div className="bg-white rounded-lg border p-4 space-y-3">
           <div className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="h-4 w-4" />
-            <span className="text-xs">Usage data unavailable</span>
+            <span className="text-xs">Nutzungsdaten nicht verfügbar</span>
           </div>
           <button 
             className={buttonStyles.secondary.fullWidth}
             onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
           >
             <Eye className={iconSizes.small} />
-            <span>View plan</span>
+            <span>Plan ansehen</span>
           </button>
         </div>
       </div>
@@ -72,7 +72,7 @@ const PlanSection = () => {
     return (
       <div className="px-2 py-3">
         <div className="bg-white rounded-lg border p-4 space-y-3">
-          <div className="text-sm text-gray-500">No workspace selected</div>
+          <div className="text-sm text-gray-500">Kein Workspace ausgewählt</div>
         </div>
       </div>
     );
@@ -86,9 +86,9 @@ const PlanSection = () => {
   // Determine progress bar color based on usage
   const getProgressBarColor = () => {
     if (isOverLimit) return 'bg-red-500';
-    if (isNearingLimit) return 'bg-[#3d5097]';
+    if (isNearingLimit) return 'bg-[#FE5B25]';
     if (usageColor === 'yellow') return 'bg-yellow-500';
-    return 'bg-[#3d5097]'; // Default orange
+    return 'bg-[#FE5B25]'; // Default brand
   };
 
   // Show upgrade button if nearing or over limit
@@ -97,7 +97,7 @@ const PlanSection = () => {
   const HelpBanner = () => (
     <div className="px-2 py-3">
       <div className="bg-white rounded-lg border p-4 space-y-3 text-center">
-        <div className="text-sm text-gray-700">You have questions or need help?</div>
+        <div className="text-sm text-gray-700">Hast du Fragen oder brauchst Hilfe?</div>
         <a
           href="https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel"
           target="_blank"
@@ -105,7 +105,7 @@ const PlanSection = () => {
           className={`${buttonStyles.create.default} w-full justify-center`}
         >
           <Calendar className={iconSizes.small} />
-          <span>Talk to Expert</span>
+          <span>Mit Experte sprechen</span>
         </a>
       </div>
     </div>
@@ -147,7 +147,7 @@ const PlanSection = () => {
           {isOverLimit && (
             <div className="flex items-center gap-2 text-red-600 text-xs">
               <AlertTriangle className="h-3 w-3" />
-              <span>Quota exceeded</span>
+              <span>Kontingent überschritten</span>
             </div>
           )}
           
@@ -157,7 +157,7 @@ const PlanSection = () => {
               onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
             >
               <CreditCard className={iconSizes.small} />
-              <span>Upgrade plan</span>
+              <span>Plan upgraden</span>
             </button>
           ) : (
             <button 
@@ -165,7 +165,7 @@ const PlanSection = () => {
               onClick={() => window.location.href = '/dashboard/settings?tab=billing'}
             >
               <Eye className={iconSizes.small} />
-              <span>View usage</span>
+              <span>Nutzung ansehen</span>
             </button>
           )}
         </div>
@@ -222,14 +222,14 @@ export function AppSidebar() {
         <div className="px-2 py-2">
           <div className="flex items-center justify-start w-full">
             <img 
-              src="/Messecaller.png" 
-              alt="Messecaller" 
-              className="h-[72px] w-auto max-w-full object-contain -ml-2"
+              src="/HC Logo.png" 
+              alt="HC Logo" 
+              className="h-[48px] w-auto max-w-full object-contain -ml-2 mix-blend-multiply"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
                 if (!img.dataset.fallback) {
                   img.dataset.fallback = '1';
-                  img.src = '/Messecaller.jpeg';
+                  img.src = '/HC Logo.png';
                   return;
                 }
                 img.style.display = 'none';
@@ -238,7 +238,7 @@ export function AppSidebar() {
               }}
             />
             <div className="items-center gap-3 hidden">
-              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-bold">H</span>
               </div>
               <span className="text-xl font-bold text-gray-900">hotcalls</span>
@@ -264,12 +264,12 @@ export function AppSidebar() {
                         className={`
                           flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors
                           ${active 
-                            ? "bg-white text-[#3d5097]" 
+                            ? "bg-white text-[#FE5B25]" 
                             : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                           }
                         `}
                       >
-                        <item.icon className={`${iconSizes.small} ${active ? "text-[#3d5097]" : "text-gray-500"}`} />
+                        <item.icon className={`${iconSizes.small} ${active ? "text-[#FE5B25]" : "text-gray-500"}`} />
                         <span>{item.title}</span>
                       </a>
                     </SidebarMenuButton>
@@ -292,20 +292,20 @@ export function AppSidebar() {
             className={`
               flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors w-full
               ${isActive("/dashboard/settings")
-                ? "bg-white text-[#3d5097]" 
+                ? "bg-white text-[#FE5B25]" 
                 : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
               }
             `}
           >
-            <Settings className={`${iconSizes.small} ${isActive("/dashboard/settings") ? "text-[#3d5097]" : "text-gray-500"}`} />
-            <span>Settings</span>
+            <Settings className={`${iconSizes.small} ${isActive("/dashboard/settings") ? "text-[#FE5B25]" : "text-gray-500"}`} />
+            <span>Einstellungen</span>
           </a>
         </div>
         
         {/* Account Section */}
         <div className="p-2">
           <div className="flex items-center space-x-2 p-2 rounded-lg bg-gray-50">
-            <div className="flex-shrink-0 w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center">
+            <div className="flex-shrink-0 w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-medium">
                 {loading ? "?" : getInitials()}
               </span>

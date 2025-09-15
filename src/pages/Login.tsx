@@ -116,17 +116,17 @@ const Login = () => {
         <CardHeader className="text-center">
           <div className="mx-auto mb-6">
             <img 
-              src="/Messecaller.png" 
-              alt="Messecaller" 
+              src="/HC Logo.png" 
+              alt="HC Logo" 
               className="h-16 md:h-20 w-auto object-contain"
             />
             <div className="items-center gap-2 justify-center hidden">
-              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">M</span></div>
-              <span className="text-2xl font-bold text-gray-900">Messecaller</span>
+              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
+              <span className="text-2xl font-bold text-gray-900">HC Logo</span>
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Willkommen zurück</CardTitle>
-          <CardDescription>Melden Sie sich bei Ihrem Messecaller Konto an</CardDescription>
+          <CardDescription>Melden Sie sich bei Ihrem HC Konto an</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

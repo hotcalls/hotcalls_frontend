@@ -48,8 +48,8 @@ const SignupStep2 = ({ onBack, onComplete, initialData, isLoading }: SignupStep2
         <CardHeader className="text-center">
           <div className="flex justify-center mb-6">
             <img 
-              src="/hotcalls-logo.png" 
-              alt="Hotcalls Logo" 
+              src="/HC Logo.png" 
+              alt="HC Logo" 
               className="h-12 w-auto"
             />
           </div>

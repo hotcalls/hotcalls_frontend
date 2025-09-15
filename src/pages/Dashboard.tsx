@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -208,7 +209,7 @@ const getStatusBadge = (status: string) => {
       return {
         icon: CheckCircle,
         variant: 'outline' as const,
-        className: 'bg-blue-50 border-blue-600 text-blue-700 hover:bg-blue-100'
+        className: 'bg-[#FE5B25]/10 border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/20'
       };
     default:
       return {
@@ -283,6 +284,10 @@ export default function Dashboard() {
   const [selectedMetric, setSelectedMetric] = useState<'leads' | 'calls' | 'appointments' | 'conversion'>('leads');
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [expandedTranscript, setExpandedTranscript] = useState<string | null>(null);
+  const [hoverLead, setHoverLead] = useState<null | {
+    lead: string; email: string; phone: string; agent: string; status: string; date: string;
+    summary?: string; transcript?: string;
+  }>(null);
   
   // API State für Real Data
   const [leadsStats, setLeadsStats] = useState<{count: number} | null>(null);
@@ -684,12 +689,41 @@ export default function Dashboard() {
     if (recentCallsLoading) return [];
     if (recentCallsError) return [];
     const base = realRecentCalls;
+    
+    // If no real calls available, show 10 realistic mock leads
+    let withFallback = base;
+    if (!Array.isArray(base) || base.length === 0) {
+      const mockNames = [
+        'Max Mustermann','Anna Schmidt','Thomas Weber','Julia Müller','Robert Klein',
+        'Sarah Wagner','Michael Braun','Lisa Hoffmann','Peter Neumann','Maria Schulz'
+      ];
+      const mockAgents = ['Sarah','Marcus','Lisa'];
+      const statuses = ['Termin vereinbart','Erreicht','Nicht erreicht','Kein Interesse'];
+      const today = new Date();
+      withFallback = Array.from({ length: 10 }).map((_, idx) => {
+        const name = mockNames[idx % mockNames.length];
+        const agent = mockAgents[idx % mockAgents.length];
+        const status = statuses[idx % statuses.length];
+        const dateObj = new Date(today.getTime() - (idx + 1) * 60 * 60 * 1000);
+        const dateStr = format(dateObj, 'yyyy-MM-dd');
+        return {
+          id: `mock-${idx + 1}`,
+          lead: name,
+          email: `${name.toLowerCase().replace(/\s+/g,'\.')}@example.com`,
+          phone: `+49 1512 34${String(idx).padStart(2,'0')} 678`,
+          agent,
+          status,
+          date: dateStr,
+        } as RecentCallData;
+      });
+    }
+    
     const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return base;
-
+    if (!q) return withFallback;
+    
     const qDigits = q.replace(/\D/g, '');
     const qNoSpace = q.replace(/\s+/g, '');
-    return base.filter((c) => {
+    return withFallback.filter((c) => {
       const leadLower = (c.lead || '').toLowerCase();
       const nameMatch = leadLower.includes(q) || leadLower.replace(/\s+/g, '').includes(qNoSpace);
       const emailMatch = (c.email || '').toLowerCase().includes(q);
@@ -724,7 +758,7 @@ export default function Dashboard() {
       <div className={`${layoutStyles.pageHeader} flex-col sm:flex-row items-start sm:items-center gap-2`}>
         <div>
           <h1 className={textStyles.pageTitle}>Dashboard</h1>
-          <p className={textStyles.pageSubtitle}>Overview of your AI agents' performance</p>
+          <p className={textStyles.pageSubtitle}>Überblick über die Performance deiner KI‑Agenten</p>
         </div>
       </div>
 
@@ -735,7 +769,7 @@ export default function Dashboard() {
             key={stat.title}
             className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
               selectedMetric === stat.id 
-                ? 'border-[#3d5097]/30 bg-[#3d5097]/5' 
+                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
                 : 'border-gray-200'
             }`}
             onClick={() => setSelectedMetric(stat.id as any)}
@@ -744,7 +778,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-4">
                 <div className={`p-3 rounded-lg ${
                   selectedMetric === stat.id 
-                    ? 'bg-[#3d5097]/10 text-[#3d5097]' 
+                    ? 'bg-[#FE5B25]/10 text-[#FE5B25]' 
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   <stat.icon className="h-6 w-6" />
@@ -784,12 +818,12 @@ export default function Dashboard() {
             <div className="bg-white rounded-lg border p-6 h-[416px] flex flex-col">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
                 <div>
-                  <h2 className="text-xl font-semibold">Performance overview</h2>
+                  <h2 className="text-xl font-semibold">Performance‑Übersicht</h2>
                   <p className="text-sm text-muted-foreground mt-1">{metricConfig[selectedMetric].name}</p>
                 </div>
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <span className="text-sm text-muted-foreground">Period</span>
+                  <span className="text-sm text-muted-foreground">Zeitraum</span>
                   <div className="w-full sm:w-auto [&_button]:w-full sm:[&_button]:w-[240px] [&_button]:px-2 [&_button]:justify-center">
                     <DateRangePicker 
                       dateRange={dateRange}
@@ -805,8 +839,8 @@ export default function Dashboard() {
                     {/* Gradient Definition für Area */}
                     <defs>
                       <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3d5097" stopOpacity={0.15}/>
-                        <stop offset="100%" stopColor="#3d5097" stopOpacity={0}/>
+                        <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
+                        <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     
@@ -856,7 +890,7 @@ export default function Dashboard() {
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                         fontSize: '14px'
                       }}
-                      cursor={{ stroke: '#3d5097', strokeWidth: 1, strokeDasharray: '5 5' }}
+                      cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
                     />
                     {/* Area mit Gradient-Fill */}
                     <Area
@@ -871,11 +905,11 @@ export default function Dashboard() {
                     <Line 
                       type="monotone" 
                       dataKey={selectedMetric} 
-                      stroke="#3d5097" 
+                      stroke="#FE5B25" 
                       strokeWidth={2.5}
                       name={metricConfig[selectedMetric].name}
                       dot={false}
-                      activeDot={{ r: 5, fill: "#3d5097", strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -887,21 +921,21 @@ export default function Dashboard() {
           <div className="lg:col-span-2 min-w-0">
                         <div className="bg-white rounded-lg border p-6 h-[416px]">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4">
-                <h2 className="text-xl font-semibold">New appointments</h2>
+                <h2 className="text-xl font-semibold">Neue Termine</h2>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-muted-foreground">{staticAppointments.length} appointments</span>
+                  <span className="text-sm text-muted-foreground">{staticAppointments.length} Termine</span>
                 </div>
               </div>
               
               {appointmentListLoading ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">Loading appointments...</div>
+                  <div className="text-sm">Lade Termine...</div>
                 </div>
               ) : appointmentListError ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">Failed to load appointments</div>
+                  <div className="text-sm">Termine konnten nicht geladen werden</div>
                   <div className="text-xs">{appointmentListError}</div>
                 </div>
               ) : staticAppointments.length > 0 ? (
@@ -940,7 +974,7 @@ export default function Dashboard() {
                                         {staticAppointments.length > 5 && (
                       <div className="text-center py-2">
                         <Button variant="outline" size="sm">
-                          <span>+{staticAppointments.length - 5} more appointments</span>
+                          <span>+{staticAppointments.length - 5} weitere Termine</span>
                         </Button>
                       </div>
                     )}
@@ -948,7 +982,7 @@ export default function Dashboard() {
                 ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <CalendarIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <div className="text-sm">No new appointments</div>
+                  <div className="text-sm">Keine neuen Termine</div>
                 </div>
               )}
             </div>
@@ -959,7 +993,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg border">
           {/* Header mit Suche und Aktionen */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-6 border-b">
-            <h2 className="text-2xl font-semibold">Recent calls</h2>
+            <h2 className="text-2xl font-semibold">Letzte Anrufe</h2>
             <form
               onSubmit={(e) => { e.preventDefault(); setSearchQuery(searchInput); }}
               className="flex items-center gap-2"
@@ -967,11 +1001,11 @@ export default function Dashboard() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search"
+                  placeholder="Suche"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') setSearchQuery(searchInput); }}
-                  className="w-full sm:w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full sm:w-80 pl-10 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#FE5B25]"
                 />
                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                   <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -984,7 +1018,7 @@ export default function Dashboard() {
                 variant="default"
                 className="h-9 relative z-10"
               >
-                Search
+                Suchen
               </Button>
             </form>
           </div>
@@ -995,21 +1029,46 @@ export default function Dashboard() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontaktname</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E‑Mail</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefon</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
                     
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {displayedCalls.slice(0, 20).map((call) => (
-                    <tr key={call.id} className="hover:bg-gray-50">
+                    <tr
+                      key={call.id}
+                      role="button"
+                      tabIndex={0}
+                      className="hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5B25]/40"
+                      onClick={() => {
+                        const notReached = String(call.status).toLowerCase().includes('nicht erreicht');
+                        const summary = notReached
+                          ? `Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.`
+                          : `Kurze Zusammenfassung: Gespräch mit ${call.lead} über Produktinteresse. Status: ${call.status}.`;
+                        const transcript = notReached
+                          ? `— Lead wurde noch nicht erreicht. Kein Transkript vorhanden —`
+                          : `Agent: Hallo ${call.lead}, vielen Dank für Ihre Zeit.\n\nLead: Gerne.\n\nAgent: Ich würde Ihnen kurz erklären, wie wir weiter vorgehen können...`;
+                        setHoverLead({ ...call, summary, transcript });
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault();
+                        const notReached = String(call.status).toLowerCase().includes('nicht erreicht');
+                        const summary = notReached
+                          ? `Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.`
+                          : `Kurze Zusammenfassung: Gespräch mit ${call.lead} über Produktinteresse. Status: ${call.status}.`;
+                        const transcript = notReached
+                          ? `— Lead wurde noch nicht erreicht. Kein Transkript vorhanden —`
+                          : `Agent: Hallo ${call.lead}, vielen Dank für Ihre Zeit.\n\nLead: Gerne.\n\nAgent: Ich würde Ihnen kurz erklären, wie wir weiter vorgehen können...`;
+                        setHoverLead({ ...call, summary, transcript });
+                      }}}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="h-8 w-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mr-3">
+                          <div className="h-8 w-8 rounded-full bg-[#FE5B25]/10 text-[#FE5B25] flex items-center justify-center mr-3">
                             <Phone className="h-4 w-4" />
                           </div>
                           <div className="text-sm font-medium text-gray-900">{call.lead}</div>
@@ -1051,26 +1110,68 @@ export default function Dashboard() {
             </div>
           ) : recentCallsLoading ? (
             <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-              <div className="text-sm text-muted-foreground mt-2">Loading calls...</div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FE5B25] mx-auto"></div>
+              <div className="text-sm text-muted-foreground mt-2">Lade Anrufe...</div>
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <PhoneCall className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <div className="text-base font-medium mb-1">No new calls</div>
+              <div className="text-base font-medium mb-1">Keine neuen Anrufe</div>
               {searchQuery && (
                 <div className="text-sm opacity-70">
-                  No results for "{searchQuery}"
+                  Keine Ergebnisse für "{searchQuery}"
                 </div>
               )}
               {!searchQuery && (
                 <div className="text-sm opacity-70">
-                  No calls found for the selected period
+                  Keine Anrufe für den ausgewählten Zeitraum gefunden
                 </div>
               )}
             </div>
           )}
         </div>
+
+        {/* Lead Overview Dialog */}
+        <Dialog open={!!hoverLead} onOpenChange={(o)=>{ if (!o) setHoverLead(null); }}>
+          <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-0">
+              <DialogTitle>Anruf Details</DialogTitle>
+            </DialogHeader>
+            {hoverLead && (
+              <div className="px-6 pb-6">
+                <div className="text-xs text-muted-foreground mb-3">{format(new Date(hoverLead.date), 'dd.MM.yyyy')}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border p-4 bg-white">
+                    <h3 className="font-semibold mb-3">Anruf Informationen</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Name:</span><span>{hoverLead.lead}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Status:</span><span className="px-2 py-0.5 text-xs rounded-full bg-[#FE5B25]/10 text-[#FE5B25]">{hoverLead.status}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Telefon:</span><span>{hoverLead.phone}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">E‑Mail:</span><span className="truncate max-w-[60%] text-right">{hoverLead.email}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Agent:</span><span>{hoverLead.agent}</span></div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-white">
+                    <h3 className="font-semibold mb-3">Anruf Analyse</h3>
+                    <div className="flex items-center gap-2 text-sm mb-2">
+                      <span className="text-muted-foreground">Status:</span>
+                      <span className="px-2 py-0.5 text-xs rounded-full bg-[#FE5B25]/10 text-[#FE5B25]">{hoverLead.status}</span>
+                    </div>
+                    <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                      {hoverLead.summary}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-xl border bg-white max-h-72 overflow-y-auto">
+                  <div className="p-4">
+                    <h3 className="font-semibold mb-3">Transkript</h3>
+                    <div className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap font-sans">{hoverLead.transcript}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
       {/* Lead Details Slide-in Panel */}
       <Sheet open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>

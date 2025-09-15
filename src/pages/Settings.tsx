@@ -639,8 +639,8 @@ export default function Settings() {
       {/* Page Header */}
       <div className={layoutStyles.pageHeader}>
         <div>
-          <h1 className={textStyles.pageTitle}>Settings</h1>
-          <p className={textStyles.pageSubtitle}>Manage your account and workspace</p>
+          <h1 className={textStyles.pageTitle}>Einstellungen</h1>
+          <p className={textStyles.pageSubtitle}>Verwalte dein Konto und deinen Workspace</p>
         </div>
       </div>
 
@@ -652,14 +652,14 @@ export default function Settings() {
               onClick={() => setActiveTab("account")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "account"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <User className={iconSizes.small} />
-                <span className="ml-2">Account</span>
+                <span className="ml-2">Konto</span>
               </div>
             </button>
             
@@ -667,7 +667,7 @@ export default function Settings() {
               onClick={() => setActiveTab("workspace")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "workspace"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
@@ -683,14 +683,14 @@ export default function Settings() {
                 onClick={() => setActiveTab("billing")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                   activeTab === "billing"
-                    ? "border-[#3d5097] text-[#3d5097]"
+                    ? "border-[#FE5B25] text-[#FE5B25]"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
                 role="tab"
               >
                 <div className="flex items-center">
                   <CreditCard className={iconSizes.small} />
-                  <span className="ml-2">Plans & balance</span>
+                  <span className="ml-2">Pläne & Guthaben</span>
                 </div>
               </button>
             )}
@@ -887,7 +887,7 @@ export default function Settings() {
                         setShowInviteModal(true);
                       }}
                       disabled={isAtUserLimit}
-                      className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
+                      className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
                     >
                       <Plus className={iconSizes.small} />
                       <span>Mitglied einladen</span>
@@ -1149,7 +1149,7 @@ export default function Settings() {
             <Button
               onClick={handleInviteUser}
               disabled={isInviting || !inviteEmail.trim()}
-              className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
+              className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
             >
               {isInviting ? "Wird gesendet..." : "Einladen"}
             </Button>

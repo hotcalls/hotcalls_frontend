@@ -1,11 +1,11 @@
 // 🎯 EINHEITLICHES DESIGN-SYSTEM mit korrekter Markenfarbe
-// Markenfarbe: #3d5097 (nicht orange-500!)
+// Markenfarbe: #FE5B25
 // Heller Hintergrund für Outline-Buttons: #FFE1D7
 
 export const brandColors = {
-  primary: "#3d5097",        // Markenfarbe
+  primary: "#FE5B25",        // Markenfarbe
   primaryLight: "#ffffff",   // Heller Hintergrund (nur Weiß)
-  primaryHover: "#3d5097",   // Hover-State für gefüllte Buttons
+  primaryHover: "#FE5B25",   // Hover-State für gefüllte Buttons
   primaryLightHover: "#ffffff", // Hover für Outline-Buttons (Weiß)
   infoLight: "#ffffff",      // Info-Flächen (nur Weiß)
 };
@@ -13,22 +13,22 @@ export const brandColors = {
 export const buttonStyles = {
   // 1. CREATE/ADD BUTTONS (Voll in Markenfarbe)
   create: {
-    default: "px-4 py-2 bg-[#3d5097] text-white text-sm font-medium rounded-md hover:bg-[#3d5097] transition-colors flex items-center space-x-2",
-    large: "px-6 py-3 bg-[#3d5097] text-white text-base font-medium rounded-md hover:bg-[#3d5097] transition-colors flex items-center space-x-2",
+    default: "px-4 py-2 bg-[#FE5B25] text-white text-sm font-medium rounded-md hover:bg-[#fe5b25]/90 transition-colors flex items-center space-x-2",
+    large: "px-6 py-3 bg-[#FE5B25] text-white text-base font-medium rounded-md hover:bg-[#fe5b25]/90 transition-colors flex items-center space-x-2",
   },
 
   // 2. PRIMARY BUTTONS (Nur oranger Rand + weißer Hintergrund für Aktions-Buttons)
   primary: {
-    default: "px-4 py-2 border border-[#3d5097] bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
-    large: "px-6 py-3 border border-[#3d5097] bg-white text-[#3d5097] text-base font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
-    fullWidth: "w-full px-4 py-2 border border-[#3d5097] bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center justify-center",
+    default: "px-4 py-2 border border-[#FE5B25] bg-white text-[#FE5B25] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
+    large: "px-6 py-3 border border-[#FE5B25] bg-white text-[#FE5B25] text-base font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
+    fullWidth: "w-full px-4 py-2 border border-[#FE5B25] bg-white text-[#FE5B25] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center justify-center",
   },
 
   // 3. HIGHLIGHT AREAS (Seichter orange Touch OHNE Rand für Pläne/Cards)
   highlight: {
     card: "p-4 bg-white rounded-lg border border-gray-200",
-    subtle: "bg-white text-[#3d5097]",
-    button: "px-4 py-2 bg-white text-[#3d5097] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
+    subtle: "bg-white text-[#FE5B25]",
+    button: "px-4 py-2 bg-white text-[#FE5B25] text-sm font-medium rounded-md hover:bg-white transition-colors flex items-center space-x-2",
   },
 
   // 4. INFO AREAS (Sehr heller orange Touch für Informationsflächen - fast weiß)
@@ -68,7 +68,7 @@ export const buttonStyles = {
   dialog: {
     cancel: "px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors",
     destructive: "px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors",
-    confirm: "px-4 py-2 bg-[#3d5097] text-white text-sm font-medium rounded-md hover:bg-[#3d5097] transition-colors",
+    confirm: "px-4 py-2 bg-[#FE5B25] text-white text-sm font-medium rounded-md hover:bg-[#fe5b25]/90 transition-colors",
   }
 };
 

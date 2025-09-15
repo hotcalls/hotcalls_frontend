@@ -549,18 +549,19 @@ export default function LeadSources() {
             setDialogDetectedVars([]);
           }
         }}>
-          <DialogTrigger asChild>
+          {/* CSV upload entry hidden per request */}
+          {/* <DialogTrigger asChild>
             <button 
               className={buttonStyles.create.default}
               onClick={() => {
                 setIsAddDialogOpen(true);
-                setIsCsvStep(true);  // Direkt zum CSV Upload
+                setIsCsvStep(true);
               }}
             >
               <Plus className={iconSizes.small} />
               <span>CSV Upload</span>
             </button>
-          </DialogTrigger>
+          </DialogTrigger> */}
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>CSV Upload</DialogTitle>
@@ -896,7 +897,8 @@ export default function LeadSources() {
 
 
           {/* Empty state */}
-          {Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
+          {/* Empty state hidden since CSV upload is disabled */}
+          {false && Array.isArray(csvFunnels) && csvFunnels.length === 0 && (
             <Card className="col-span-full">
               <CardContent className="p-8 text-center">
                 <img src="/csv icon.png" alt="CSV" className="h-12 w-12 mx-auto mb-4 object-contain opacity-70" />
@@ -904,7 +906,7 @@ export default function LeadSources() {
                 <p className="text-gray-500 mb-4">
                   Upload your leads through CSV upload
                 </p>
-                <Button onClick={() => { setIsAddDialogOpen(true); setIsCsvStep(true); }}>
+                <Button onClick={() => {}}>
                   <Plus className="h-4 w-4 mr-2" />
                   CSV Upload
                 </Button>
@@ -929,7 +931,7 @@ export default function LeadSources() {
                   readOnly 
                   value={createdWebhookUrl} 
                   rows={2}
-                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-sm font-mono resize-none overflow-hidden" 
+                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-sm resize-none overflow-hidden" 
                 />
                 <Button size="sm" variant="outline" onClick={() => copyToClipboard(createdWebhookUrl)} className="shrink-0">
                   Copy
@@ -944,7 +946,7 @@ export default function LeadSources() {
                   readOnly 
                   value={`Authorization: Bearer ${createdWebhookToken}`} 
                   rows={3}
-                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 font-mono text-sm resize-none overflow-hidden" 
+                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-sm resize-none overflow-hidden" 
                 />
                 <Button size="sm" variant="outline" onClick={() => copyToClipboard(`Authorization: Bearer ${createdWebhookToken}`)} className="shrink-0">
                   Copy
@@ -955,7 +957,7 @@ export default function LeadSources() {
             <div className="space-y-3">
               <label className="text-sm font-medium block">Sample payload</label>
               <div className="relative">
-                <pre className="p-4 bg-gray-50 border border-gray-300 rounded-md text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+                <pre className="p-4 bg-gray-50 border border-gray-300 rounded-md text-sm overflow-x-auto whitespace-pre-wrap font-[Manrope]">
 {`{
   "name": "Max Mustermann",
   "email": "max@example.com",

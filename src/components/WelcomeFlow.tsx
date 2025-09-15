@@ -92,7 +92,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       const payment = urlParams.get('payment');
       const priceId = urlParams.get('price');
       
-      
+      console.log({
         fullUrl: window.location.href,
         search: window.location.search,
         payment,
@@ -221,7 +221,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           }
         }
         
-        
+        console.log({
           workspace_id: primaryWorkspace.id,
           workspace_name: primaryWorkspace.workspace_name,
           hasActiveSubscription,
@@ -265,7 +265,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         
         // Debug each voice
         voicesResponse.results.forEach(voice => {
-          
+          console.log({
             id: voice.id,
             voice_external_id: voice.voice_external_id,
             voice_picture: voice.voice_picture,
@@ -988,7 +988,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3d5097] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FE5B25] mx-auto mb-4"></div>
           <p className="text-gray-600">Checking your workspace...</p>
         </div>
       </div>
@@ -1007,7 +1007,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 <div
                   key={index}
                   className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index < currentStep ? 'bg-[#3d5097]' : 'bg-gray-200'
+                    index < currentStep ? 'bg-[#FE5B25]' : 'bg-gray-200'
                   }`}
                 />
               ))}
@@ -1027,8 +1027,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="space-y-6">
                 <div className="flex justify-center mb-6">
                   <img 
-                    src="/hotcalls-logo.png" 
-                    alt="Hotcalls Logo" 
+                    src="/HC Logo.png" 
+                    alt="HC Logo" 
                     className="h-16 w-auto"
                   />
                 </div>
@@ -1040,7 +1040,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="animate-fade-in delay-1000">
                 <Button 
                   size="lg" 
-                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
+                  className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white px-8 py-4 focus:ring-0 focus:ring-offset-0"
                   onClick={nextStep}
                 >
                   Los geht's
@@ -1060,7 +1060,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 placeholder="z.B. Sarah, Max, Anna..."
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className="text-center text-lg h-12 border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                className="text-center text-lg h-12 border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                 autoFocus
               />
             </div>
@@ -1118,9 +1118,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   return (
                     <div 
                       key={voice.id} 
-                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#3d5097] ${
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#FE5B25] ${
                         formData.voice === voice.id 
-                          ? "border-[#3d5097] bg-white" 
+                          ? "border-[#FE5B25] bg-white" 
                           : "border-gray-200 hover:bg-gray-50"
                       }`}
                       onClick={() => handleInputChange('voice', voice.id)}
@@ -1136,10 +1136,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                               }
                             }}
                             onError={(e) => {
-                              console.error("[ERROR]:", error);
-                                src: voiceConfig.avatar,
-                                error: e
-                              });
+                              console.error("[ERROR]:", { src: voiceConfig.avatar, error: e });
                             }}
                           />
                           <AvatarFallback className={`${voiceConfig.fallbackColor} font-semibold text-lg`}>
@@ -1180,7 +1177,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             </button>
                           
                           {formData.voice === voice.id && (
-                            <div className="w-6 h-6 bg-[#3d5097] rounded-full flex items-center justify-center">
+                            <div className="w-6 h-6 bg-[#FE5B25] rounded-full flex items-center justify-center">
                               <Check className="h-3 w-3 text-white" />
                             </div>
                           )}
@@ -1201,7 +1198,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 Wie ist {formData.name || 'dein Agent'} drauf?
               </h2>
               <Select value={formData.personality} onValueChange={(value) => handleInputChange('personality', value)}>
-                <SelectTrigger className="h-12 text-lg border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                <SelectTrigger className="h-12 text-lg border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
                   <SelectValue placeholder="Persönlichkeit wählen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1259,7 +1256,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 <Button
                   onClick={handleTestCall}
                   disabled={isLoading}
-                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {isLoading ? (
@@ -1292,7 +1289,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               
               <Button 
                 onClick={nextStep}
-                className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
+                className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 focus:ring-0 focus:ring-offset-0"
                 size="lg"
               >
                 14-tägige kostenlose Testphase starten*
@@ -1614,7 +1611,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
                 <div className="pt-4">
                   <Button 
-                    className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0"
+                    className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 h-12 focus:ring-0 focus:ring-offset-0"
                     onClick={() => {
                       localStorage.setItem('welcomeCompleted', 'true');
                       onComplete();

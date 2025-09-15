@@ -95,8 +95,8 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-6">
             <img 
-              src="/hotcalls-logo.png" 
-              alt="Hotcalls Logo" 
+              src="/HC Logo.png" 
+              alt="HC Logo" 
               className="h-12 w-auto"
             />
           </div>

@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, Save, TestTube, User, FileText, Phone, Settings as SettingsIcon, Play, Plus, Info, UserCircle, UserCircle2, Sparkles, Pause, Loader2, Clock } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
 import { agentAPI, AgentResponse, callAPI, calendarAPI, metaAPI, funnelAPI, webhookAPI, MakeTestCallRequest, knowledgeAPI } from "@/lib/apiService";
@@ -66,7 +66,7 @@ export default function AgentConfig() {
   // Guard for create mode only
   useEffect(() => {
     if (!isEdit && !usageLoading && isAtAgentLimit) {
-      toast.info("Your agent limit has been reached.");
+      toast.info("Dein Agenten‑Limit ist erreicht.");
       navigate("/dashboard/agents");
     }
   }, [isEdit, usageLoading, isAtAgentLimit, navigate]);
@@ -140,35 +140,35 @@ export default function AgentConfig() {
 
   
   // Blurred script template placeholder (shown when script is empty)
-  const SCRIPT_TEMPLATE_PLACEHOLDER = `You are {{assistant_name}}, the world’s best AI sales assistant. You are witty, professional, and conversational.
+  const SCRIPT_TEMPLATE_PLACEHOLDER = `You are {{assistant_name}}, the world's best AI sales assistant. You are witty, professional, and conversational.
 
 Context
 You are calling {{salutation}} {{last_name}}, who showed interest in {{product_or_service}}. The contact is {{first_name}} {{last_name}}. Your goal is to schedule an appointment with a qualified expert.
 
 Guidelines
 - Speak naturally, smoothly, and empathetically, like a real human.
-- Avoid filler phrases like “thank you very much,” “understood,” “super,” “good to know.”
-- Don’t constantly confirm or echo the prospect’s answers.
+- Avoid filler phrases like "thank you very much," "understood," "super," "good to know."
+- Don't constantly confirm or echo the prospect's answers.
 - Never repeat addresses, dates of birth, or exact numbers aloud.
-- Stick to the script — don’t skip qualification questions.
+- Stick to the script — don't skip qualification questions.
 - If the lead digresses, respond briefly and return to the script.
 - Appointments only after all qualification questions are answered.
-- Address the lead formally (“Mr./Ms.”) unless instructed otherwise.
+- Address the lead formally ("Mr./Ms.") unless instructed otherwise.
 - Offer 3–5 natural time suggestions (avoid long lists).
 - Only schedule within the next 2 weeks (explain if beyond).
 - Always reconfirm the chosen date/time before booking.
 
 Appointment Communication Rules
-- Before finalizing, confirm: “Just to confirm, your appointment is on [date] at [time]. Does that work for you?”
+- Before finalizing, confirm: "Just to confirm, your appointment is on [date] at [time]. Does that work for you?"
 - After booking, mention the confirmation email and direct contact details.
 - Encourage sending relevant documents/photos in advance (if applicable).
 - Ask to notify early in case of cancellation or rescheduling.
 
 Script
 1) Greeting & Introduction
-Agent: “Hello, this is {{assistant_name}} calling on behalf of our team. Am I speaking with {{salutation}} {{last_name}}?”
-Human: […]
-Agent: “Thank you for your time, {{salutation}} {{last_name}}. You recently showed interest in {{product_or_service}}. I’ll quickly check if a consultation makes sense and, if so, schedule a meeting with a specialist. It’s not a contract or quote — just an initial step. Does that sound alright?”
+Agent: "Hello, this is {{assistant_name}} calling on behalf of our team. Am I speaking with {{salutation}} {{last_name}}?"
+Human: [...]
+Agent: "Thank you for your time, {{salutation}} {{last_name}}. You recently showed interest in {{product_or_service}}. I'll quickly check if a consultation makes sense and, if so, schedule a meeting with a specialist. It's not a contract or quote — just an initial step. Does that sound alright?"
 
 2) Qualification Questions
 - Address of the property/business location? (Do not repeat aloud)
@@ -184,10 +184,10 @@ Agent: “Thank you for your time, {{salutation}} {{last_name}}. You recently sh
 - What motivated you to look for a new solution now?
 - What works well today, and what would you like to change?
 - What have you already tried or considered?
-- Have you spoken with other providers? What didn’t convince you?
+- Have you spoken with other providers? What didn't convince you?
 - If you imagine an ideal solution, what would it look like?
 - How important are cost savings or long‑term investment?
-Agent: “If I understand correctly, your main priority is {{repeat_back}} because {{repeat_reason}} — is that right?”
+Agent: "If I understand correctly, your main priority is {{repeat_back}} because {{repeat_reason}} — is that right?"
 - What are the top three decision factors for you?
 
 4) Decision Process
@@ -197,15 +197,16 @@ Agent: “If I understand correctly, your main priority is {{repeat_back}} becau
 - Are you open to financing/subscription models if they make sense?
 
 5) Closing & Scheduling
-Agent: “If everything looks good in the consultation, would you be ready to move forward?”
-Human: […]
-Agent: “Great! Our specialists are very experienced. Let me check availability.”
-Agent: “I see availability. Which time works best for you?”
-Human: […]
-Agent: “Perfect, just to confirm: the appointment time we agreed on works for you. Correct?”
-Agent: “Excellent — I’ve booked it. You’ll receive a confirmation email with all details. If possible, please send relevant documents/photos in advance. And if you ever need to cancel or reschedule, could you let us know early?”
-Human: […]
-Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”`;
+Agent: "If everything looks good in the consultation, would you be ready to move forward?"
+Human: [...]
+Agent: "Great! Our specialists are very experienced. Let me check availability."
+Agent: "I see availability. Which time works best for you?"
+Human: [...]
+Agent: "Perfect, just to confirm: the appointment time we agreed on works for you. Correct?"
+Agent: "Excellent — I've booked it. You'll receive a confirmation email with all details. If possible, please send relevant documents/photos in advance. And if you ever need to cancel or reschedule, could you let us know early?"
+Human: [...]
+Agent: "Wonderful. I wish you a successful consultation and a pleasant day!";
+`;
   // Language is stored as ISO code in config.language ("en" | "de" | "es" | "fr")
 
   
@@ -230,6 +231,27 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
   const [isLoadingMoreLeadForms, setIsLoadingMoreLeadForms] = useState(false);
   const [selectedEventTypeDetails, setSelectedEventTypeDetails] = useState<any | null>(null);
   const [funnelVariables, setFunnelVariables] = useState<Array<{ key: string; label: string; category: 'contact'|'custom'; type: 'string'|'email'|'phone' }>>([]);
+  // Demo/test leads for preview
+  const demoLeads = useMemo(() => {
+    const firstNames = ["Max", "Anna", "Lukas", "Mia", "Jonas", "Lea", "Paul", "Emma", "Felix", "Sofia"];
+    const lastNames = ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Wagner", "Becker", "Hoffmann", "Meyer", "Klein"];
+    const services = ["Wärmepumpe", "PV‑Anlage", "Beratung", "Software Demo", "Audit", "Sanierung", "Finanzierung", "Versicherung", "Telekom", "CRM"];
+    const leads = Array.from({ length: 20 }, (_, i) => {
+      const fn = firstNames[i % firstNames.length];
+      const ln = lastNames[(i * 3) % lastNames.length];
+      const service = services[(i * 7) % services.length];
+      const phone = `+49 151 ${String(100000 + i * 137).slice(0,6)}`;
+      return {
+        id: `demo-${i+1}`,
+        first_name: fn,
+        last_name: ln,
+        product_or_service: service,
+        email: `${fn.toLowerCase()}.${ln.toLowerCase()}@example.com`,
+        phone,
+      };
+    });
+    return leads;
+  }, []);
 
   // Document send UI state
   const [docDialogOpen, setDocDialogOpen] = useState(false);
@@ -313,13 +335,13 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         ? { results: response, count: response.length, next: null, previous: null }
         : response as { results: any[]; count: number; next: string | null; previous: string | null };
       
-      // Format all funnels (Meta + CSV) for the dropdown
+      // Format all funnels (Meta + Leadquelle) for the dropdown
       const formattedForms = (paginatedResponse.results || []).map(funnel => ({
         id: String(funnel.id),
         name: funnel.name,
         meta_form_id: funnel.meta_lead_form?.meta_form_id || null,
-        source_type_display: funnel.meta_lead_form ? 'Meta Lead Ads' : 'CSV Import',
-        is_csv: !funnel.meta_lead_form && !funnel.webhook_source // CSV if no meta or webhook
+        source_type_display: funnel.meta_lead_form ? 'Meta Lead Ads' : 'Leadquelle',
+        is_csv: !funnel.meta_lead_form && !funnel.webhook_source // Leadquelle wenn weder Meta noch Webhook
       }));
       
       if (append && page > 1) {
@@ -394,13 +416,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     requestAnimationFrame(() => el.setSelectionRange(start + token.length, start + token.length));
   };
 
-  const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-[#3d5097] shadow-sm transition";
+  const tokenPillClass = "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white bg-[#FE5B25] shadow-sm transition";
   const formatBytes = (bytes: number): string => {
     if (!bytes && bytes !== 0) return "-";
     const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
     const value = bytes / Math.pow(1024, i);
-    return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${sizes[i]}`;
+    const rounded = value < 10 ? value.toFixed(1) : String(Math.round(value));
+    return rounded + " " + sizes[i];
   };
   const renderPreview = (content: string) => {
     const parts = content.split(/(\{\{[^}]+\}\})/g);
@@ -409,7 +432,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         {parts.map((part, idx) => {
           if (/^\{\{[^}]+\}\}$/.test(part)) {
             return (
-              <span key={idx} className={`${tokenPillClass} mx-0.5`}>{part.replace(/\{\{|\}\}/g, '')}</span>
+              <span key={idx} className={tokenPillClass + " mx-0.5"}>{part.replace(/\{\{|\}\}/g, '')}</span>
             );
           }
           return <span key={idx}>{part}</span>;
@@ -443,8 +466,8 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     const [h, m] = (value || '09:00').split(':');
     return (
       <div className="flex items-center gap-1">
-        <Select value={h} onValueChange={(hv) => onChange(`${hv}:${m}`)}>
-          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#3d5097]"><SelectValue /></SelectTrigger>
+        <Select value={h} onValueChange={(hv) => onChange(hv + ":" + m)}>
+          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#FE5B25]"><SelectValue /></SelectTrigger>
           <SelectContent className="max-h-64">
             {hours.map((hh) => (
               <SelectItem key={hh} value={hh}>{hh}</SelectItem>
@@ -452,8 +475,8 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           </SelectContent>
         </Select>
         <span className="text-gray-400 px-1">:</span>
-        <Select value={m} onValueChange={(mv) => onChange(`${h}:${mv}`)}>
-          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#3d5097]"><SelectValue /></SelectTrigger>
+        <Select value={m} onValueChange={(mv) => onChange(h + ":" + mv)}>
+          <SelectTrigger className="w-16 h-9 rounded-lg border-gray-300 focus:ring-2 focus:ring-[#FE5B25]"><SelectValue /></SelectTrigger>
           <SelectContent>
             {minutes.map((mm) => (
               <SelectItem key={mm} value={mm}>{mm}</SelectItem>
@@ -559,7 +582,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           // If time is in format "HH:MM:SS" or "HH:MM:SS.msZ", extract just "HH:MM"
           const timeParts = timeStr.split(':');
           if (timeParts.length >= 2) {
-            return `${timeParts[0]}:${timeParts[1]}`;
+            return timeParts[0] + ":" + timeParts[1];
           }
           return timeStr;
         };
@@ -641,7 +664,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     const voice = voices.find(v => v.id === voiceId);
     if (!voice || !voice.voice_sample) {
       console.warn('No voice sample available for:', voiceId);
-      toast.error('No voice sample available');
+      toast.error('Keine Hörprobe verfügbar');
       return;
     }
 
@@ -659,14 +682,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     audio.addEventListener('error', (e) => {
       setPlayingVoice(null);
       console.error("[ERROR]:", error);
-      toast.error('Error playing sample');
+      toast.error('Fehler beim Abspielen der Hörprobe');
     });
 
     setPlayingVoice(voiceId);
     audio.play().catch((err) => {
       console.error("[ERROR]:", error);
       setPlayingVoice(null);
-      toast.error('Audio could not be played');
+      toast.error('Audio konnte nicht abgespielt werden');
     });
   };
 
@@ -681,14 +704,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       
       
       // Get all funnels for current workspace
-      const funnels = await funnelAPI.getLeadFunnels({
+      const funnelsResp = await funnelAPI.getLeadFunnels({
         workspace: primaryWorkspace?.id,
         is_active: true
       });
-      
+      const funnels = Array.isArray(funnelsResp) ? funnelsResp : (funnelsResp?.results || []);
       // Filter funnels that match selected lead forms
-      const matchingFunnels = funnels.filter(funnel => {
-        // Match by funnel ID directly (works for both Meta and CSV funnels)
+      const matchingFunnels = funnels.filter((funnel: any) => {
+        // Match by funnel ID directly (works for both Meta and Leadquellen)
         return selectedLeadForms.includes(String(funnel.id));
       });
       
@@ -716,13 +739,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       }
       
       // Get all current funnels for this workspace to unassign any existing assignments
-      const allFunnels = await funnelAPI.getLeadFunnels({
+      const allFunnelsResp = await funnelAPI.getLeadFunnels({
         workspace: primaryWorkspace?.id,
         has_agent: true
       });
+      const allFunnels = Array.isArray(allFunnelsResp) ? allFunnelsResp : (allFunnelsResp?.results || []);
       
       // Find funnels currently assigned to this agent
-      const currentlyAssignedFunnels = allFunnels.filter(funnel => 
+      const currentlyAssignedFunnels = allFunnels.filter((funnel: any) => 
         funnel.agent && funnel.agent.agent_id === agentId
       );
       
@@ -889,7 +913,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         
         // After creating a new agent, navigate to edit mode with the new agent ID
         if (newAgent && newAgent.agent_id) {
-          navigate(`/dashboard/agents/edit/${newAgent.agent_id}`, { replace: true });
+          navigate('/dashboard/agents/edit/' + newAgent.agent_id, { replace: true });
         }
       }
       
@@ -975,18 +999,18 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
     try {
       for (const f of arr) {
         if (f.type !== "application/pdf") {
-          toast.error(`${f.name}: Nur PDF erlaubt`);
+          toast.error(f.name + ': Nur PDF erlaubt');
           continue;
         }
         if (f.size > maxSize) {
-          toast.error(`${f.name}: Max. 20 MB überschritten`);
+          toast.error(f.name + ': Max. 20 MB überschritten');
           continue;
         }
         try {
           await knowledgeAPI.upload(id, f);
-          toast.success(`${f.name} hochgeladen`);
+          toast.success(f.name + ' hochgeladen');
         } catch (e: any) {
-          toast.error(`${f.name}: ${e?.message || "Upload fehlgeschlagen"}`);
+          toast.error(f.name + ': ' + (e?.message || 'Upload fehlgeschlagen'));
         }
       }
       await loadKnowledge();
@@ -1099,7 +1123,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       <div className="flex items-center space-x-2 mb-6">
         <button className={buttonStyles.navigation.back} onClick={() => navigate("/dashboard/agents")}>
           <ArrowLeft className={iconSizes.small} />
-          <span>Back to agents</span>
+          <span>Zurück zu Agenten</span>
         </button>
       </div>
 
@@ -1107,9 +1131,9 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
       <div className={layoutStyles.pageHeader}>
         <div>
           <h1 className={textStyles.pageTitle}>
-            {isEdit ? `Edit agent "${config.name}"` : "Create new agent"}
+            {isEdit ? `Agent bearbeiten "${config.name}"` : "Neuen Agent erstellen"}
           </h1>
-          <p className={textStyles.pageSubtitle}>Configure personality, script and integrations</p>
+          <p className={textStyles.pageSubtitle}>Konfiguriere Persönlichkeit, Skript und Integrationen</p>
         </div>
         
         <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
@@ -1123,13 +1147,13 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
             <PopoverContent className="w-80">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <h4 className="font-medium text-base">Start test call</h4>
-                  <p className="text-sm text-gray-600">A test call will be made to your registered phone number.</p>
+                  <h4 className="font-medium text-base">Testanruf starten</h4>
+                  <p className="text-sm text-gray-600">Es wird ein Testanruf an deine hinterlegte Telefonnummer durchgeführt.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="test-phone">Phone number</Label>
+                  <Label htmlFor="test-phone">Telefonnummer</Label>
                   <div className="px-3 py-2 border rounded-md bg-gray-50 text-gray-700">
-                    {profileLoading ? "Loading..." : userProfile?.phone || "No phone number found"}
+                    {profileLoading ? "Lädt..." : userProfile?.phone || "Keine Telefonnummer gefunden"}
                   </div>
                 </div>
                 <Button 
@@ -1140,12 +1164,12 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                   {isTestCalling ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Starting call...
+                      Anruf wird gestartet...
                     </>
                   ) : (
                     <>
                       <Phone className="h-4 w-4 mr-2" />
-                      Start call now
+                      Jetzt anrufen
                     </>
                   )}
                 </Button>
@@ -1155,7 +1179,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           
           <button className={buttonStyles.create.default} onClick={handleSave}>
             <Save className={iconSizes.small} />
-            <span>Save</span>
+            <span>Speichern</span>
           </button>
         </div>
       </div>
@@ -1171,14 +1195,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               onClick={() => setActiveTab("personality")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "personality"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <User className={iconSizes.small} />
-                <span className="ml-2">Personality</span>
+                <span className="ml-2">Persönlichkeit</span>
               </div>
             </button>
             
@@ -1186,14 +1210,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               onClick={() => setActiveTab("knowledge")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "knowledge"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <FileText className={iconSizes.small} />
-                <span className="ml-2">Knowledge base</span>
+                <span className="ml-2">Wissensbasis</span>
               </div>
             </button>
             
@@ -1201,14 +1225,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               onClick={() => setActiveTab("script")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "script"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <FileText className={iconSizes.small} />
-                <span className="ml-2">Script</span>
+                <span className="ml-2">Skript</span>
               </div>
             </button>
             
@@ -1216,14 +1240,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               onClick={() => setActiveTab("logic")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "logic"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <Phone className={iconSizes.small} />
-                <span className="ml-2">Call logic</span>
+                <span className="ml-2">Anruflogik</span>
               </div>
             </button>
             
@@ -1231,14 +1255,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               onClick={() => setActiveTab("integrations")}
               className={`py-2 px-1 border-b-2 font-medium text-sm focus:outline-none ${
                 activeTab === "integrations"
-                  ? "border-[#3d5097] text-[#3d5097]"
+                  ? "border-[#FE5B25] text-[#FE5B25]"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
               role="tab"
             >
               <div className="flex items-center">
                 <SettingsIcon className={iconSizes.small} />
-                <span className="ml-2">Integrations</span>
+                <span className="ml-2">Integrationen</span>
               </div>
             </button>
           </nav>
@@ -1248,21 +1272,21 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         <TabsContent value="knowledge" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Knowledge base (PDF)</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Wissensbasis (PDF)</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleKBDrop}
-                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#3d5097] transition"
+                className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#FE5B25] transition"
               >
-                <p className="text-sm text-gray-600">PDF only, max 20 MB – each agent can have one document</p>
+                <p className="text-sm text-gray-600">Nur PDF, max. 20 MB – pro Agent ein Dokument</p>
                 <div className="mt-3 flex items-center gap-3">
                   <Button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={!isEdit || kbUploading || (kb && kb.files && kb.files.length >= 1)}
                   >
-                    {kbUploading ? "Uploading..." : "Choose file"}
+                    {kbUploading ? "Wird hochgeladen..." : "Datei auswählen"}
                   </Button>
                   <input
                     ref={fileInputRef}
@@ -1272,23 +1296,23 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                     className="hidden"
                   />
                 </div>
-                <p className="mt-2 text-xs text-gray-500">Or drag file here</p>
+                <p className="mt-2 text-xs text-gray-500">Oder Datei hierher ziehen</p>
               </div>
 
               <div className="mt-6">
                 {kbLoading ? (
-                  <div className="p-4 border rounded-md text-gray-500">Loading documents…</div>
+                  <div className="p-4 border rounded-md text-gray-500">Dokumente werden geladen…</div>
                 ) : !kb || kb.files.length === 0 ? (
-                  <div className="p-4 border rounded-md text-gray-500">No documents yet</div>
+                  <div className="p-4 border rounded-md text-gray-500">Noch keine Dokumente</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
                       <thead>
                         <tr className="text-left text-gray-500">
                           <th className="py-2 pr-4">Name</th>
-                          <th className="py-2 pr-4">Size</th>
-                          <th className="py-2 pr-4">Uploaded</th>
-                          <th className="py-2">Actions</th>
+                          <th className="py-2 pr-4">Größe</th>
+                          <th className="py-2 pr-4">Hochgeladen</th>
+                          <th className="py-2">Aktionen</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1301,7 +1325,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                             <td className="py-2 pr-4 text-gray-600">{formatBytes(f.size)}</td>
                             <td className="py-2 pr-4 text-gray-600">{new Date(f.updated_at).toLocaleString()}</td>
                             <td className="py-2 flex gap-2">
-                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.id)}>Delete</Button>
+                              <Button variant="destructive" size="sm" onClick={() => handleKBDelete(f.id)}>Löschen</Button>
                             </td>
                           </tr>
                         ))}
@@ -1333,58 +1357,56 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         <TabsContent value="personality" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Basic configuration</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Grundkonfiguration</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="name">Agent name</Label>
+                <Label htmlFor="name">Agent‑Name</Label>
                 <Input
                   id="name"
                   value={config.name}
                   onChange={(e) => setConfig(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Sarah"
+                  placeholder="z. B. Sarah"
                 />
               </div>
               
               <div>
-                <Label htmlFor="personality">Personality</Label>
+                <Label htmlFor="personality">Persönlichkeit</Label>
                 <Select 
                   value={config.personality} 
                   onValueChange={(value) => setConfig(prev => ({ ...prev, personality: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a personality" />
+                    <SelectValue placeholder="Persönlichkeit auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="professional">Professional & Direct</SelectItem>
-                    <SelectItem value="energetic">Enthusiastic & Energetic</SelectItem>
-                    <SelectItem value="calm">Calm & Factual</SelectItem>
+                    <SelectItem value="professional" className="pl-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg" aria-hidden>💼</span>
+                        <span>Professionell & Direkt</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="energetic" className="pl-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg" aria-hidden>😁</span>
+                        <span>Enthusiastisch & Energetisch</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="calm" className="pl-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg" aria-hidden>🧘</span>
+                        <span>Ruhig & Sachlich</span>
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="agent-language">Agent language</Label>
-                <Select 
-                  value={config.language}
-                  onValueChange={(value) => setConfig(prev => ({ ...prev, language: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en"><div className="flex items-center gap-2"><span className="text-lg">🇬🇧</span><span>English</span></div></SelectItem>
-                    <SelectItem value="de"><div className="flex items-center gap-2"><span className="text-lg">🇩🇪</span><span>German</span></div></SelectItem>
-                    <SelectItem value="es"><div className="flex items-center gap-2"><span className="text-lg">🇪🇸</span><span>Spanish</span></div></SelectItem>
-                    <SelectItem value="fr"><div className="flex items-center gap-2"><span className="text-lg">🇫🇷</span><span>French</span></div></SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Voice</Label>
+                <Label>Stimme</Label>
                 {voices.length === 0 ? (
                   <div className="p-4 border rounded-lg text-center text-gray-500">
                     <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
-                    <p className="text-sm">Loading voices...</p>
+                    <p className="text-sm">Stimmen werden geladen...</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2 max-h-96 overflow-y-auto">
@@ -1398,7 +1420,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="absolute top-2 right-2 bg-green-100 text-green-600 text-xs px-2 py-1 rounded">
-                                  Recommended
+                                  Empfohlen
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -1437,7 +1459,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                               <div>
                                 <p className="font-medium">{voice.name}</p>
                                 <p className="text-sm text-gray-500">
-                                  {voice.gender === 'female' ? 'Female' : voice.gender === 'male' ? 'Male' : 'Neutral'}
+                                  {voice.gender === 'female' ? 'Weiblich' : voice.gender === 'male' ? 'Männlich' : 'Neutral'}
                                   {voice.tone && `, ${translateTone(voice.tone)}`}
                                 </p>
                                 {/* Entferne Provider-Anzeige außer wenn es nicht elevenlabs ist */}
@@ -1462,7 +1484,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                           <button
                             className={`w-full py-2 px-3 rounded border text-sm font-medium mt-auto ${
                               isSelected
-                                ? "bg-white text-[#3d5097] border-[#3d5097]" 
+                                ? "bg-white text-[#FE5B25] border-[#FE5B25]" 
                                 : "border-gray-300 text-gray-700 hover:bg-gray-50"
                             }`}
                             onClick={() => setConfig(prev => ({ 
@@ -1471,7 +1493,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                               voiceExternalId: voice.voice_external_id 
                             }))}
                           >
-                            {isSelected ? "Selected" : "Select"}
+                            {isSelected ? "Ausgewählt" : "Auswählen"}
                           </button>
                         </div>
                       );
@@ -1480,7 +1502,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                 )}
                 {voices.length > 12 && (
                   <p className="text-sm text-gray-500 mt-2">
-                    {voices.length - 12} more voices available...
+                    {voices.length - 12} weitere Stimmen verfügbar...
                   </p>
                 )}
               </div>
@@ -1496,22 +1518,20 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className={textStyles.sectionTitle}>Conversation script</span>
+                <span className={textStyles.sectionTitle}>Konversations‑Skript</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs text-sm text-gray-700">
-                    <p>
-                      Define the agent's task and write the conversation script.
-                    </p>
+                    <p>Definiere die Aufgabe des Agents und schreibe das Gesprächsskript.</p>
                     <div className="mt-2">
-                      <div className="font-medium">Suggested structure</div>
+                      <div className="font-medium">Empfohlene Struktur</div>
                       <div className="mt-1 leading-relaxed">
-                        AI Assistant: [Your message]<br />
-                        Prospect:<br />
-                        AI Assistant: [Reply]<br />
-                        Prospect:
+                        KI‑Assistent: [Deine Nachricht]<br />
+                        Interessent:<br />
+                        KI‑Assistent: [Antwort]<br />
+                        Interessent:
                       </div>
                     </div>
                   </TooltipContent>
@@ -1523,10 +1543,10 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
               <div className="mb-3"
                    onDragOver={(e) => e.preventDefault()}
               >
-                <div className="text-sm font-medium" style={{color: '#3d5097'}}>Available variables</div>
+                <div className="text-sm font-medium" style={{color: '#FE5B25'}}>Verfügbare Variablen</div>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {funnelVariables.length === 0 ? (
-                    <span className="text-xs text-gray-500">Select a CSV lead source to see variables</span>
+                    <span className="text-xs text-gray-500">Wähle eine CSV‑Leadquelle, um Variablen zu sehen</span>
                   ) : (
                     funnelVariables.map(v => (
                       <span
@@ -1546,7 +1566,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                 </div>
               </div>
               <div>
-                <Label htmlFor="greeting">Greeting</Label>
+                <Label htmlFor="greeting">Begrüßung</Label>
                 <Textarea
                   id="greeting"
                   value={(config.incomingGreeting || config.outgoingGreeting) || ""}
@@ -1558,16 +1578,15 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                     const apply = (val: string) => setConfig(prev => ({...prev, incomingGreeting: val, outgoingGreeting: val}));
                     insertTokenAtCursor(token, apply, (config.incomingGreeting || config.outgoingGreeting || ''));
                   }}
-                  placeholder="How should the agent greet the caller?"
+                  placeholder="Wie soll der Agent Anrufer begrüßen?"
                   rows={3}
                 />
               </div>
 
               <div className="mt-6">
-                <Label htmlFor="script">Script</Label>
+                <Label htmlFor="script">Skript</Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Tip: For best results, write your greeting and script in the same
-                  language you want the agent to speak.
+                  Tipp: Schreibe Begrüßung und Skript in der Sprache, in der der Agent sprechen soll.
                 </p>
                 <Textarea
                   id="script"
@@ -1593,17 +1612,17 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <span className={textStyles.sectionTitle}>Call logic</span>
+                <span className={textStyles.sectionTitle}>Anruflogik</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Info className="h-4 w-4 text-gray-400 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs text-sm text-gray-700">
-                    <p>Configure the calling strategy:</p>
+                    <p>Konfiguriere die Anrufstrategie:</p>
                     <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>Max attempts: how many times to call a lead</li>
-                      <li>Interval: waiting time between attempts</li>
-                      <li>Active times: when the agent may call</li>
+                      <li>Max. Versuche: Wie oft ein Lead angerufen wird</li>
+                      <li>Intervall: Wartezeit zwischen den Versuchen</li>
+                      <li>Aktive Zeiten: Wann der Agent anrufen darf</li>
                     </ul>
                   </TooltipContent>
                 </Tooltip>
@@ -1612,7 +1631,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="maxAttempts">Maximum call attempts</Label>
+                  <Label htmlFor="maxAttempts">Maximale Anrufversuche</Label>
                   <Input
                     id="maxAttempts"
                     type="number"
@@ -1624,7 +1643,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                 </div>
                 
                 <div>
-                  <Label htmlFor="callInterval">Call interval (minutes)</Label>
+                  <Label htmlFor="callInterval">Anrufintervall (Minuten)</Label>
                   <Input
                     id="callInterval"
                     type="number"
@@ -1638,14 +1657,14 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <Label>Active days</Label>
+                  <Label>Aktive Tage</Label>
                   <div className="grid grid-cols-7 gap-2 mt-2">
-                    {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day, index) => (
+                    {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => (
                       <button
                         key={day}
                         className={`w-10 h-10 rounded-full border text-sm font-medium transition-colors ${
                           config.workingDays?.[index]
-                            ? "bg-[#3d5097] text-white border-[#3d5097] hover:bg-[#344482]"
+                            ? "bg-[#FE5B25] text-white border-[#FE5B25] hover:bg-[#fe5b25]/90"
                             : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                         }`}
                         aria-pressed={!!config.workingDays?.[index]}
@@ -1666,19 +1685,19 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                 </div>
 
                 <div>
-                  <Label>Time window</Label>
+                  <Label>Zeitfenster</Label>
                   <div className="flex items-center gap-3 mt-2">
                     <TimePicker
                       value={config.workingTimeStart || '09:00'}
                       onChange={(v) => setConfig(prev => ({ ...prev, workingTimeStart: v }))}
                     />
-                    <span className="text-sm text-gray-500">to</span>
+                    <span className="text-sm text-gray-500">bis</span>
                     <TimePicker
                       value={config.workingTimeEnd || '17:00'}
                       onChange={(v) => setConfig(prev => ({ ...prev, workingTimeEnd: v }))}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">24h format, local timezone</p>
+                  <p className="text-xs text-gray-500 mt-1">24‑h Format, lokale Zeitzone</p>
                 </div>
               </div>
             </CardContent>
@@ -1689,30 +1708,30 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
         <TabsContent value="integrations" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Calendar & event types</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Kalender & Event‑Typen</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div>
-                <Label htmlFor="eventType">Event type for bookings</Label>
+                <Label htmlFor="eventType">Event‑Typ für Buchungen</Label>
                 {isLoadingEventTypes ? (
                   <Select disabled>
                     <SelectTrigger>
-                      <SelectValue placeholder="Loading event types..." />
+                      <SelectValue placeholder="Event‑Typen werden geladen..." />
                     </SelectTrigger>
                   </Select>
                 ) : availableEventTypes.length === 0 ? (
                   <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="No event types available" />
+                        <SelectValue placeholder="Keine Event‑Typen verfügbar" />
                       </SelectTrigger>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Manage event types in the <button 
+                      Verwalte Event‑Typen im <button 
                         onClick={() => navigate('/dashboard/calendar')}
-                        className="text-[#3d5097] hover:underline"
+                        className="text-[#FE5B25] hover:underline"
                       >
-                        calendar section
+                        Kalender‑Bereich
                       </button>.
                     </p>
                   </div>
@@ -1727,10 +1746,10 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select event type (optional)" />
+                      <SelectValue placeholder="Event‑Typ auswählen (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No event type</SelectItem>
+                      <SelectItem value="none">Kein Event‑Typ</SelectItem>
                       {availableEventTypes.map((eventType) => (
                         <SelectItem key={eventType.id} value={eventType.id}>
                           {eventType.name} ({eventType.duration} Min)
@@ -1745,7 +1764,7 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
 
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>CSV Lead sources</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Leadquellen</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               {/* Selected Event Type Details */}
@@ -1790,31 +1809,55 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                 </div>
               )}
               <div>
-                <Label htmlFor="leadForm">CSV lead source for outbound calls</Label>
+                <Label htmlFor="leadForm">Leadquelle für ausgehende Anrufe</Label>
                 {isLoadingLeadForms ? (
                   <Select disabled>
                     <SelectTrigger>
-                      <SelectValue placeholder="Loading lead forms..." />
+                      <SelectValue placeholder="Leadquellen werden geladen..." />
                     </SelectTrigger>
                   </Select>
                 ) : availableLeadForms.length === 0 ? (
                   <div className="space-y-2">
                     <Select disabled>
                       <SelectTrigger>
-                        <SelectValue placeholder="No CSV leads available" />
+                        <SelectValue placeholder="Keine Leadquellen verfügbar" />
                       </SelectTrigger>
                     </Select>
                     <p className="text-xs text-gray-500">
-                      Upload CSV leads in the <button 
+                      Erstelle eine Leadquelle im <button 
                         onClick={() => navigate('/dashboard/lead-sources')}
-                        className="text-[#3d5097] hover:underline"
+                        className="text-[#FE5B25] hover:underline"
                       >
-                        CSV upload
+                        Bereich Leadquellen
                       </button>.
                     </p>
                   </div>
                 ) : (
                   <>
+                    {/* Demo leads preview (first 20) */}
+                    <div className="mb-4 rounded-md border bg-white">
+                      <div className="px-3 py-2 border-b text-sm font-medium">Beispiel‑Leads (20)</div>
+                      <div className="max-h-48 overflow-auto">
+                        <table className="min-w-full text-xs">
+                          <thead>
+                            <tr className="text-left text-gray-500">
+                              <th className="py-2 px-3">Name</th>
+                              <th className="py-2 px-3">Service</th>
+                              <th className="py-2 px-3">Telefon</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {demoLeads.map((l) => (
+                              <tr key={l.id} className="border-t">
+                                <td className="py-2 px-3">{l.first_name} {l.last_name}</td>
+                                <td className="py-2 px-3 text-gray-600">{l.product_or_service}</td>
+                                <td className="py-2 px-3 text-gray-600">{l.phone}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                     <Select 
                       value={config.selectedLeadForm || "none"} 
                       onValueChange={(value) => {
@@ -1829,22 +1872,22 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select CSV lead source (optional)" />
+                        <SelectValue placeholder="Leadquelle auswählen (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">No lead source connected</SelectItem>
+                        <SelectItem value="none">Keine Leadquelle verbunden</SelectItem>
                         {availableLeadForms.map((form) => (
                           <SelectItem key={form.id} value={form.id}>
                             <div className="flex items-center gap-2">
-                              <img src="/csv icon.png" alt="CSV" className="w-4 h-4 object-contain" />
-                              <span>{form.name || form.meta_form_id} - {form.source_type_display || 'CSV Import'}</span>
+                              <img src="/csv icon.png" alt="Leadquelle" className="w-4 h-4 object-contain" />
+                              <span>{form.name || form.meta_form_id} - {form.source_type_display || 'Leadquelle'}</span>
                             </div>
                           </SelectItem>
                         ))}
                         {leadFormsPagination.hasMore && (
                           <SelectItem 
                             value="load-more" 
-                            className="text-[#3d5097] font-medium cursor-pointer"
+                            className="text-[#FE5B25] font-medium cursor-pointer"
                           >
                             <div className="flex items-center gap-2">
                               {isLoadingMoreLeadForms ? (
@@ -1854,8 +1897,8 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
                               )}
                               <span>
                                 {isLoadingMoreLeadForms 
-                                  ? "Loading more..." 
-                                  : `Load more (${availableLeadForms.length} of ${leadFormsPagination.totalCount})`
+                                  ? "Weitere werden geladen..." 
+                                  : `Mehr laden (${availableLeadForms.length} von ${leadFormsPagination.totalCount})`
                                 }
                               </span>
                             </div>
@@ -1869,56 +1912,32 @@ Agent: “Wonderful. I wish you a successful consultation and a pleasant day!”
             </CardContent>
           </Card>
 
-          {/* Dokumentenversand (minimal, gleicher Stil wie Kalender-Zeile) */}
+          {/* Dokumentenversand ausgeblendet */}
+          {false && (
           <Card>
             <CardHeader>
-              <CardTitle className={textStyles.sectionTitle}>Document sending</CardTitle>
+              <CardTitle className={textStyles.sectionTitle}>Dokumentversand</CardTitle>
             </CardHeader>
             <CardContent className={layoutStyles.cardContent}>
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <Label>Document for email sending</Label>
+                  <Label>Dokument für E‑Mail‑Versand</Label>
                   <div className="flex items-center justify-between border rounded-md px-3 py-2 text-sm">
                     <span className="text-gray-600">
-                      {docStatus?.filename ? `PDF: ${docStatus.filename}${docStatus?.fromEmail ? ` • From: ${docStatus.fromEmail}` : ''}` : 'No document sending'}
+                      {docStatus?.filename ? `PDF: ${docStatus.filename}${docStatus?.fromEmail ? ` • Von: ${docStatus.fromEmail}` : ''}` : 'Kein Dokumentversand aktiviert'}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <Button variant="default" onClick={() => setDocDialogOpen(true)}
-                        title="Configure SMTP, upload PDF – the agent will send it automatically later">
-                        Add document sending
-                      </Button>
-                    </div>
+                    <Button variant="default" onClick={() => setDocDialogOpen(true)}
+                      title="SMTP konfigurieren, PDF hochladen – der Agent versendet es später automatisch">
+                      Dokumentversand hinzufügen
+                    </Button>
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Dialog für Dokumentenversand */}
-          <DocumentSendDialog
-            open={docDialogOpen}
-            onOpenChange={setDocDialogOpen}
-            workspaceId={primaryWorkspace?.id || ""}
-            agentId={id || ""}
-            onChanged={async () => {
-              try {
-                if (!primaryWorkspace?.id || !id) return;
-                // Nach Änderungen den sichtbaren Status aktualisieren (leichtgewichtiger GET)
-                const [{ workspaceAPI }, { agentAPI }] = await Promise.all([
-                  import("@/lib/apiService"),
-                  import("@/lib/apiService"),
-                ]);
-                const [smtp, doc] = await Promise.all([
-                  workspaceAPI.getSmtpSettings(primaryWorkspace.id),
-                  agentAPI.getSendDocument(id),
-                ]);
-                setDocStatus({ filename: doc.filename, fromEmail: smtp?.smtp_from_email || null });
-              } catch {}
-            }}
-          />
-
+          )}
         </TabsContent>
       </Tabs>
     </div>
   );
-} 
+}

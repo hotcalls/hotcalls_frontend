@@ -227,7 +227,7 @@ function EventTypeStep2({ formData, setFormData, availableCalendars, workspaceId
               <Label htmlFor={sa.id} className="flex items-center space-x-2">
                 <span>{sa.label} <span className="text-xs text-muted-foreground">({sa.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})</span></span>
                 {formData.calendar === sa.id && formData.calendar !== 'none' && (
-                  <Badge className="bg-[#3d5097] text-white text-xs">Zielkalender</Badge>
+                  <Badge className="bg-[#FE5B25] text-white text-xs">Zielkalender</Badge>
                 )}
               </Label>
             </div>
@@ -276,8 +276,8 @@ function EventTypeStep3({ formData, setFormData }: { formData: EventTypeFormData
                 className={`
                   cursor-pointer block w-full py-2 px-1 text-sm rounded-lg border-2 transition-all
                   ${formData.workdays.includes(key) 
-                    ? 'bg-[#3d5097] border-[#3d5097] text-white' 
-                    : 'bg-white border-gray-200 text-gray-700 hover:border-[#3d5097]'
+                    ? 'bg-[#FE5B25] border-[#FE5B25] text-white' 
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-[#FE5B25]'
                   }
                 `}
               >
@@ -375,14 +375,14 @@ function EventTypeStep5({ formData, setFormData }: { formData: EventTypeFormData
         <div className="grid grid-cols-2 gap-3">
           <Button
             variant={formData.meeting_type === 'online' ? 'default' : 'outline'}
-            className={formData.meeting_type === 'online' ? 'bg-[#3d5097]' : ''}
+            className={formData.meeting_type === 'online' ? 'bg-[#FE5B25]' : ''}
             onClick={() => setFormData({ ...formData, meeting_type: 'online' })}
           >
             📹 Online Meeting
           </Button>
           <Button
             variant={formData.meeting_type === 'in_person' ? 'default' : 'outline'}
-            className={formData.meeting_type === 'in_person' ? 'bg-[#3d5097]' : ''}
+            className={formData.meeting_type === 'in_person' ? 'bg-[#FE5B25]' : ''}
             onClick={() => setFormData({ ...formData, meeting_type: 'in_person' })}
           >
             📍 Vor Ort
@@ -546,12 +546,12 @@ function EventTypeModal({
           </div>
           <div>
             {currentStep < 5 ? (
-              <Button onClick={handleNext} className="bg-[#3d5097] hover:bg-[#3d5097]">
+              <Button onClick={handleNext} className="bg-[#FE5B25] hover:bg-[#fe5b25]/90">
                 Weiter
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleSubmit} className="bg-[#3d5097] hover:bg-[#3d5097]">
+              <Button onClick={handleSubmit} className="bg-[#FE5B25] hover:bg-[#fe5b25]/90">
                 Event Type erstellen
               </Button>
             )}
@@ -592,7 +592,7 @@ function EventTypeCard({ eventType, onEdit, onDelete }: {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge className="bg-[#3d5097] text-white">Aktiv</Badge>
+            <Badge className="bg-[#FE5B25] text-white">Aktiv</Badge>
             <Button variant="ghost" size="sm" onClick={() => onEdit(eventType)}>
               <Settings className="h-4 w-4" />
             </Button>
@@ -783,7 +783,7 @@ function EventTypeEditModal({
 
         <DialogFooter className="border-t pt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button onClick={handleUpdate} className="bg-[#3d5097] hover:bg-[#3d5097]">
+          <Button onClick={handleUpdate} className="bg-[#FE5B25] hover:bg-[#fe5b25]/90">
             Änderungen speichern
           </Button>
         </DialogFooter>
@@ -1228,18 +1228,18 @@ export default function Calendar() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Calendar settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Kalendereinstellungen</h1>
           <p className="text-muted-foreground">
-            Manage your calendar integrations and event types
+            Verwalte deine Kalender‑Integrationen und Event‑Typen
           </p>
         </div>
         <Button 
           onClick={activeTab === 'calendars' ? () => setShowProviderDialog(true) : () => setShowEventTypeModal(true)}
           disabled={activeTab === 'event-types' && !hasAnyCalendarConnected}
-          className="bg-[#3d5097] hover:bg-[#3d5097] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4 mr-2" />
-          {activeTab === 'calendars' ? 'Connect calendar' : 'Create event type'}
+          {activeTab === 'calendars' ? 'Kalender verbinden' : 'Event‑Typ erstellen'}
         </Button>
       </div>
 
@@ -1256,8 +1256,8 @@ export default function Calendar() {
         className="w-full"
       >
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="calendars">Calendars</TabsTrigger>
-          <TabsTrigger value="event-types">Event types</TabsTrigger>
+          <TabsTrigger value="calendars">Kalender</TabsTrigger>
+          <TabsTrigger value="event-types">Event‑Typen</TabsTrigger>
         </TabsList>
 
         {/* Kalender Tab */}
@@ -1266,8 +1266,8 @@ export default function Calendar() {
             <Card>
               <CardContent className="flex items-center justify-center py-12">
                 <div className="text-center space-y-4">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3d5097]" />
-                  <p className="text-sm text-muted-foreground">Loading calendars...</p>
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#FE5B25]" />
+                  <p className="text-sm text-muted-foreground">Kalender werden geladen...</p>
                 </div>
               </CardContent>
             </Card>
@@ -1276,7 +1276,7 @@ export default function Calendar() {
               {/* Google Connections */}
               {googleConnections.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-semibold mb-4">Google Calendar connections</h2>
+                  <h2 className="text-lg font-semibold mb-4">Google Calendar Verbindungen</h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {googleConnections.map((connection) => (
                       <GoogleConnectionCard 
@@ -1296,7 +1296,7 @@ export default function Calendar() {
               {/* Microsoft Connections */}
               {microsoftConnections.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-semibold mb-4">Microsoft 365 connections</h2>
+                  <h2 className="text-lg font-semibold mb-4">Microsoft 365 Verbindungen</h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {microsoftConnections.map((connection) => (
                       <MicrosoftConnectionCard 
@@ -1319,13 +1319,13 @@ export default function Calendar() {
                 <Card>
                   <CardContent className="text-center py-12">
                     <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No calendars connected</h3>
+                    <h3 className="text-lg font-semibold mb-2">Keine Kalender verbunden</h3>
                     <p className="text-muted-foreground mb-4">
-                      Connect your calendar (Google or Microsoft 365) to create event types.
+                      Verbinde deinen Kalender (Google oder Microsoft 365), um Event‑Typen zu erstellen.
                     </p>
-                    <Button onClick={() => setShowProviderDialog(true)} className="bg-[#3d5097] hover:bg-[#3d5097]">
+                    <Button onClick={() => setShowProviderDialog(true)} className="bg-[#FE5B25] hover:bg-[#fe5b25]/90">
                       <Plus className="h-4 w-4 mr-2" />
-                      Connect calendar
+                      Kalender verbinden
                     </Button>
                   </CardContent>
                 </Card>
@@ -1339,14 +1339,14 @@ export default function Calendar() {
           {isLoadingEventTypes ? (
             <Card>
               <CardContent className="text-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#3d5097]" />
-                <p className="text-muted-foreground">Loading event types...</p>
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-[#FE5B25]" />
+                <p className="text-muted-foreground">Event‑Typen werden geladen...</p>
               </CardContent>
             </Card>
           ) : eventTypes.length > 0 ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Your event types</h2>
+                <h2 className="text-lg font-semibold">Deine Event‑Typen</h2>
                 <Badge variant="outline">{eventTypes.length}</Badge>
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1364,21 +1364,21 @@ export default function Calendar() {
             <Card>
               <CardContent className="text-center py-12">
                 <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No event types yet</h3>
+                <h3 className="text-lg font-semibold mb-2">Noch keine Event‑Typen</h3>
                 <p className="text-muted-foreground mb-4">
                   {hasAnyCalendarConnected
-                    ? "Create your first event type to enable bookings."
-                    : "Connect a calendar (Google or Microsoft 365) first to create event types."
+                    ? "Erstelle deinen ersten Event‑Typ, um Buchungen zu ermöglichen."
+                    : "Verbinde zuerst einen Kalender (Google oder Microsoft 365), um Event‑Typen zu erstellen."
                  }
                 </p>
                 {/* Event Type Creation - Only if calendar connected (like WelcomeOverlay pattern) */}
                 {hasAnyCalendarConnected && (
                   <Button 
                     onClick={() => setShowEventTypeModal(true)}
-                    className="bg-[#3d5097] hover:bg-[#3d5097]"
+                    className="bg-[#FE5B25] hover:bg-[#fe5b25]/90"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Create event type
+                    Event‑Typ erstellen
                   </Button>
                 )}
               </CardContent>
@@ -1435,21 +1435,21 @@ export default function Calendar() {
       <AlertDialog open={showProviderDialog} onOpenChange={setShowProviderDialog}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Select calendar provider</AlertDialogTitle>
+            <AlertDialogTitle>Kalender‑Provider auswählen</AlertDialogTitle>
             <AlertDialogDescription>
-              Choose which calendar you want to connect.
+              Wähle, welchen Kalender du verbinden möchtest.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <Button variant="outline" className="justify-start" onClick={handleConnectGoogleCalendar}>
-              <span className="mr-2">🟢</span> Connect Google Calendar
+              <span className="mr-2">🟢</span> Google Calendar verbinden
             </Button>
             <Button variant="outline" className="justify-start" onClick={handleConnectMicrosoftCalendar}>
-              <span className="mr-2">🔵</span> Connect Microsoft 365 (Outlook/Exchange)
+              <span className="mr-2">🔵</span> Microsoft 365 verbinden (Outlook/Exchange)
             </Button>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
+            <AlertDialogCancel>Schließen</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1567,7 +1567,7 @@ function GoogleConnectionCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-white rounded-lg">
-              <CalendarIcon className="h-5 w-5 text-[#3d5097]" />
+              <CalendarIcon className="h-5 w-5 text-[#FE5B25]" />
             </div>
             <div>
               <CardTitle className="text-base">Google Calendar</CardTitle>
@@ -1745,7 +1745,7 @@ function CalendarCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className={`p-2 rounded-lg ${calendar.isConnected ? "bg-white" : "bg-muted"}`}>
-              <CalendarIcon className={`h-5 w-5 ${calendar.isConnected ? "text-[#3d5097]" : "text-muted-foreground"}`} />
+              <CalendarIcon className={`h-5 w-5 ${calendar.isConnected ? "text-[#FE5B25]" : "text-muted-foreground"}`} />
             </div>
             <div>
               <CardTitle className="text-base">{calendar.name}</CardTitle>
@@ -1754,7 +1754,7 @@ function CalendarCard({
           </div>
           <div className="flex items-center gap-2">
             {calendar.isPrimary && (
-              <Badge className="bg-[#3d5097] text-white text-xs">Haupt</Badge>
+              <Badge className="bg-[#FE5B25] text-white text-xs">Haupt</Badge>
             )}
             {calendar.isConnected && (
               <Badge variant="outline" className="text-green-600 border-green-600 text-xs">
@@ -1778,7 +1778,7 @@ function CalendarCard({
       <CardContent>
         <div className="grid grid-cols-2 gap-4 text-center">
           <div>
-            <p className="text-lg font-bold text-[#3d5097]">{calendar.eventTypesCount}</p>
+            <p className="text-lg font-bold text-[#FE5B25]">{calendar.eventTypesCount}</p>
             <p className="text-xs text-muted-foreground">Event-Types</p>
           </div>
           <div>

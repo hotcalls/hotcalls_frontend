@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
@@ -18,7 +18,7 @@ import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import Plans from "./pages/Plans";
 import NotFound from "./pages/NotFound";
-import Home from "./pages/Home";
+// import Home from "./pages/Home";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -27,6 +27,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import AGB from "./pages/AGB";
 import Datenschutz from "./pages/Datenschutz";
 import Datenlöschung from "./pages/Datenlöschung";
+import Welcome from "./pages/Welcome";
 
 const queryClient = new QueryClient();
 
@@ -38,10 +39,11 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* Home redirect logic */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           
           {/* Auth Routes (without Layout) */}
           <Route path="/login" element={<Login />} />
+          <Route path="/welcome" element={<Welcome />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/email-verification-pending" element={<EmailVerificationPending />} />

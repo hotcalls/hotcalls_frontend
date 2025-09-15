@@ -27,7 +27,7 @@ export default function Datenschutz() {
             <section>
               <h2 className="text-xl font-semibold mb-3">1. Verantwortlicher</h2>
               <p className="mb-4">Verantwortlich für die Datenverarbeitung im Zusammenhang mit „HotCalls" ist die malmachen GbR:</p>
-              <div className="bg-gray-50 p-4 rounded-lg font-mono text-sm mb-4">
+              <div className="bg-gray-50 p-4 rounded-lg text-sm mb-4">
                 malmachen GbR<br />
                 Am Stadtpark 25<br />
                 94469 Deggendorf<br />

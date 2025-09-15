@@ -187,9 +187,9 @@ export default function Agents() {
       {/* Page Header - EINHEITLICH */}
       <div className={layoutStyles.pageHeader}>
         <div>
-          <h1 className={textStyles.pageTitle}>AI agents</h1>
+          <h1 className={textStyles.pageTitle}>KI‑Agenten</h1>
           <p className={textStyles.pageSubtitle}>
-            Manage and configure your AI agents
+            Verwalte und konfiguriere deine KI‑Agenten
             {primaryWorkspace && ` • ${primaryWorkspace.workspace_name}`}
           </p>
         </div>
@@ -206,7 +206,7 @@ export default function Agents() {
           disabled={isAtAgentLimit || usageLoading}
         >
           <Plus className={iconSizes.small} />
-          <span>Create new agent</span>
+          <span>Neuen Agent erstellen</span>
         </button>
       </div>
 
@@ -237,20 +237,20 @@ export default function Agents() {
           <div className="col-span-full flex items-center justify-center py-12">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-gray-500 mx-auto mb-2" />
-              <p className="text-gray-500">Loading agents...</p>
+              <p className="text-gray-500">Agenten werden geladen...</p>
             </div>
           </div>
         ) : agentList.length === 0 ? (
           <div className="col-span-full flex items-center justify-center py-12">
             <div className="text-center">
               <Bot className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">No agents found</p>
+              <p className="text-gray-500 mb-2">Keine Agenten gefunden</p>
               <p className="text-sm text-gray-400 mb-4">
-                Create your first agent to get started!
+                Erstelle deinen ersten Agenten, um zu starten!
               </p>
               <Button onClick={() => navigate("/dashboard/agents/create")}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create first agent
+                Ersten Agent erstellen
               </Button>
             </div>
           </div>
@@ -360,7 +360,7 @@ export default function Agents() {
                 <CardContent className={layoutStyles.cardContent}>
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div>
-                      <p className={textStyles.metricLabel}>Character</p>
+                      <p className={textStyles.metricLabel}>Charakter</p>
                       <p className="text-sm font-normal text-gray-600">
                         {(() => {
                           const c = (agent.character || '').toString();
@@ -374,11 +374,11 @@ export default function Agents() {
                       </p>
                     </div>
                     <div>
-                      <p className={textStyles.metricLabel}>Voice</p>
+                      <p className={textStyles.metricLabel}>Stimme</p>
                       <p className="text-sm font-normal text-gray-600">{voiceName}</p>
                     </div>
                     <div>
-                      <p className={textStyles.metricLabel}>Working hours</p>
+                      <p className={textStyles.metricLabel}>Arbeitszeiten</p>
                       <p className="text-sm font-normal text-gray-600">
                         {agent.call_from?.slice(0, 5) || '09:00'} - {agent.call_to?.slice(0, 5) || '17:00'}
                       </p>
