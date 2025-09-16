@@ -71,7 +71,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             ws?.subscription_status === 'active' ||
             ws?.plan_status === 'active'
           );
-          
+
+          console.log('📊 Workspace subscription status:', {
             is_subscription_active: ws?.is_subscription_active,
             has_active_subscription: ws?.has_active_subscription,
             subscription_active: ws?.subscription_active,
@@ -87,7 +88,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       const finalActive = activeBySubscription || activeByWorkspace;
 
-      
+      console.log('🔄 Final subscription determination:', {
         activeBySubscription,
         activeByWorkspace,
         finalActive,
@@ -99,7 +100,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (!finalActive) {
         console.log('🆕 No active subscription at login, will show plan selection');
       } else {
-        
+        console.log('✅ Active subscription found, user has full access');
       }
       
     } catch (error: any) {
@@ -115,8 +116,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       // STRICT AUTHENTICATION CHECK
       const authToken = localStorage.getItem('authToken');
       const userLoggedIn = localStorage.getItem('userLoggedIn');
-      
-      
+
+      console.log('🔍 Checking authentication state:', {
         hasAuthToken: !!authToken,
         hasUserLoggedInFlag: userLoggedIn === 'true',
         authTokenLength: authToken?.length || 0
@@ -124,7 +125,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       // FAIL FAST: If no token or flag, immediate redirect
       if (!authToken || userLoggedIn !== 'true') {
-        
+        console.log('❌ No valid authentication found, redirecting to login');
         authService.clearUser(); // Clear any stale data
         setIsAuthenticated(false);
         setIsValidating(false);
@@ -136,7 +137,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       
       try {
         const profileResponse = await authAPI.getProfile();
-        
+        console.log('✅ Token validation successful:', profileResponse.email);
         setIsAuthenticated(true);
         
         // After successful authentication, check subscription status
@@ -182,7 +183,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // STRICT: Redirect to login if not authenticated
   if (!isAuthenticated) {
-    
+    console.log('🚫 User not authenticated, redirecting to login page');
     return <Navigate to="/login" replace />;
   }
 
@@ -192,6 +193,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Let the Layout component handle showing the WelcomeFlow for plan selection
   }
 
-  
   return <>{children}</>;
 } 

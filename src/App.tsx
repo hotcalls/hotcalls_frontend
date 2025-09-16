@@ -61,7 +61,7 @@ const App = () => (
           
           {/* Main App Routes (with Layout and Welcome Overlay) - Protected */}
           <Route path="/dashboard/*" element={
-            // <ProtectedRoute>
+            <ProtectedRoute>
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
@@ -80,7 +80,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Layout>
-            // </ProtectedRoute>
+            </ProtectedRoute>
           } />
         </Routes>
       </BrowserRouter>
