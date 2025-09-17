@@ -651,9 +651,9 @@ export default function Dashboard() {
   // Metriken-Definitionen
   const metricConfig = {
     leads: { key: 'leads', name: 'Leads', icon: Users },
-    calls: { key: 'calls', name: 'Reached Leads', icon: Phone },
-    appointments: { key: 'appointments', name: 'Appointments', icon: CalendarIcon },
-    conversion: { key: 'conversion', name: 'Conversion Rate', icon: TrendingUp, suffix: '%' }
+    calls: { key: 'calls', name: 'Erreichte Leads', icon: Phone },
+    appointments: { key: 'appointments', name: 'Termine', icon: CalendarIcon },
+    conversion: { key: 'conversion', name: 'Konversionsrate', icon: TrendingUp, suffix: '%' }
   };
 
   // Statistiken basierend auf echten API-Daten + Dummy-Daten berechnen
@@ -684,7 +684,7 @@ export default function Dashboard() {
     return [
       {
         id: 'leads',
-        title: "Leads",
+        title: metricConfig.leads.name,
         value: leadsLoading ? "..." : leadsError ? "Error" : totalLeads.toLocaleString('de-DE'),
         change: leadsLoading ? "" : leadsError ? "" : calculateChange(totalLeads, prevTotalLeads),
         icon: Users,
@@ -694,7 +694,7 @@ export default function Dashboard() {
       },
       {
         id: 'calls',
-        title: "Reached Leads", 
+        title: metricConfig.calls.name,
         value: callsLoading ? "..." : callsError ? "Error" : totalCalls.toLocaleString('de-DE'),
         change: callsLoading ? "" : callsError ? "" : calculateChange(totalCalls, prevTotalCalls),
         icon: Phone,
@@ -704,7 +704,7 @@ export default function Dashboard() {
       },
       {
         id: 'appointments',
-        title: "Appointments",
+        title: metricConfig.appointments.name,
         value: appointmentsLoading ? "..." : appointmentsError ? "Error" : totalAppointments.toLocaleString('de-DE'),
         change: appointmentsLoading ? "" : appointmentsError ? "" : calculateChange(totalAppointments, prevTotalAppointments),
         icon: CalendarIcon,
@@ -714,7 +714,7 @@ export default function Dashboard() {
       },
       {
         id: 'conversion',
-        title: "Conversion Rate",
+        title: metricConfig.conversion.name,
         value: `${conversionRate.toFixed(1)}%`,
         change: calculateChange(conversionRate, prevConversionRate),
         icon: TrendingUp,

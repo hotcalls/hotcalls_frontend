@@ -42,24 +42,6 @@ export default function Leads() {
   const [hoverLead, setHoverLead] = useState<null | { lead: string; email: string; phone: string; agent: string; status: string; date: string; summary?: string; transcript?: string }>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState("");
-  // Demo leads when API returns none
-  const demoLeads = useMemo(() => {
-    const firstNames = ["Max", "Anna", "Lukas", "Mia", "Jonas", "Lea", "Paul", "Emma", "Felix", "Sofia"];
-    const lastNames = ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Wagner", "Becker", "Hoffmann", "Meyer", "Klein"];
-    return Array.from({ length: 20 }, (_, i) => {
-      const fn = firstNames[i % firstNames.length];
-      const ln = lastNames[(i * 3) % lastNames.length];
-      return {
-        id: `demo-${i+1}`,
-        full_name: `${fn} ${ln}`,
-        email: `${fn.toLowerCase()}.${ln.toLowerCase()}@example.com`,
-        phone: `+49 151 ${String(100000 + i * 137).slice(0,6)}`,
-        integration_provider: 'csv',
-        integration_provider_display: 'CSV',
-        created_at: new Date(Date.now() - i * 86400000).toISOString(),
-      } as unknown as Lead;
-    });
-  }, []);
   
   const [pagination, setPagination] = useState({
     count: 0,
@@ -448,59 +430,12 @@ export default function Leads() {
               {error}
             </div>
           ) : leads.length === 0 ? (
-            <>
-              <div className="space-y-1">
-                <div className="grid grid-cols-12 gap-x-6 px-6 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground border-b">
-                  <div className="col-span-3">Lead‑Name</div>
-                  <div className="col-span-2">E‑Mail</div>
-                  <div className="col-span-2">Telefon</div>
-                  <div className="col-span-2">Quelle</div>
-                  <div className="col-span-3">Erstellt</div>
-                </div>
-                {demoLeads.map((lead) => {
-                  const statusCycle = ['Nicht erreicht','Erreicht','Termin vereinbart','Kein Interesse'];
-                  const status = statusCycle[Number(String(lead.id).replace('demo-','')) % statusCycle.length];
-                  const notReached = status === 'Nicht erreicht';
-                  const summary = notReached
-                    ? 'Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.'
-                    : `Kurze Zusammenfassung: Gespräch mit ${lead.full_name} über Produktinteresse. Status: ${status}.`;
-                  const transcript = notReached
-                    ? '— Lead wurde noch nicht erreicht. Kein Transkript vorhanden —'
-                    : `Agent: Hallo ${lead.full_name}, vielen Dank für Ihre Zeit.\n\nLead: Gerne.\n\nAgent: Ich würde Ihnen kurz erklären, wie wir weiter vorgehen können...`;
-                  return (
-                  <div key={lead.id}
-                       role="button"
-                       tabIndex={0}
-                       onKeyDown={(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); setHoverLead({ lead: lead.full_name, email: lead.email, phone: lead.phone, agent: 'Demo Agent', status, date: lead.created_at, summary, transcript }); } }}
-                       onClick={()=> setHoverLead({ lead: lead.full_name, email: lead.email, phone: lead.phone, agent: 'Demo Agent', status, date: lead.created_at, summary, transcript })}
-                       className="grid grid-cols-12 gap-x-6 px-6 py-3 text-sm items-center border-b last:border-b-0 hover:bg-muted/50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5B25]/40">
-                    <div className="col-span-3 flex items-center space-x-2 min-w-0">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium truncate">{lead.full_name}</span>
-                    </div>
-                    <div className="col-span-2 flex items-center space-x-2 min-w-0">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground truncate" title={lead.email}>{lead.email}</span>
-                    </div>
-                    <div className="col-span-2 flex items-center space-x-2 min-w-0">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{lead.phone}</span>
-                    </div>
-                    <div className="col-span-2 text-muted-foreground text-sm flex items-center gap-1 min-w-0">
-                      <img src="/csv icon.png" alt="CSV" className="w-4 h-4 shrink-0 opacity-70" />
-                      <span className="truncate" title="CSV">CSV</span>
-                    </div>
-                    <div className="col-span-3 flex items-center space-x-2">
-                      <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                      <div className="text-xs text-muted-foreground">
-                        <div className="font-medium">{format(new Date(lead.created_at), 'dd.MM.yyyy', { locale: de })}</div>
-                        <div className="text-[10px] opacity-75">{format(new Date(lead.created_at), 'HH:mm', { locale: de })}</div>
-                      </div>
-                    </div>
-                  </div>
-                )})}
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">Keine Leads gefunden</div>
+              <div className="text-sm text-muted-foreground mt-2">
+                Finden Sie Leads durch Meta-Anbindung oder andere Integrationen
               </div>
-            </>
+            </div>
           ) : (
             <>
             <div className="space-y-1">
