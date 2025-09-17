@@ -115,18 +115,14 @@ const Login = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-6">
-            <img 
-              src="/HC Logo.png" 
-              alt="HC Logo" 
-              className="h-16 md:h-20 w-auto object-contain"
-            />
+            <img src="/hotcalls-logo.png" alt="hotcalls" className="h-12 w-auto" onError={(e) => { const img = e.target as HTMLImageElement; img.style.display = 'none'; const fallback = img.nextElementSibling as HTMLElement; if (fallback) fallback.style.display = 'flex'; }} />
             <div className="items-center gap-2 justify-center hidden">
-              <div className="w-8 h-8 bg-[#3d5097] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
-              <span className="text-2xl font-bold text-gray-900">HC Logo</span>
+              <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
+              <span className="text-2xl font-bold text-gray-900">hotcalls</span>
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Willkommen zurück</CardTitle>
-          <CardDescription>Melden Sie sich bei Ihrem HC Konto an</CardDescription>
+          <CardDescription>Melden Sie sich bei Ihrem HotCalls Konto an</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -151,7 +147,10 @@ const Login = () => {
               <Link to="/forgot-password" className="text-sm text-primary hover:underline">Passwort vergessen?</Link>
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>{isLoading ? "Anmeldung läuft..." : "Anmelden"}</Button>
-
+            <div className="text-center text-sm">
+              <span className="text-muted-foreground">Noch kein Account? </span>
+              <Link to={nextQuery ? `/signup?next=${encodeURIComponent(nextQuery)}` : "/signup"} className="text-primary hover:underline font-medium">Jetzt registrieren</Link>
+            </div>
           </form>
         </CardContent>
       </Card>
