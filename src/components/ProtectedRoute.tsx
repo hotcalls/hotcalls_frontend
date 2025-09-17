@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '@/lib/authService';
-import { authAPI, workspaceAPI, paymentAPI } from '@/lib/apiService';
+import { authAPI, workspaceAPI, paymentAPI, agentAPI } from '@/lib/apiService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +11,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [hasAgents, setHasAgents] = useState(false);
+  const [shouldShowWelcomeFlow, setShouldShowWelcomeFlow] = useState(false);
   const [shouldShowPlanSelection, setShouldShowPlanSelection] = useState(false);
 
   useEffect(() => {
@@ -88,26 +90,49 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       const finalActive = activeBySubscription || activeByWorkspace;
 
-      console.log('🔄 Final subscription determination:', {
+      // Check for existing agents
+      let userHasAgents = false;
+      try {
+        const agents = await agentAPI.getAgents(primaryWorkspace.id);
+        userHasAgents = agents && agents.length > 0;
+        console.log('🤖 Agent check result:', { agentCount: agents?.length || 0, userHasAgents });
+      } catch (error) {
+        console.warn('⚠️ Failed to check agents:', error);
+        userHasAgents = false;
+      }
+
+      // Determine if welcome flow is needed
+      const needsWelcomeFlow = !finalActive && !userHasAgents;
+
+      console.log('🔄 Final subscription and agent determination:', {
         activeBySubscription,
         activeByWorkspace,
         finalActive,
+        userHasAgents,
+        needsWelcomeFlow,
         lastResponse,
       });
 
       setHasActiveSubscription(finalActive);
-      setShouldShowPlanSelection(!finalActive);
-      if (!finalActive) {
-        console.log('🆕 No active subscription at login, will show plan selection');
+      setHasAgents(userHasAgents);
+      setShouldShowWelcomeFlow(needsWelcomeFlow);
+      setShouldShowPlanSelection(!finalActive && userHasAgents);
+
+      if (needsWelcomeFlow) {
+        console.log('🆕 User needs welcome flow - no subscription and no agents');
+      } else if (!finalActive && userHasAgents) {
+        console.log('🆕 User has agents but no subscription - will show plan selection');
       } else {
-        console.log('✅ Active subscription found, user has full access');
+        console.log('✅ User has full access or subscription found');
       }
       
     } catch (error: any) {
       console.error("[ERROR]:", error);
-      // On error, assume no subscription and show plan selection
-      setShouldShowPlanSelection(true);
+      // On error, assume no subscription, no agents, and show welcome flow
+      setShouldShowWelcomeFlow(true);
+      setShouldShowPlanSelection(false);
       setHasActiveSubscription(false);
+      setHasAgents(false);
     }
   };
 
@@ -187,9 +212,15 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // If authenticated but no active subscription, redirect to dashboard with plan selection
+  // If authenticated but needs welcome flow, redirect to /welcome
+  if (shouldShowWelcomeFlow) {
+    console.log('🆕 User needs welcome flow - redirecting to /welcome');
+    return <Navigate to="/welcome" replace />;
+  }
+
+  // If authenticated but no active subscription but has agents, redirect to dashboard with plan selection
   if (shouldShowPlanSelection) {
-    console.log('🆕 User authenticated but no active subscription - dashboard will show plan selection');
+    console.log('🆕 User authenticated, has agents, but no active subscription - dashboard will show plan selection');
     // Let the Layout component handle showing the WelcomeFlow for plan selection
   }
 
