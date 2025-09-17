@@ -173,11 +173,12 @@ class UsageService {
    * Format usage display string
    */
   formatUsageDisplay(featureUsage: FeatureUsage): string {
+    const unit = this.translateUnit(featureUsage.unit);
     if (featureUsage.unlimited) {
-      return `${featureUsage.used} ${featureUsage.unit} (Unlimited)`;
+      return `${featureUsage.used} ${unit} (Unlimited)`;
     }
     
-    return `${featureUsage.used} / ${featureUsage.limit || 0} ${featureUsage.unit}`;
+    return `${featureUsage.used} / ${featureUsage.limit || 0} ${unit}`;
   }
 
   /**
@@ -194,5 +195,15 @@ class UsageService {
     return `${Math.round(featureUsage.percentage_used)}%`;
   }
 }
+
+// Helper: translate backend unit labels to German display
+// Keep it minimal per request: only adjust minute → Minuten
+;(UsageService.prototype as any).translateUnit = function(unit: string): string {
+  const u = (unit || '').toLowerCase();
+  if (u === 'minute' || u === 'minutes' || u === 'min' || u === 'mins' || u === 'call_minutes') {
+    return 'Minuten';
+  }
+  return unit;
+};
 
 export const usageService = new UsageService();

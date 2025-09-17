@@ -186,7 +186,7 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
 
             <Button 
               type="submit" 
-              className="w-full bg-[#3d5097] hover:bg-[#3d5097] text-white"
+              className="w-full bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
               disabled={!isFormValid}
             >
               Weiter
@@ -197,7 +197,7 @@ const SignupStep1 = ({ onNext, initialData }: SignupStep1Props) => {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Bereits ein Konto?{" "}
-              <a href="/login" className="text-[#3d5097] hover:underline">
+              <a href="/login" className="text-[#FE5B25] hover:underline">
                 Hier anmelden
               </a>
             </p>

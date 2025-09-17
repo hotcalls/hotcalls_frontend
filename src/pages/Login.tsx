@@ -114,15 +114,11 @@ const Login = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-6">
-            <img src="/hotcalls-logo.png" alt="hotcalls" className="h-12 w-auto" onError={(e) => { const img = e.target as HTMLImageElement; img.style.display = 'none'; const fallback = img.nextElementSibling as HTMLElement; if (fallback) fallback.style.display = 'flex'; }} />
-            <div className="items-center gap-2 justify-center hidden">
-              <div className="w-8 h-8 bg-[#FE5B25] rounded-full flex items-center justify-center"><span className="text-white text-sm font-bold">H</span></div>
-              <span className="text-2xl font-bold text-gray-900">hotcalls</span>
-            </div>
+          <div className="mx-auto mb-6 flex flex-col items-center">
+            <img src="/HC Logo.png" alt="HC Logo" className="h-10 w-auto" />
           </div>
           <CardTitle className="text-2xl font-bold">Willkommen zurück</CardTitle>
-          <CardDescription>Melden Sie sich bei Ihrem HotCalls Konto an</CardDescription>
+          <CardDescription>Melde dich bei deinem Hotcalls Konto an</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

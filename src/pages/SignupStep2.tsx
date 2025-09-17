@@ -127,7 +127,7 @@ const SignupStep2 = ({ onBack, onComplete, initialData, isLoading }: SignupStep2
               
               <Button 
                 type="submit" 
-                className="flex-1 bg-[#3d5097] hover:bg-[#3d5097] text-white"
+                className="flex-1 bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
                 disabled={!isFormValid || isLoading}
               >
                 {isLoading ? (
@@ -148,11 +148,11 @@ const SignupStep2 = ({ onBack, onComplete, initialData, isLoading }: SignupStep2
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               Mit der Registrierung stimmen Sie unseren{" "}
-              <a href="/agb" className="text-[#3d5097] hover:underline">
+              <a href="/agb" className="text-[#FE5B25] hover:underline">
                 Nutzungsbedingungen
               </a>{" "}
               und der{" "}
-              <a href="/datenschutz" className="text-[#3d5097] hover:underline">
+              <a href="/datenschutz" className="text-[#FE5B25] hover:underline">
                 Datenschutzerklärung
               </a>{" "}
               zu.
