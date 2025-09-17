@@ -92,7 +92,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       const payment = urlParams.get('payment');
       const priceId = urlParams.get('price');
       
-      console.log({
+      console.log('🔍 URL Debug:', {
         fullUrl: window.location.href,
         search: window.location.search,
         payment,
@@ -110,14 +110,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         // Wait a bit for Stripe webhook to reach backend
         setTimeout(async () => {
           try {
-            
+            console.log('🔍 Checking subscription status after payment...');
             console.log('📤 API Call: GET /api/payments/workspaces/' + primaryWorkspace.id + '/subscription/');
             const subscriptionStatus = await paymentAPI.getSubscription(primaryWorkspace.id);
-            
-            
+            console.log('💳 Subscription status response:', subscriptionStatus);
+            console.log('🎯 has_subscription value:', subscriptionStatus.has_subscription);
             
             if (subscriptionStatus.has_subscription) {
-              
+              console.log('✅ Subscription confirmed! Redirecting to dashboard...');
               setHasActiveSubscription(true);
               
               // Clean URL
@@ -132,7 +132,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               return;
             } else {
               // Try workspace details as fallback
-              
+              console.log('🔄 Subscription API returned false, trying workspace details...');
               const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
               const hasActiveSubscription = workspaceDetails.is_subscription_active ||
                                           workspaceDetails.has_active_subscription || 
@@ -141,10 +141,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                                           (workspaceDetails.subscription_status === 'active') ||
                                           (workspaceDetails.plan_status === 'active');
               
-              
+              console.log('🏢 Workspace details subscription check:', hasActiveSubscription);
               
               if (hasActiveSubscription) {
-                
+                console.log('✅ Subscription confirmed via workspace details!');
                 setHasActiveSubscription(true);
                 window.history.replaceState({}, '', '/');
                 toast.success('Zahlung erfolgreich!', {
@@ -170,13 +170,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     checkWorkspaceAndAgents();
                   }
                 } catch (error) {
-                  console.error("[ERROR]:", error);
+                  console.error('❌ Retry subscription check failed:', error);
                   checkWorkspaceAndAgents();
                 }
               }, 5000); // 5 more seconds
             }
           } catch (error) {
-            console.error("[ERROR]:", error);
+            console.error('❌ Failed to check subscription after payment:', error);
             toast.error('Fehler beim Prüfen der Zahlung', {
               description: 'Bitte lade die Seite neu oder kontaktiere den Support.'
             });
@@ -195,11 +195,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       if (workspaceLoading || !primaryWorkspace) return;
       
       try {
-        
+        console.log('🔍 Checking workspace details for subscription status:', primaryWorkspace.id);
         
         // First check workspace details for subscription status
         const workspaceDetails = await workspaceAPI.getWorkspaceDetails(primaryWorkspace.id);
-        
+        console.log('🏢 Workspace details response:', workspaceDetails);
         
         // Check if workspace has active subscription (check common field names)
         let hasActiveSubscription = workspaceDetails.is_subscription_active ||
@@ -214,14 +214,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           try {
             const sub = await paymentAPI.getSubscription(primaryWorkspace.id);
             const activeByPayments = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
-            
+            console.log('💳 Payment API verification (normal flow):', { activeByPayments, sub });
             hasActiveSubscription = activeByPayments;
           } catch (e) {
             console.warn('⚠️ Payment API verification failed (normal flow):', e);
           }
         }
         
-        console.log({
+        console.log('💳 Subscription check result:', {
           workspace_id: primaryWorkspace.id,
           workspace_name: primaryWorkspace.workspace_name,
           hasActiveSubscription,
@@ -229,17 +229,17 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         });
         
         if (hasActiveSubscription) {
-          
+          console.log('✅ User has active subscription, exiting welcome flow');
           onComplete(); // Exit welcome flow completely
           return;
         }
         
         // No active subscription - check for existing agents
-        
+        console.log('🔍 No active subscription found, checking for existing agents');
         const agents = await agentAPI.getAgents(primaryWorkspace.id);
         
         if (agents && agents.length > 0) {
-          
+          console.log('✅ Found existing agent(s), jumping to plan selection (step 7)');
           setCurrentStep(7);
         } else {
           console.log('🆕 No existing agents found, starting from beginning (step 0)');
@@ -265,7 +265,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         
         // Debug each voice
         voicesResponse.results.forEach(voice => {
-          console.log({
+          console.log(`🔍 Voice "${voice.name}":`, {
             id: voice.id,
             voice_external_id: voice.voice_external_id,
             voice_picture: voice.voice_picture,
@@ -296,7 +296,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           return a.name.localeCompare(b.name);
         });
         
-        
+        console.log('🎯 Sorted voices order:', sortedVoices.map(v => `${v.name}${v.recommend ? ' (Empfohlen)' : ''}`));
         setVoices(sortedVoices);
       } catch (error) {
         console.error('Failed to load voices:', error);
@@ -315,15 +315,15 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   // Load plans from API when reaching plan selection step
   useEffect(() => {
     const loadPlansFromAPI = async () => {
-      
+      console.log('🔍 Plans useEffect triggered:', { currentStep, plansLength: plans.length });
       
       if (currentStep === 7 && plans.length === 0) {
-        
+        console.log('✅ Conditions met - loading plans from API');
         setIsLoadingPlans(true);
         try {
           console.log('📋 Loading plans from API...');
           const plansResponse = await plansAPI.getPlans();
-          
+          console.log('✅ Plans API response:', plansResponse);
           
           // Handle both array and paginated response formats
           const plansData = Array.isArray(plansResponse) ? plansResponse : (plansResponse.results || []);
@@ -342,7 +342,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           }));
           
           setPlans(transformedPlans);
-          
+          console.log('🔄 Transformed plans:', transformedPlans);
           
           // Extract stripe price IDs from plans
           const newPriceMap: Record<string, string> = {};
@@ -355,14 +355,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           // Update price map with API data
           setPlanPriceMap(newPriceMap);
           
-          
-          
+          console.log('✅ Loaded plans from API:', plansData);
+          console.log('💰 Updated price map:', newPriceMap);
           
           // Also load Stripe products for payment buttons - REAL Price IDs!
           try {
-            
+            console.log('💳 Loading Stripe products...');
             const stripeResponse = await paymentAPI.getStripeProducts();
-            
+            console.log('✅ Stripe products loaded:', stripeResponse);
             
             // Extract REAL Stripe Price IDs from products
             const realPriceMap: Record<string, string> = {};
@@ -374,14 +374,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 if (monthlyPrice && product.name) {
                   const planKey = product.name.toLowerCase(); // "Start" -> "start"
                   realPriceMap[planKey] = monthlyPrice.id;
-                  
+                  console.log(`💰 Real Stripe Price: ${planKey} -> ${monthlyPrice.id}`);
                 }
               });
             }
             
             // Override with REAL Stripe Price IDs
             setPlanPriceMap(realPriceMap);
-            
+            console.log('🎯 Using REAL Stripe Price IDs:', realPriceMap);
             
           } catch (stripeError) {
             console.warn('⚠️ Failed to load Stripe products:', stripeError);
@@ -391,13 +391,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         } catch (error) {
           console.warn('⚠️ Failed to load plans from API, using fallback plans and price IDs:', error);
           // NO FALLBACK PRICE IDs! Force user to fix API issue instead of using wrong IDs
-          console.error("[ERROR]:", error);
+          console.error('❌ CRITICAL: Cannot load plans from API. Fix the backend before allowing plan selection!');
           setPlanPriceMap({
             start: '',
             pro: '',
             enterprise: ''
           });
-          
+          console.log('💰 Set fallback price IDs due to API error');
         } finally {
           setIsLoadingPlans(false);
         }
@@ -570,7 +570,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
        features.push('Individuell - Unbegrenzte Minuten');
        features.push('Individuell - Unbegrenzte User');
        features.push('Individuell - Unbegrenzte Agents');
-       
+       console.log('🏢 Enterprise features before filtering:', features);
      }
     
     return features;
@@ -686,7 +686,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     try {
       // Get user's workspaces using new endpoint
       const workspaces = await workspaceAPI.getMyWorkspaces();
-      
+      console.log('🔍 My Workspaces API response:', workspaces);
       
       if (!workspaces || workspaces.length === 0) {
         throw new Error('Keine Workspace gefunden. Bitte melden Sie sich erneut an.');
@@ -694,7 +694,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       
       // Use the first workspace (user should have exactly one)
       const userWorkspace = workspaces[0];
-      
+      console.log('🏢 Selected workspace:', userWorkspace);
       console.log('🆔 Workspace ID:', userWorkspace?.id);
 
       // Find the selected voice object
@@ -720,7 +720,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        script_template: formData.script, // Use user's task definition as script_template
+        prompt: formData.script, // Use user's task definition as prompt
         config_id: null,
         calendar_configuration: null
       };
@@ -755,7 +755,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       });
       
       const createdAgent = await agentAPI.createAgent(agentData);
-      
+      console.log('✅ Agent created successfully:', createdAgent);
       
       // Store the agent ID for the test call
       if (createdAgent.agent_id) {
@@ -779,7 +779,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   const handlePlanSelection = async (plan: 'start' | 'pro' | 'enterprise', planName: string, planPrice: string) => {
     try {
       setIsProcessingPayment(true);
-      
+      console.log('🎯 Plan selected:', plan);
       console.log('📦 Current price map:', planPriceMap);
       
       // Get the Stripe price ID for this plan
@@ -801,7 +801,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         throw new Error(`Keine Price ID für Plan ${plan} gefunden`);
       }
       
-      
+      console.log(`💳 Using price ID: ${finalPriceId} for plan: ${plan}`);
       
       // Save plan details
       setFormData(prev => ({ ...prev, selectedPlan: plan }));
@@ -811,7 +811,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       localStorage.setItem('selectedPlan', plan);
       localStorage.setItem('welcomeFlowStep', '7');
       
-      
+      console.log('💳 Selected plan with price ID:', finalPriceId);
       
       // Create Stripe checkout session using real payment API
       const checkoutResponse = await paymentAPI.createCheckoutSession(
@@ -819,7 +819,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         finalPriceId
       );
       
-      
+      console.log('✅ Checkout session created:', checkoutResponse);
       
       // Redirect to Stripe checkout
       if (checkoutResponse.checkout_url) {
@@ -830,7 +830,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       }
       
     } catch (error: any) {
-      console.error("[ERROR]:", error);
+      console.error('❌ Plan selection error:', error);
       toast.error('Fehler bei der Plan-Auswahl', {
         description: error.message || 'Bitte versuche es erneut.'
       });
@@ -845,11 +845,11 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     const price = urlParams.get('price');
     
     if (payment === 'success' && price) {
-      
+      console.log('✅ Payment successful for price:', price);
       // Verify actual subscription status with API
       verifySubscriptionAfterPayment();
     } else if (payment === 'cancelled') {
-      
+      console.log('❌ Payment cancelled');
       // Stay on plan selection
       setCurrentStep(7);
       // Clear URL params
@@ -862,10 +862,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
   const verifySubscriptionAfterPayment = async () => {
     try {
-      
+      console.log('🔍 Verifying subscription status after Stripe payment...');
       
       if (!primaryWorkspace) {
-        console.error("[ERROR]:", error);
+        console.error('❌ No workspace available for subscription verification');
         toast.error('Fehler bei der Verifizierung', {
           description: 'Kein Workspace gefunden.'
         });
@@ -874,13 +874,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
       // Check subscription status using the correct endpoint
       const verificationData = await paymentAPI.getSubscription(primaryWorkspace.id);
-      
+      console.log('💳 Subscription verification result:', verificationData);
       
       const hasActiveSubscription = verificationData.has_subscription && 
         verificationData.subscription?.status === 'active';
       
       if (hasActiveSubscription) {
-        
+        console.log('✅ Subscription verified - payment successful!');
         // Set subscription active
         setHasActiveSubscription(true);
         // Jump to last step
@@ -891,7 +891,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           description: `Dein Plan ist jetzt aktiv.`
         });
       } else {
-        
+        console.log('❌ Subscription not active after payment');
         // Stay on plan selection
         setCurrentStep(7);
         // Clear URL params
@@ -901,7 +901,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         });
       }
     } catch (error: any) {
-      console.error("[ERROR]:", error);
+      console.error('❌ Failed to verify subscription after payment:', error);
       // Stay on plan selection on error
       setCurrentStep(7);
       // Clear URL params
@@ -965,7 +965,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     } catch (err: any) {
       // If call data was sent, the call was initiated successfully
       // Backend errors after that can be ignored
-      
+      console.log('✅ Test call was initiated (ignoring backend error):', err);
       toast.success('Test-Anruf wurde gestartet!');
       
       // Still proceed to next step
@@ -1027,8 +1027,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="space-y-6">
                 <div className="flex justify-center mb-6">
                   <img 
-                    src="/HC Logo.png" 
-                    alt="HC Logo" 
+                    src="/hotcalls-logo.png" 
+                    alt="Hotcalls Logo" 
                     className="h-16 w-auto"
                   />
                 </div>
@@ -1040,7 +1040,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="animate-fade-in delay-1000">
                 <Button 
                   size="lg" 
-                  className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white px-8 py-4 focus:ring-0 focus:ring-offset-0"
+                  className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
                   onClick={nextStep}
                 >
                   Los geht's
@@ -1074,28 +1074,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               </h2>
               {isLoadingVoices ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-[#3d5097]" />
+                  <Loader2 className="h-8 w-8 animate-spin text-[#FE5B25]" />
                 </div>
               ) : (
                 <div className="space-y-4">
                   {voices.map((voice, index) => {
-                    // Create preview text from voice properties with English translation
-                    const mapToneWord = (w: string) => {
-                      const m: Record<string, string> = {
-                        'jung': 'Young',
-                        'energetisch': 'Energetic',
-                        'freundlich': 'Friendly',
-                        'ruhig': 'Calm',
-                        'sachlich': 'Factual',
-                        'neutral': 'Neutral',
-                        'professionell': 'Professional'
-                      };
-                      return m[w.toLowerCase()] || w;
-                    };
-                    const toneEn = voice.tone
-                      ? voice.tone.split(/\s*&\s*|,\s*/).map(mapToneWord).join(' & ')
-                      : '';
-                    const preview = `${voice.gender === 'male' ? 'Male' : voice.gender === 'female' ? 'Female' : 'Neutral'}${toneEn ? `, ${toneEn}` : ''}`;
+                    // Create preview text from voice properties
+                    const preview = `${voice.gender === 'male' ? 'Männlich' : voice.gender === 'female' ? 'Weiblich' : 'Neutral'}${voice.tone ? `, ${voice.tone}` : ''}`;
                     
                     // Voice configuration with API picture support
                     const voiceConfig = {
@@ -1110,7 +1095,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     
                     // Debug picture URL
                     if (voice.voice_picture) {
-                      
+                      console.log(`🖼️ Voice ${voice.name} has voice_picture: ${voice.voice_picture}`);
                     } else {
                       console.log(`📷 Voice ${voice.name} has no voice_picture, using fallback initial: ${voiceConfig.initial}`);
                     }
@@ -1120,7 +1105,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       key={voice.id} 
                       className={`p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-[#FE5B25] ${
                         formData.voice === voice.id 
-                          ? "border-[#FE5B25] bg-white" 
+                          ? "border-[#FE5B25] bg-[#FEF5F1]" 
                           : "border-gray-200 hover:bg-gray-50"
                       }`}
                       onClick={() => handleInputChange('voice', voice.id)}
@@ -1132,11 +1117,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             alt={voice.name}
                             onLoad={() => {
                               if (voiceConfig.avatar) {
-                                
+                                console.log(`✅ Avatar loaded successfully for ${voice.name}: ${voiceConfig.avatar}`);
                               }
                             }}
                             onError={(e) => {
-                              console.error("[ERROR]:", { src: voiceConfig.avatar, error: e });
+                              console.error(`❌ Avatar failed to load for ${voice.name}:`, {
+                                src: voiceConfig.avatar,
+                                error: e
+                              });
                             }}
                           />
                           <AvatarFallback className={`${voiceConfig.fallbackColor} font-semibold text-lg`}>
@@ -1223,7 +1211,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 value={formData.script}
                 onChange={(e) => handleInputChange('script', e.target.value)}
                 rows={8}
-                className="text-lg border border-gray-200 focus:border-[#3d5097] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none resize-none"
+                className="text-lg border border-gray-200 focus:border-[#FE5B25] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none resize-none"
               />
             </div>
           )}
@@ -1232,8 +1220,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {isCreatingAgent && (
             <div className="w-full max-w-md space-y-8 text-center animate-scale-in">
               <div className="space-y-6">
-                <div className="w-20 h-20 bg-[#3d5097]/10 rounded-full flex items-center justify-center mx-auto">
-                  <Loader2 className="h-10 w-10 text-[#3d5097] animate-spin" />
+                <div className="w-20 h-20 bg-[#FE5B25]/10 rounded-full flex items-center justify-center mx-auto">
+                  <Loader2 className="h-10 w-10 text-[#FE5B25] animate-spin" />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">
                   {formData.name || 'Dein Agent'} wird gerade erstellt...
@@ -1256,7 +1244,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                 <Button
                   onClick={handleTestCall}
                   disabled={isLoading}
-                  className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   size="lg"
                 >
                   {isLoading ? (
@@ -1279,7 +1267,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
           {currentStep === 6 && (
             <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
               <div className="space-y-6">
-                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto">
+                <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
                   <span className="text-4xl">🔥</span>
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">
@@ -1289,7 +1277,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               
               <Button 
                 onClick={nextStep}
-                className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-4 focus:ring-0 focus:ring-offset-0"
+                className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-4 text-lg focus:ring-0 focus:ring-offset-0"
                 size="lg"
               >
                 14-tägige kostenlose Testphase starten*
@@ -1310,7 +1298,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               
               {isLoadingPlans && (
                 <div className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#3d5097]" />
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#FE5B25]" />
                   <p className="text-gray-600 mt-2">Lade Pläne...</p>
                 </div>
               )}
@@ -1322,15 +1310,15 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                     const isContact = plan.is_contact;
                     
                     return (
-                      <div key={plan.id} className={`border-2 rounded-lg p-8 hover:border-[#3d5097] transition-all ${
-                        isPopular ? 'border-[#3d5097] bg-white relative transform scale-105 shadow-lg' : 'border-gray-200'
+                      <div key={plan.id} className={`border-2 rounded-lg p-8 hover:border-[#FE5B25] transition-all ${
+                        isPopular ? 'border-[#FE5B25] bg-[#FEF5F1] relative transform scale-105 shadow-lg' : 'border-gray-200'
                       }`}>
                         <div className="space-y-6">
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
                               {isPopular && (
-                                <span className="border border-[#3d5097] text-[#3d5097] bg-white text-xs px-2 py-1 rounded-md">
+                                <span className="border border-[#FE5B25] text-[#FE5B25] bg-white text-xs px-2 py-1 rounded-md">
                                   Am beliebtesten
                                 </span>
                               )}
@@ -1355,7 +1343,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                               <ul className="space-y-3 text-sm">
                                 {plan.features.slice(index > 0 && plan.features[0]?.includes('Features plus:') ? 1 : 0).map((feature, featureIndex) => (
                                   <li key={featureIndex} className="flex items-center space-x-3">
-                                    <Check className="h-5 w-5 text-[#3d5097] flex-shrink-0" />
+                                    <Check className="h-5 w-5 text-[#FE5B25] flex-shrink-0" />
                                     <span>{feature}</span>
                                   </li>
                                 ))}
@@ -1366,7 +1354,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             className={`w-full focus:ring-0 focus:ring-offset-0 ${
                               isContact 
                                 ? 'bg-gray-900 hover:bg-gray-800 text-white'
-                                : 'bg-[#3d5097] hover:bg-[#3d5097]/90 text-white'
+                                : 'bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white'
                             }`}
                             onClick={() => {
                               if (isContact) {
@@ -1403,7 +1391,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="text-center space-y-3">
                 <Button 
                   variant="outline"
-                  className="border-[#3d5097] text-[#3d5097] hover:bg-[#3d5097]/5 focus:ring-0 focus:ring-offset-0"
+                  className="border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/5 focus:ring-0 focus:ring-offset-0"
                   onClick={() => setShowComparison(!showComparison)}
                 >
                   {showComparison ? 'Vergleich ausblenden' : 'Pläne vergleichen'}
@@ -1426,7 +1414,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <th className="text-left p-4 font-medium">Feature</th>
                             <th className="text-center p-4 font-medium">Start</th>
-                            <th className="text-center p-4 font-medium bg-white">Pro</th>
+                            <th className="text-center p-4 font-medium bg-[#FEF5F1]">Pro</th>
                             <th className="text-center p-4 font-medium">Enterprise</th>
                           </tr>
                         </thead>
@@ -1438,19 +1426,19 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Monatliche Gebühr</td>
                             <td className="text-center p-4">199€</td>
-                            <td className="text-center p-4 bg-white">549€</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">549€</td>
                             <td className="text-center p-4">ab 1.490€</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Inkludierte Minuten pro Monat</td>
                             <td className="text-center p-4">250</td>
-                            <td className="text-center p-4 bg-white">1000</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">1000</td>
                             <td className="text-center p-4">Individuell</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Extra Minuten</td>
                             <td className="text-center p-4">ab 0,49€/Min.</td>
-                            <td className="text-center p-4 bg-white">ab 0,29€/Min.</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">ab 0,29€/Min.</td>
                             <td className="text-center p-4">Individuell</td>
                           </tr>
                           
@@ -1461,13 +1449,13 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Max User</td>
                             <td className="text-center p-4">1</td>
-                            <td className="text-center p-4 bg-white">5</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">5</td>
                             <td className="text-center p-4">Unlimited</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Max aktive Agenten</td>
                             <td className="text-center p-4">3</td>
-                            <td className="text-center p-4 bg-white">12</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">12</td>
                             <td className="text-center p-4">Unlimited</td>
                           </tr>
 
@@ -1477,21 +1465,21 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Sofortanruf bei neuen Leads</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Verhalten des Agenten anpassbar</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
-                            <td className="p-4">Individuelles Agenten-Skript</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="p-4">Individueller Agent-Prompt</td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
 
                           {/* Funktionen */}
@@ -1500,21 +1488,21 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Leads & CRM</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Analytics & Reporting</td>
                             <td className="text-center p-4">Basic</td>
-                            <td className="text-center p-4 bg-white">Advanced</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">Advanced</td>
                             <td className="text-center p-4">Custom</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">API Zugang</td>
                             <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
 
                           {/* Support */}
@@ -1524,14 +1512,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                           <tr className="border-b">
                             <td className="p-4">Support-Kanal</td>
                             <td className="text-center p-4">Email</td>
-                            <td className="text-center p-4 bg-white">Priority Email</td>
+                            <td className="text-center p-4 bg-[#FEF5F1]">Priority Email</td>
                             <td className="text-center p-4">24/7 Phone & Email</td>
                           </tr>
                           <tr className="border-b">
                             <td className="p-4">Persönliches Onboarding</td>
                             <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-white"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#3d5097] mx-auto" /></td>
+                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
+                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
                           </tr>
                         </tbody>
                       </table>
@@ -1568,7 +1556,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                       </p>
                       <Button
                         onClick={() => setCurrentStep(7)}
-                        className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white"
+                        className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white"
                       >
                         <ArrowLeft className="mr-2 h-5 w-5" />
                         Zurück zur Plan-Auswahl
@@ -1579,7 +1567,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
                 <div className="space-y-6 max-w-md mx-auto">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
                       1
                     </div>
                     <div className="text-left">
@@ -1589,7 +1577,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   </div>
 
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
                       2
                     </div>
                     <div className="text-left">
@@ -1599,7 +1587,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   </div>
 
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-8 h-8 bg-[#3d5097] text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-8 h-8 bg-[#FE5B25] text-white rounded-full flex items-center justify-center font-bold">
                       3
                     </div>
                     <div className="text-left">
@@ -1611,7 +1599,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
                 <div className="pt-4">
                   <Button 
-                    className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white px-8 py-3 h-12 focus:ring-0 focus:ring-offset-0"
+                    className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white px-8 py-3 text-lg h-12 focus:ring-0 focus:ring-offset-0"
                     onClick={() => {
                       localStorage.setItem('welcomeCompleted', 'true');
                       onComplete();
@@ -1639,7 +1627,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
             </Button>
             <Button
               onClick={nextStep}
-              className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white focus:ring-0 focus:ring-offset-0"
+              className="bg-[#FE5B25] hover:bg-[#FE5B25]/90 text-white focus:ring-0 focus:ring-offset-0"
               disabled={
                 (currentStep === 1 && !formData.name) ||
                 (currentStep === 2 && !formData.voice) ||
