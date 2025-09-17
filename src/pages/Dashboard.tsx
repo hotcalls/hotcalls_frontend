@@ -245,6 +245,8 @@ interface RecentCallData {
   agent: string;          // agent_workspace_name
   status: string;         // Gemappter Status
   date: string;          // timestamp → 'yyyy-MM-dd'
+  summary?: string;       // optionale Zusammenfassung aus API
+  transcript?: string;    // optional formatiertes Transkript aus API
 }
 
 // Transform API CallLog zu Frontend RecentCallData
@@ -259,6 +261,28 @@ const transformCallLogToRecentCall = (callLog: CallLog, agentNameById?: Record<s
   const agentDisplay = (agentNameById && agentNameById[(callLog as any).agent as any])
     || (callLog as any).agent_name
     || callLog.agent_workspace_name;
+  // Summary direkt aus API wenn vorhanden
+  const apiSummary = (callLog as any)?.summary as string | undefined;
+  // Transcript kann als Array von Messages oder als String kommen → in anzeigbaren Text umwandeln
+  const rawTranscript = (callLog as any)?.transcript as any;
+  const transcriptText = (() => {
+    if (!rawTranscript) return undefined;
+    if (typeof rawTranscript === 'string') return rawTranscript;
+    if (Array.isArray(rawTranscript)) {
+      try {
+        return rawTranscript
+          .map((m: any) => {
+            const role = (m?.role || '').toString().toLowerCase();
+            const speaker = role.includes('agent') ? 'Agent' : role.includes('user') || role.includes('lead') ? 'Lead' : (role || '');
+            return speaker ? `${speaker}: ${m?.content ?? ''}` : `${m?.content ?? ''}`;
+          })
+          .join('\n\n');
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  })();
     
   return {
     id: callLog.id,
@@ -267,7 +291,9 @@ const transformCallLogToRecentCall = (callLog: CallLog, agentNameById?: Record<s
     phone: displayPhone,
     agent: agentDisplay,
     status: deriveDisplayStatus(callLog as any),
-    date: format(new Date(callLog.timestamp), 'yyyy-MM-dd')
+    date: format(new Date(callLog.timestamp), 'yyyy-MM-dd'),
+    summary: apiSummary,
+    transcript: transcriptText
   };
 };
 
@@ -427,28 +453,40 @@ export default function Dashboard() {
     if (primaryWorkspace?.id) fetchAppointmentStats();
   }, [primaryWorkspace?.id]);
 
-  // Temporär: Immer 5 Dummy-Termine anzeigen (ohne API)
+  // Real: Termine (Appointments) über API laden – nächster 14‑Tage‑Zeitraum
   useEffect(() => {
-    setAppointmentListLoading(true);
-    setAppointmentListError(null);
-    try {
-      const now = new Date();
-      const demo: AppointmentCallLog[] = Array.from({ length: 5 }).map((_, i) => {
-        const d = new Date(now.getTime() + (i + 1) * 60 * 60 * 1000); // nächste Stunden
-        return {
-          id: `demo-appointment-${i + 1}`,
-          lead: `Demo${i + 1} User${i + 1}`,
-          appointmentDate: format(d, 'dd.MM.yyyy HH:mm'),
-          date: format(d, 'yyyy-MM-dd')
-        };
-      });
-      setRealAppointments(demo);
-    } catch (error) {
-      setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
-    } finally {
-      setAppointmentListLoading(false);
-    }
-  }, []);
+    const fetchAppointments = async () => {
+      setAppointmentListLoading(true);
+      setAppointmentListError(null);
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (!authToken) {
+          setRealAppointments([]);
+          return;
+        }
+
+        const now = new Date();
+        const twoWeeksLater = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+        const appts = await callAPI.getAppointmentCallLogs({
+          appointment_datetime_after: now.toISOString(),
+          appointment_datetime_before: twoWeeksLater.toISOString(),
+          ordering: 'appointment_datetime',
+          page_size: 50,
+          agent__workspace: String(primaryWorkspace?.id || ''),
+        });
+
+        setRealAppointments(appts || []);
+      } catch (error) {
+        setAppointmentListError(error instanceof Error ? error.message : 'Failed to load appointments');
+        setRealAppointments([]);
+      } finally {
+        setAppointmentListLoading(false);
+      }
+    };
+
+    if (primaryWorkspace?.id) fetchAppointments();
+  }, [primaryWorkspace?.id]);
 
   // API Call für Recent Calls (Letzte Anrufe)
   useEffect(() => {
@@ -688,42 +726,12 @@ export default function Dashboard() {
   const displayedCalls = useMemo(() => {
     if (recentCallsLoading) return [];
     if (recentCallsError) return [];
-    const base = realRecentCalls;
-    
-    // If no real calls available, show 10 realistic mock leads
-    let withFallback = base;
-    if (!Array.isArray(base) || base.length === 0) {
-      const mockNames = [
-        'Max Mustermann','Anna Schmidt','Thomas Weber','Julia Müller','Robert Klein',
-        'Sarah Wagner','Michael Braun','Lisa Hoffmann','Peter Neumann','Maria Schulz'
-      ];
-      const mockAgents = ['Sarah','Marcus','Lisa'];
-      const statuses = ['Termin vereinbart','Erreicht','Nicht erreicht','Kein Interesse'];
-      const today = new Date();
-      withFallback = Array.from({ length: 10 }).map((_, idx) => {
-        const name = mockNames[idx % mockNames.length];
-        const agent = mockAgents[idx % mockAgents.length];
-        const status = statuses[idx % statuses.length];
-        const dateObj = new Date(today.getTime() - (idx + 1) * 60 * 60 * 1000);
-        const dateStr = format(dateObj, 'yyyy-MM-dd');
-        return {
-          id: `mock-${idx + 1}`,
-          lead: name,
-          email: `${name.toLowerCase().replace(/\s+/g,'\.')}@example.com`,
-          phone: `+49 1512 34${String(idx).padStart(2,'0')} 678`,
-          agent,
-          status,
-          date: dateStr,
-        } as RecentCallData;
-      });
-    }
-    
+    const base = realRecentCalls || [];
     const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return withFallback;
-    
+    if (!q) return base;
     const qDigits = q.replace(/\D/g, '');
     const qNoSpace = q.replace(/\s+/g, '');
-    return withFallback.filter((c) => {
+    return base.filter((c) => {
       const leadLower = (c.lead || '').toLowerCase();
       const nameMatch = leadLower.includes(q) || leadLower.replace(/\s+/g, '').includes(qNoSpace);
       const emailMatch = (c.email || '').toLowerCase().includes(q);
@@ -1047,22 +1055,26 @@ export default function Dashboard() {
                       className="hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#FE5B25]/40"
                       onClick={() => {
                         const notReached = String(call.status).toLowerCase().includes('nicht erreicht');
-                        const summary = notReached
-                          ? `Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.`
-                          : `Kurze Zusammenfassung: Gespräch mit ${call.lead} über Produktinteresse. Status: ${call.status}.`;
-                        const transcript = notReached
-                          ? `— Lead wurde noch nicht erreicht. Kein Transkript vorhanden —`
-                          : `Agent: Hallo ${call.lead}, vielen Dank für Ihre Zeit.\n\nLead: Gerne.\n\nAgent: Ich würde Ihnen kurz erklären, wie wir weiter vorgehen können...`;
+                        const summary = call.summary && call.summary.trim().length > 0
+                          ? call.summary
+                          : (notReached
+                            ? 'Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.'
+                            : 'Keine Zusammenfassung verfügbar.');
+                        const transcript = call.transcript && call.transcript.trim().length > 0
+                          ? call.transcript
+                          : '— Kein Transkript vorhanden —';
                         setHoverLead({ ...call, summary, transcript });
                       }}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault();
                         const notReached = String(call.status).toLowerCase().includes('nicht erreicht');
-                        const summary = notReached
-                          ? `Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.`
-                          : `Kurze Zusammenfassung: Gespräch mit ${call.lead} über Produktinteresse. Status: ${call.status}.`;
-                        const transcript = notReached
-                          ? `— Lead wurde noch nicht erreicht. Kein Transkript vorhanden —`
-                          : `Agent: Hallo ${call.lead}, vielen Dank für Ihre Zeit.\n\nLead: Gerne.\n\nAgent: Ich würde Ihnen kurz erklären, wie wir weiter vorgehen können...`;
+                        const summary = call.summary && call.summary.trim().length > 0
+                          ? call.summary
+                          : (notReached
+                            ? 'Lead wurde noch nicht erreicht. Es liegt noch keine Gesprächszusammenfassung vor.'
+                            : 'Keine Zusammenfassung verfügbar.');
+                        const transcript = call.transcript && call.transcript.trim().length > 0
+                          ? call.transcript
+                          : '— Kein Transkript vorhanden —';
                         setHoverLead({ ...call, summary, transcript });
                       }}}
                     >

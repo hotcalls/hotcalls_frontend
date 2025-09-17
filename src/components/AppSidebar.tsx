@@ -99,13 +99,13 @@ const PlanSection = () => {
       <div className="bg-white rounded-lg border p-4 space-y-3 text-center">
         <div className="text-sm text-gray-700">Hast du Fragen oder brauchst Hilfe?</div>
         <a
-          href="https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel"
+          href="https://cal.com/leonhardpopeppel/austausch-mit-leonhard-poeppel"
           target="_blank"
           rel="noopener noreferrer"
-          className={`${buttonStyles.create.default} w-full justify-center`}
+          className={`w-full justify-center px-3 py-2 h-9 bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white text-xs font-medium rounded-full transition-colors flex items-center space-x-2`}
         >
-          <Calendar className={iconSizes.small} />
-          <span>Mit Experte sprechen</span>
+          <Calendar className="h-3 w-3" />
+          <span className="whitespace-nowrap">Mit Experte sprechen</span>
         </a>
       </div>
     </div>

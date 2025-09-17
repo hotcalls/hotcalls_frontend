@@ -893,11 +893,12 @@ export const callAPI = {
         searchParams.append('agent', params.agent);
       }
       if (params?.agent__workspace) {
-        // Serialisiere mit Doppel-Unterstrich gemäß API: agent__workspace
+        // API akzeptiert agent__workspace (Django lookup)
         searchParams.append('agent__workspace', params.agent__workspace);
       }
       if (params?.agentworkspace) {
-        searchParams.append('agentworkspace', params.agentworkspace);
+        // Legacy → normalisieren
+        searchParams.append('agent__workspace', params.agentworkspace);
       }
       if (params?.status) {
         searchParams.append('status', params.status);
@@ -1071,8 +1072,8 @@ export const callAPI = {
         params.status = status;
       }
       if (agent__workspace) {
-        // Map to backend key without underscore for compatibility
-        (params as any).agentworkspace = agent__workspace;
+        // Use backend-accepted filter key
+        (params as any).agent__workspace = agent__workspace;
       }
       
       return await this.getCallLogs(params);
@@ -1173,10 +1174,12 @@ export const callAPI = {
         callParams.search = params.search.trim();
       }
       if (params?.agent__workspace) {
-        callParams.agentworkspace = params.agent__workspace;
+        // Forward the exact backend key
+        callParams.agent__workspace = params.agent__workspace;
       }
       if (params?.agentworkspace) {
-        callParams.agentworkspace = params.agentworkspace;
+        // Normalize legacy key to backend key
+        callParams.agent__workspace = params.agentworkspace;
       }
 
       // Call the existing getCallLogs function

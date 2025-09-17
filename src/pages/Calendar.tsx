@@ -1442,10 +1442,11 @@ export default function Calendar() {
           </AlertDialogHeader>
           <div className="grid grid-cols-1 gap-3">
             <Button variant="outline" className="justify-start" onClick={handleConnectGoogleCalendar}>
-              <span className="mr-2">🟢</span> Google Calendar verbinden
+              <img src="/192px.svg" alt="Google" className="mr-2 h-4 w-4" />
+              Google Kalender verbinden
             </Button>
             <Button variant="outline" className="justify-start" onClick={handleConnectMicrosoftCalendar}>
-              <span className="mr-2">🔵</span> Microsoft 365 verbinden (Outlook/Exchange)
+              <img src="/Outlook.webp" alt="Outlook" className="mr-2 h-4 w-4" /> Microsoft 365 verbinden (Outlook/Exchange)
             </Button>
           </div>
           <AlertDialogFooter>
