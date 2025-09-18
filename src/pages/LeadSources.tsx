@@ -277,7 +277,7 @@ export default function LeadSources() {
         if (!resp.next) break; page += 1;
       }
       if (ids.length === 0) {
-        toast({ title: 'No leads found', description: 'This CSV source has no leads to call yet.' });
+        toast({ title: 'Keine Leads gefunden', description: 'Diese CSV-Quelle hat noch keine Leads zum Anrufen.' });
         setIsScheduling(false);
         return;
       }
@@ -290,10 +290,10 @@ export default function LeadSources() {
         }));
       }
       setScheduleOpen(false);
-      toast({ title: 'Calls scheduled', description: `${ids.length} leads queued for calling.` });
+      toast({ title: 'Anrufe geplant', description: `${ids.length} Leads zum Anrufen eingereiht.` });
     } catch (e) {
       console.error(e);
-      toast({ title: 'Error', description: 'Could not schedule calls.', variant: 'destructive' });
+      toast({ title: 'Fehler', description: 'Anrufe konnten nicht geplant werden.', variant: 'destructive' });
     } finally {
       setIsScheduling(false);
     }
@@ -315,8 +315,8 @@ export default function LeadSources() {
       } catch (error) {
         console.error("[ERROR]:", error);
         toast({
-          title: "Error",
-          description: "Meta Integration could not be started.",
+          title: "Fehler",
+          description: "Meta-Integration konnte nicht gestartet werden.",
           variant: "destructive",
         });
       }
@@ -339,7 +339,7 @@ export default function LeadSources() {
       return;
     }
     if (!webhookName.trim()) {
-      toast({ title: 'Name required', description: 'Please enter a name for the webhook source.' });
+      toast({ title: 'Name erforderlich', description: 'Bitte geben Sie einen Namen für die Webhook-Quelle ein.' });
       return;
     }
     try {
@@ -354,7 +354,7 @@ export default function LeadSources() {
       setIsCreatedDialogOpen(true);
     } catch (error) {
       console.error("[ERROR]:", error);
-      toast({ title: 'Error', description: 'Webhook source could not be created.', variant: 'destructive' });
+      toast({ title: 'Fehler', description: 'Webhook-Quelle konnte nicht erstellt werden.', variant: 'destructive' });
     } finally {
       setIsCreatingWebhook(false);
     }
@@ -379,9 +379,9 @@ export default function LeadSources() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast({ title: 'Copied', description: 'Copied to clipboard.' });
+      toast({ title: 'Kopiert', description: 'In die Zwischenablage kopiert.' });
     } catch (e) {
-      toast({ title: 'Error', description: 'Could not copy.' });
+      toast({ title: 'Fehler', description: 'Konnte nicht kopiert werden.' });
     }
   };
 
@@ -396,14 +396,14 @@ export default function LeadSources() {
       );
       
       toast({
-        title: "Integration deleted",
-        description: "Meta Integration was successfully removed.",
+        title: "Integration gelöscht",
+        description: "Meta-Integration wurde erfolgreich entfernt.",
       });
     } catch (error) {
       console.error("[ERROR]:", error);
       toast({
-        title: "Error",
-        description: "Integration could not be deleted.",
+        title: "Fehler",
+        description: "Integration konnte nicht gelöscht werden.",
         variant: "destructive",
       });
     }
@@ -420,14 +420,14 @@ export default function LeadSources() {
       ));
       
       toast({
-        title: !currentStatus ? "Activated" : "Deactivated",
-        description: `Webhook was ${!currentStatus ? "activated" : "deactivated"}.`,
+        title: !currentStatus ? "Aktiviert" : "Deaktiviert",
+        description: `Webhook wurde ${!currentStatus ? "aktiviert" : "deaktiviert"}.`,
       });
     } catch (error) {
       console.error("[ERROR]:", error);
       toast({
-        title: "Error",
-        description: "Status could not be changed.",
+        title: "Fehler",
+        description: "Status konnte nicht geändert werden.",
         variant: "destructive",
       });
     } finally {
@@ -446,14 +446,14 @@ export default function LeadSources() {
       setIsCreatedDialogOpen(true);
       
       toast({
-        title: "Token rotated",
-        description: "New token generated. Please copy!",
+        title: "Token rotiert",
+        description: "Neuer Token generiert. Bitte kopieren!",
       });
     } catch (error) {
       console.error("[ERROR]:", error);
       toast({
-        title: "Error",
-        description: "Token could not be rotated.",
+        title: "Fehler",
+        description: "Token konnte nicht rotiert werden.",
         variant: "destructive",
       });
     } finally {
@@ -470,14 +470,14 @@ export default function LeadSources() {
       setWebhookSources(prev => prev.filter(w => w.id !== webhookId));
       
       toast({
-        title: "Webhook deleted",
-        description: "Webhook source was successfully removed.",
+        title: "Webhook gelöscht",
+        description: "Webhook-Quelle wurde erfolgreich entfernt.",
       });
     } catch (error) {
       console.error("[ERROR]:", error);
       toast({
-        title: "Error",
-        description: "Webhook could not be deleted.",
+        title: "Fehler",
+        description: "Webhook konnte nicht gelöscht werden.",
         variant: "destructive",
       });
     }
@@ -491,8 +491,8 @@ export default function LeadSources() {
     if (success === 'true') {
       setShowSuccessMessage(true);
       toast({
-        title: "Lead source successfully connected",
-        description: "Configure exact lead source in agent settings",
+        title: "Lead-Quelle erfolgreich verbunden",
+        description: "Konfigurieren Sie die genaue Lead-Quelle in den Agent-Einstellungen",
         duration: 6000,
       });
       
@@ -525,8 +525,8 @@ export default function LeadSources() {
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center space-x-3">
           <CheckCircle className="h-5 w-5 text-green-600" />
           <div>
-            <p className="text-green-800 font-medium">Lead source successfully connected</p>
-            <p className="text-green-700 text-sm">Configure exact lead source in agent settings</p>
+            <p className="text-green-800 font-medium">Lead-Quelle erfolgreich verbunden</p>
+            <p className="text-green-700 text-sm">Konfigurieren Sie die genaue Lead-Quelle in den Agent-Einstellungen</p>
           </div>
         </div>
       )}
@@ -534,8 +534,8 @@ export default function LeadSources() {
       {/* Page Header - EINHEITLICH */}
       <div className={layoutStyles.pageHeader}>
         <div>
-          <h1 className={textStyles.pageTitle}>Lead sources</h1>
-          <p className={textStyles.pageSubtitle}>Upload and manage your CSV leads</p>
+          <h1 className={textStyles.pageTitle}>Lead-Quellen</h1>
+          <p className={textStyles.pageSubtitle}>CSV-Leads hochladen und verwalten</p>
         </div>
         
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
@@ -564,18 +564,18 @@ export default function LeadSources() {
           </DialogTrigger> */}
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>CSV Upload</DialogTitle>
+              <DialogTitle>CSV-Upload</DialogTitle>
               <DialogDescription>
-                Upload your leads via CSV file.
+                Laden Sie Ihre Leads über CSV-Dateien hoch.
               </DialogDescription>
             </DialogHeader>
             {isCsvStep && (
               // CSV Step
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Upload CSV</h4>
+                  <h4 className="text-sm font-medium">CSV hochladen</h4>
                   <p className="text-sm text-muted-foreground">
-                    Required columns: name, surname, email, phone_number. Extra columns are captured as variables.
+                    Erforderliche Spalten: name, surname, email, phone_number. Zusätzliche Spalten werden als Variablen erfasst.
                   </p>
                 </div>
 
@@ -601,8 +601,8 @@ export default function LeadSources() {
                             setCsvParsedRows([]);
                             setCsvParseInfo(null);
                             toast({
-                              title: 'Invalid CSV format',
-                              description: `Missing required columns: ${missingColumns.join(', ')}. Required: name, surname, email, phone_number`,
+                              title: 'Ungültiges CSV-Format',
+                              description: `Fehlende erforderliche Spalten: ${missingColumns.join(', ')}. Erforderlich: name, surname, email, phone_number`,
                               variant: 'destructive'
                             });
                             return;
@@ -620,21 +620,21 @@ export default function LeadSources() {
                     {csvParsedRows.length > 0 && (
                       <div className="space-y-2 text-sm">
                         <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                          <div className="font-medium">File selected</div>
-                          <div>{csvParseInfo?.filename || 'CSV'} • {csvParsedRows.length} rows</div>
+                          <div className="font-medium">Datei ausgewählt</div>
+                          <div>{csvParseInfo?.filename || 'CSV'} • {csvParsedRows.length} Zeilen</div>
                           {csvParsedRows.length > 10000 && (
-                            <div className="mt-2 text-red-600">Maximum 10,000 rows per CSV.</div>
+                            <div className="mt-2 text-red-600">Maximal 10.000 Zeilen pro CSV.</div>
                           )}
                         </div>
                         {/* Variables detected from this import (authoritative) */}
                         <div className="p-3 bg-gray-50 rounded border border-gray-200">
-                          <div className="font-medium mb-1">Detected variables</div>
+                          <div className="font-medium mb-1">Erkannte Variablen</div>
                           <div className="flex flex-wrap gap-2">
                             {(() => {
                               if (isUploadingCsv) {
                                 return (
                                   <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
-                                    <Loader2 className="h-3 w-3 animate-spin" /> Importing and analyzing…
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Importiere und analysiere…
                                   </span>
                                 );
                               }
@@ -642,7 +642,7 @@ export default function LeadSources() {
                                 ? dialogDetectedVars
                                 : (csvImportResult?.detected_variable_keys || []);
                               if (!shown || shown.length === 0) {
-                                return <span className="text-xs text-gray-500">Will appear after import</span>;
+                                return <span className="text-xs text-gray-500">Wird nach dem Import angezeigt</span>;
                               }
                               return shown.map((v: string) => (
                                 <span key={v} className="px-2 py-1 text-xs rounded-full bg-white border">
@@ -660,12 +660,12 @@ export default function LeadSources() {
                 {csvImportResult && (
                   <div className="space-y-2 text-sm">
                     <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                      <div className="font-medium">Import completed</div>
-                      <div>{csvImportResult.successful_creates} / {csvImportResult.total_leads} leads imported</div>
+                      <div className="font-medium">Import abgeschlossen</div>
+                      <div>{csvImportResult.successful_creates} / {csvImportResult.total_leads} Leads importiert</div>
                     </div>
                     {Array.isArray(csvImportResult.detected_variable_keys) && csvImportResult.detected_variable_keys.length > 0 && (
                       <div className="p-3 bg-gray-50 rounded border border-gray-200">
-                        <div className="font-medium mb-1">Detected variables</div>
+                        <div className="font-medium mb-1">Erkannte Variablen</div>
                         <div className="flex flex-wrap gap-2">
                           {csvImportResult.detected_variable_keys.map((v) => (
                             <span key={v} className="px-2 py-1 text-xs rounded-full bg-white border">{v}</span>
@@ -675,7 +675,7 @@ export default function LeadSources() {
                     )}
                     {csvImportResult.failed_creates > 0 && (
                       <div className="p-3 bg-amber-50 rounded border border-amber-200">
-                        {csvImportResult.failed_creates} rows with errors.
+                        {csvImportResult.failed_creates} Zeilen mit Fehlern.
                       </div>
                     )}
                   </div>
@@ -689,7 +689,7 @@ export default function LeadSources() {
                     setCsvParseInfo(null);
                     setIsAddDialogOpen(false);
                     setDialogDetectedVars([]);
-                  }}>Close</Button>
+                  }}>Schließen</Button>
                   {!csvImportResult && (
                     <div className="ml-auto flex gap-2">
                       <Button
@@ -697,7 +697,7 @@ export default function LeadSources() {
                         disabled={isUploadingCsv || csvParsedRows.length === 0 || csvParsedRows.length > 10000}
                         onClick={async () => {
                           if (csvParsedRows.length === 0) return;
-                          if (csvParsedRows.length > 10000) { toast({ title: 'Limit reached', description: 'Maximum 10,000 rows per CSV allowed.', variant: 'destructive' }); return; }
+                          if (csvParsedRows.length > 10000) { toast({ title: 'Limit erreicht', description: 'Maximal 10.000 Zeilen pro CSV erlaubt.', variant: 'destructive' }); return; }
                           try {
                             setIsUploadingCsv(true);
                             
@@ -807,7 +807,7 @@ export default function LeadSources() {
                                 }
                               }
                             } catch {}
-                            toast({ title: 'CSV imported', description: `${res.successful_creates} of ${res.total_leads} leads imported.` });
+                            toast({ title: 'CSV importiert', description: `${res.successful_creates} von ${res.total_leads} Leads importiert.` });
                             
                             // Notify other components (like Leads page) that new leads were added
                             window.dispatchEvent(new CustomEvent('leadsUpdated', { 
@@ -819,13 +819,13 @@ export default function LeadSources() {
                             }));
                           } catch (e) {
                             console.error(e);
-                            toast({ title: 'Error', description: 'CSV import failed.', variant: 'destructive' });
+                            toast({ title: 'Fehler', description: 'CSV-Import fehlgeschlagen.', variant: 'destructive' });
                           } finally {
                             setIsUploadingCsv(false);
                           }
                         }}
                       >
-                        {isUploadingCsv ? 'Importing…' : 'Import leads'}
+                        {isUploadingCsv ? 'Importiere…' : 'Leads importieren'}
                       </Button>
                     </div>
                   )}
@@ -863,26 +863,26 @@ export default function LeadSources() {
                         {resolveFunnelName(funnel.id, funnel.name || 'CSV Source')}
                       </CardTitle>
                       <div className="text-xs text-gray-500 mt-1">
-                        {(csvStatsByFunnel[funnel.id]?.count ?? 0)} leads
+                        {(csvStatsByFunnel[funnel.id]?.count ?? 0)} Leads
                         {csvStatsByFunnel[funnel.id]?.variables?.length ? ` · vars: ${csvStatsByFunnel[funnel.id].variables.join(', ')}` : ''}
                       </div>
                     </div>
                   </div>
                   <div className={`flex items-center ${spacingStyles.buttonSpacing}`}>
                     <Badge variant={funnel.is_active ? 'default' : 'secondary'}>
-                      {funnel.is_active ? 'Active' : 'Inactive'}
+                      {funnel.is_active ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
                     <Button
                       variant="outline"
                       onClick={() => openScheduleDialog(funnel.id)}
                     >
-                      Schedule calls
+                      Anrufe planen
                     </Button>
                     <Button
                       variant="destructive"
                       size="icon"
                       className="h-8 w-8"
-                      title="Delete CSV source"
+                      title="CSV-Quelle löschen"
                       onClick={() => setDeleteConfirmFunnelId(funnel.id)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -987,15 +987,15 @@ export default function LeadSources() {
       <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Schedule calls</DialogTitle>
-            <DialogDescription>Choose agent and time to call all leads from this source.</DialogDescription>
+            <DialogTitle>Anrufe planen</DialogTitle>
+            <DialogDescription>Wählen Sie Agent und Zeit, um alle Leads aus dieser Quelle anzurufen.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">Which agent?</div>
+              <div className="text-xs text-muted-foreground">Welcher Agent?</div>
               <Select value={selectedAgentId || ""} onValueChange={(v)=>setSelectedAgentId(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select agent" />
+                  <SelectValue placeholder="Agent auswählen" />
                 </SelectTrigger>
                 <SelectContent>
                   {scheduleAgents.map((a:any)=> (
@@ -1005,15 +1005,15 @@ export default function LeadSources() {
               </Select>
             </div>
             <div className="space-y-2">
-              <div className="text-xs text-muted-foreground">When?</div>
+              <div className="text-xs text-muted-foreground">Wann?</div>
               <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='now'} onChange={()=>setScheduleMode('now')} /> Now</label>
-                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='later'} onChange={()=>setScheduleMode('later')} /> Pick time</label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='now'} onChange={()=>setScheduleMode('now')} /> Jetzt</label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" checked={scheduleMode==='later'} onChange={()=>setScheduleMode('later')} /> Zeit wählen</label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" size="sm" disabled={scheduleMode!=='later'} className="justify-start gap-2">
                       <CalendarIcon className="h-4 w-4" />
-                      {scheduleAt ? new Date(scheduleAt).toLocaleString() : 'Select date & time'}
+                      {scheduleAt ? new Date(scheduleAt).toLocaleString() : 'Datum & Zeit wählen'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-3">
@@ -1068,9 +1068,9 @@ export default function LeadSources() {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={()=>setScheduleOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={()=>setScheduleOpen(false)}>Abbrechen</Button>
             <Button onClick={scheduleCallsForFunnel} disabled={!selectedAgentId || isScheduling}>
-              {isScheduling ? 'Scheduling…' : 'Schedule calls'}
+              {isScheduling ? 'Plane…' : 'Anrufe planen'}
             </Button>
           </div>
         </DialogContent>
@@ -1080,11 +1080,11 @@ export default function LeadSources() {
       <Dialog open={!!deleteConfirmFunnelId} onOpenChange={(open)=>{ if (!open) setDeleteConfirmFunnelId(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete CSV lead source</DialogTitle>
-            <DialogDescription>This action cannot be undone.</DialogDescription>
+            <DialogTitle>CSV-Lead-Quelle löschen</DialogTitle>
+            <DialogDescription>Diese Aktion kann nicht rückgängig gemacht werden.</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={()=>setDeleteConfirmFunnelId(null)}>Cancel</Button>
+            <Button variant="outline" onClick={()=>setDeleteConfirmFunnelId(null)}>Abbrechen</Button>
             <Button
               variant="destructive"
               disabled={!!deletingFunnelId}
@@ -1095,16 +1095,16 @@ export default function LeadSources() {
                   await funnelAPI.deleteFunnel(deleteConfirmFunnelId);
                   setCsvFunnels(prev => prev.filter((f:any)=> f.id !== deleteConfirmFunnelId));
                   setDeleteConfirmFunnelId(null);
-                  toast({ title: 'Deleted', description: 'Lead source removed.' });
+                  toast({ title: 'Gelöscht', description: 'Lead-Quelle entfernt.' });
                 } catch (e) {
                   console.error("[ERROR]:", error);
-                  toast({ title: 'Error', description: 'Could not delete lead source.', variant: 'destructive' });
+                  toast({ title: 'Fehler', description: 'Lead-Quelle konnte nicht gelöscht werden.', variant: 'destructive' });
                 } finally {
                   setDeletingFunnelId(null);
                 }
               }}
             >
-              {deletingFunnelId ? 'Deleting…' : 'Delete'}
+              {deletingFunnelId ? 'Lösche…' : 'Löschen'}
             </Button>
           </div>
         </DialogContent>
@@ -1177,9 +1177,9 @@ function CsvUploadInline({ isUploading, onParsed }: { isUploading: boolean; onPa
         }}
         className={`border-2 border-dashed rounded-md p-6 text-center ${isDragging ? 'border-primary bg-primary/5' : 'border-gray-300'}`}
       >
-        <p className="text-sm text-gray-600 mb-3">Drag and drop a file here or click to select a CSV</p>
+        <p className="text-sm text-gray-600 mb-3">Datei hier hineinziehen oder klicken, um eine CSV auszuwählen</p>
         <Button variant="outline" disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
-          {isUploading ? 'Uploading…' : 'Select CSV'}
+          {isUploading ? 'Lade hoch…' : 'CSV auswählen'}
         </Button>
       </div>
     </div>
