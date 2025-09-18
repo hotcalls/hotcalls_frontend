@@ -33,7 +33,7 @@ import WelcomePlanCards from "@/components/billing/WelcomePlanCards";
 export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "account");
-  const SHOW_BILLING = false; // Hide Plans & Balance
+  const SHOW_BILLING = true; // Reactivate Plans & Balance
   
   const [changingPlan, setChangingPlan] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
@@ -877,22 +877,20 @@ export default function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {false && (
-                    <Button
-                      onClick={() => {
-                        if (isAtUserLimit) {
-                          toast({ title: 'Hinweis', description: 'Dein Nutzer-Limit ist aufgebraucht.' });
-                          return;
-                        }
-                        setShowInviteModal(true);
-                      }}
-                      disabled={isAtUserLimit}
-                      className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
-                    >
-                      <Plus className={iconSizes.small} />
-                      <span>Mitglied einladen</span>
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => {
+                      if (isAtUserLimit) {
+                        toast({ title: 'Hinweis', description: 'Dein Nutzer-Limit ist aufgebraucht.' });
+                        return;
+                      }
+                      setShowInviteModal(true);
+                    }}
+                    disabled={isAtUserLimit}
+                    className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
+                  >
+                    <Plus className={iconSizes.small} />
+                    <span>Mitglied einladen</span>
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -1046,7 +1044,7 @@ export default function Settings() {
               try {
                 const isEnterprise = ((plan.name||'') === 'Enterprise');
                 if (isEnterprise) {
-                  window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
+                  window.open('https://cal.com/leonhardpopeppel/austausch-mit-leonhard-poeppel', '_blank');
                   return;
                 }
                 // Direkt zum Stripe-Kundenportal wie bei "Abonnement verwalten"
@@ -1075,7 +1073,7 @@ export default function Settings() {
               Abonnement verwalten
             </Button>
             <Button
-              className="bg-[#3d5097] hover:bg-[#3d5097]/90 text-white"
+              className="bg-[#FE5B25] hover:bg-[#fe5b25]/90 text-white"
               onClick={async ()=>{
                 if (!primaryWorkspace?.id) return;
                 try {
