@@ -307,15 +307,6 @@ export default function MetaIntegration() {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      <a
-                        href={`https://facebook.com/${integration.page_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={buttonStyles.secondary.default}
-                        title="Facebook-Seite anzeigen"
-                      >
-                        <ExternalLink className={iconSizes.small} />
-                      </a>
                       <button
                         onClick={() => handleDeleteIntegration(integration.id)}
                         className={buttonStyles.danger.default}
