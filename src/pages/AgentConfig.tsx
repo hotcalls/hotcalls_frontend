@@ -379,7 +379,18 @@ Agent: "Wunderbar. Ich wünsche Ihnen ein erfolgreiches Gespräch und einen ange
 
   // Load variables for selected funnel
   useEffect(() => {
-    const funnelId = config.selectedLeadForm ? String(config.selectedLeadForm) : "";
+    // Fix: Properly extract ID from selectedLeadForm
+    let funnelId = "";
+    if (config.selectedLeadForm) {
+      if (typeof config.selectedLeadForm === 'string') {
+        funnelId = config.selectedLeadForm;
+      } else if (typeof config.selectedLeadForm === 'object' && config.selectedLeadForm.id) {
+        funnelId = String(config.selectedLeadForm.id);
+      } else {
+        console.warn('Invalid selectedLeadForm format:', config.selectedLeadForm);
+      }
+    }
+
     if (!funnelId) {
       setFunnelVariables([]);
       return;
