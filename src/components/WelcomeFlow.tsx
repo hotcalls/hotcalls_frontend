@@ -121,7 +121,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               setHasActiveSubscription(true);
               
               // Clean URL
-              window.history.replaceState({}, '', '/');
+              window.history.replaceState({}, '', '/dashboard');
               
               // Show success message and exit welcome flow
               toast.success('Zahlung erfolgreich!', {
@@ -146,7 +146,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               if (hasActiveSubscription) {
                 console.log('✅ Subscription confirmed via workspace details!');
                 setHasActiveSubscription(true);
-                window.history.replaceState({}, '', '/');
+                window.history.replaceState({}, '', '/dashboard');
                 toast.success('Zahlung erfolgreich!', {
                   description: 'Dein Plan ist jetzt aktiv. Willkommen zurück!'
                 });
@@ -183,11 +183,24 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
             checkWorkspaceAndAgents(); // Fall back to normal flow
           }
         }, 3000); // 3 seconds initial wait
-        
+
         return; // Don't run normal checks
       }
-      
-      // No payment success, run normal checks
+
+      // Handle payment cancellation
+      if (payment === 'cancelled') {
+        console.log('❌ Payment cancelled');
+        // Stay on plan selection
+        setCurrentStep(7);
+        // Clear URL params
+        window.history.replaceState({}, '', '/dashboard');
+        toast.info('Zahlung abgebrochen', {
+          description: 'Du kannst jederzeit einen Plan auswählen.'
+        });
+        return;
+      }
+
+      // No payment params, run normal checks
       checkWorkspaceAndAgents();
     };
 
@@ -781,10 +794,10 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
       setIsProcessingPayment(true);
       console.log('🎯 Plan selected:', plan);
       console.log('📦 Current price map:', planPriceMap);
-      
+
       // Get the Stripe price ID for this plan
       const priceId = planPriceMap[plan];
-      
+
       // If no price ID found, check if we're still loading
       if (!priceId && isLoadingPlans) {
         toast.warning('Pläne werden noch geladen...', {
@@ -793,42 +806,65 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         setIsProcessingPayment(false);
         return;
       }
-      
-      // NO HARDCODED PRICE IDs! Must come from backend API
-      const finalPriceId = priceId;
-      
-      if (!finalPriceId) {
+
+      if (!priceId) {
         throw new Error(`Keine Price ID für Plan ${plan} gefunden`);
       }
-      
-      console.log(`💳 Using price ID: ${finalPriceId} for plan: ${plan}`);
-      
+
+      console.log(`💳 Using price ID: ${priceId} for plan: ${plan}`);
+
       // Save plan details
       setFormData(prev => ({ ...prev, selectedPlan: plan }));
       setSelectedPlanDetails({ id: plan, name: planName, price: planPrice });
-      
+
+      // Check if workspace has Stripe customer
+      if (!primaryWorkspace) {
+        throw new Error('Kein Workspace gefunden');
+      }
+
+      const stripeInfo = await paymentAPI.getStripeInfo(primaryWorkspace.id);
+
+      // Create Stripe customer if needed
+      if (!stripeInfo.has_stripe_customer) {
+        console.log('📝 Creating Stripe customer...');
+        await paymentAPI.createStripeCustomer(primaryWorkspace.id, primaryWorkspace.workspace_name);
+        toast.success('Zahlungskonto erstellt');
+      }
+
       // Save plan selection to localStorage for after redirect
       localStorage.setItem('selectedPlan', plan);
       localStorage.setItem('welcomeFlowStep', '7');
-      
-      console.log('💳 Selected plan with price ID:', finalPriceId);
-      
-      // Create Stripe checkout session using real payment API
+
+      // Create checkout session with the actual price ID
+      console.log('💳 Creating checkout session with price ID:', priceId);
       const checkoutResponse = await paymentAPI.createCheckoutSession(
         primaryWorkspace.id,
-        finalPriceId
+        priceId
       );
-      
+
       console.log('✅ Checkout session created:', checkoutResponse);
-      
-      // Redirect to Stripe checkout
-      if (checkoutResponse.checkout_url) {
-        console.log('🚀 Redirecting to Stripe checkout:', checkoutResponse.checkout_url);
-        window.location.href = checkoutResponse.checkout_url;
-      } else {
+      console.log('🔍 Checkout response details:', {
+        has_checkout_url: !!checkoutResponse.checkout_url,
+        checkout_url: checkoutResponse.checkout_url,
+        session_id: checkoutResponse.session_id,
+        full_response: checkoutResponse
+      });
+
+      // Verify checkout URL exists
+      if (!checkoutResponse.checkout_url) {
+        console.error('❌ No checkout URL in response:', checkoutResponse);
         throw new Error('No checkout URL received from payment API');
       }
-      
+
+      // Redirect to Stripe Checkout
+      toast.info('Weiterleitung zu Stripe...', {
+        description: 'Du wirst zur sicheren Zahlungsseite weitergeleitet.'
+      });
+
+      setTimeout(() => {
+        window.location.href = checkoutResponse.checkout_url;
+      }, 1000);
+
     } catch (error: any) {
       console.error('❌ Plan selection error:', error);
       toast.error('Fehler bei der Plan-Auswahl', {
@@ -838,79 +874,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
     }
   };
 
-  // Check payment status from URL and verify subscription
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const payment = urlParams.get('payment');
-    const price = urlParams.get('price');
-    
-    if (payment === 'success' && price) {
-      console.log('✅ Payment successful for price:', price);
-      // Verify actual subscription status with API
-      verifySubscriptionAfterPayment();
-    } else if (payment === 'cancelled') {
-      console.log('❌ Payment cancelled');
-      // Stay on plan selection
-      setCurrentStep(7);
-      // Clear URL params
-      window.history.replaceState({}, '', window.location.pathname);
-      toast.info('Zahlung abgebrochen', {
-        description: 'Du kannst jederzeit einen Plan auswählen.'
-      });
-    }
-  }, []);
+  // Note: Payment success handling is done in the main useEffect above
 
-  const verifySubscriptionAfterPayment = async () => {
-    try {
-      console.log('🔍 Verifying subscription status after Stripe payment...');
-      
-      if (!primaryWorkspace) {
-        console.error('❌ No workspace available for subscription verification');
-        toast.error('Fehler bei der Verifizierung', {
-          description: 'Kein Workspace gefunden.'
-        });
-        return;
-      }
-
-      // Check subscription status using the correct endpoint
-      const verificationData = await paymentAPI.getSubscription(primaryWorkspace.id);
-      console.log('💳 Subscription verification result:', verificationData);
-      
-      const hasActiveSubscription = verificationData.has_subscription && 
-        verificationData.subscription?.status === 'active';
-      
-      if (hasActiveSubscription) {
-        console.log('✅ Subscription verified - payment successful!');
-        // Set subscription active
-        setHasActiveSubscription(true);
-        // Jump to last step
-        setCurrentStep(8);
-        // Clear URL params
-        window.history.replaceState({}, '', window.location.pathname);
-        toast.success('Zahlung erfolgreich!', {
-          description: `Dein Plan ist jetzt aktiv.`
-        });
-      } else {
-        console.log('❌ Subscription not active after payment');
-        // Stay on plan selection
-        setCurrentStep(7);
-        // Clear URL params
-        window.history.replaceState({}, '', window.location.pathname);
-        toast.error('Subscription nicht aktiv', {
-          description: 'Bitte versuche es erneut oder kontaktiere den Support.'
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ Failed to verify subscription after payment:', error);
-      // Stay on plan selection on error
-      setCurrentStep(7);
-      // Clear URL params
-      window.history.replaceState({}, '', window.location.pathname);
-      toast.error('Fehler bei der Verifizierung', {
-        description: 'Bitte versuche es erneut.'
-      });
-    }
-  };
+  // verifySubscriptionAfterPayment function removed - now handled in main useEffect
 
   const nextStep = () => {
     if (currentStep === 4) {
@@ -1023,7 +989,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
               <div className="space-y-6">
                 <div className="flex justify-center mb-6">
                   <img 
-                    src="/hotcalls-logo.png" 
+                    src="public/HC%20Logo.png"
                     alt="Hotcalls Logo" 
                     className="h-16 w-auto"
                   />
