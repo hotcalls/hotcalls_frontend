@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { authService } from '@/lib/authService';
-import { authAPI } from '@/lib/apiService';
+import { authAPI, workspaceAPI, paymentAPI } from '@/lib/apiService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
 
   useEffect(() => {
     console.log('🔒 ProtectedRoute: Validating authentication...');
@@ -44,6 +45,37 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         const profileResponse = await authAPI.getProfile();
         console.log('✅ Token validation successful:', profileResponse.email);
         setIsAuthenticated(true);
+
+        // After auth: verify subscription status EXACTLY like in Login
+        let subscriptionActive = false;
+        try {
+          const workspaces = await workspaceAPI.getMyWorkspaces();
+          const primaryWs = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces[0] : null;
+          if (primaryWs?.id) {
+            // Payments API (source of truth)
+            try {
+              const sub = await paymentAPI.getSubscription(String(primaryWs.id));
+              subscriptionActive = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
+            } catch {}
+
+            // Workspace details fallback
+            if (!subscriptionActive) {
+              try {
+                const ws = await workspaceAPI.getWorkspaceDetails(String(primaryWs.id));
+                subscriptionActive = !!(
+                  ws?.is_subscription_active ||
+                  ws?.has_active_subscription ||
+                  ws?.subscription_active ||
+                  ws?.active_subscription ||
+                  ws?.subscription_status === 'active' ||
+                  ws?.plan_status === 'active'
+                );
+              } catch {}
+            }
+          }
+        } catch {}
+
+        setHasActiveSubscription(subscriptionActive);
 
       } catch (error: any) {
         console.error("[ERROR]:", error);
@@ -87,6 +119,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (!isAuthenticated) {
     console.log('🚫 User not authenticated, redirecting to login page');
     return <Navigate to="/login" replace />;
+  }
+
+  // If authenticated but no active subscription → redirect to welcome (same as Login)
+  if (hasActiveSubscription === false) {
+    console.log('💳 No active subscription, redirecting to welcome');
+    return <Navigate to="/welcome" replace />;
   }
 
   return <>{children}</>;

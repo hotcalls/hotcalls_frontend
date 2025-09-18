@@ -30,7 +30,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
-  const [showComparison, setShowComparison] = useState(false);
+  
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -986,7 +986,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
   // Show loading while checking for existing agents
   if (currentStep === null) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-hidden">
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FE5B25] mx-auto mb-4"></div>
           <p className="text-gray-600">Checking your workspace...</p>
@@ -997,7 +997,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
 
   // Main Flow
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-hidden">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden animate-scale-in">
         {/* Minimal Progress Dots - nur ab Schritt 1 */}
         {currentStep > 0 && (
@@ -1016,11 +1016,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         )}
 
         {/* Content */}
-        <div className={`p-8 flex flex-col items-center overflow-y-auto ${
-          showComparison && currentStep === 7 
-            ? 'max-h-[calc(90vh-120px)]' 
-            : 'min-h-[400px] justify-center'
-        }`}>
+        <div className={`p-8 flex flex-col items-center overflow-y-auto min-h-[400px] justify-center`}>
           {/* Step 0: Welcome */}
           {currentStep === 0 && (
             <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
@@ -1358,7 +1354,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                             }`}
                             onClick={() => {
                               if (isContact) {
-                                window.open('https://cal.com/leopoeppelonboarding/austausch-mit-leonhard-poppel', '_blank');
+                                window.open('https://cal.com/leonhardpopeppel/austausch-mit-leonhard-poeppel', '_blank');
                               } else {
                                 handlePlanSelection(plan.id, plan.name, plan.price);
                               }
@@ -1370,14 +1366,14 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                 Verarbeitung...
                               </>
-                            ) : (
+                              ) : (
                               <>
                                 {isContact ? (
                                   <Phone className="mr-2 h-5 w-5" />
                                 ) : (
                                   <CreditCard className="mr-2 h-5 w-5" />
                                 )}
-                                {isContact ? 'Mit Gründer sprechen' : 'Jetzt auswählen'}
+                                {isContact ? 'Mit Experte sprechen' : 'Jetzt auswählen'}
                               </>
                             )}
                           </Button>
@@ -1387,146 +1383,12 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                   })}
                 </div>
               )}
-
+              
               <div className="text-center space-y-3">
-                <Button 
-                  variant="outline"
-                  className="border-[#FE5B25] text-[#FE5B25] hover:bg-[#FE5B25]/5 focus:ring-0 focus:ring-offset-0"
-                  onClick={() => setShowComparison(!showComparison)}
-                >
-                  {showComparison ? 'Vergleich ausblenden' : 'Pläne vergleichen'}
-                </Button>
                 <p className="text-sm text-gray-500">
                   Alle Preise sind zzgl. MwSt.
                 </p>
               </div>
-
-              {/* Vergleichstabelle */}
-              {showComparison && (
-                <div className="mt-8 animate-slide-in">
-                  <div className="bg-white border rounded-lg">
-                    <div className="p-6 border-b">
-                      <h3 className="text-xl font-semibold">Detaillierter Funktionsvergleich</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left p-4 font-medium">Feature</th>
-                            <th className="text-center p-4 font-medium">Start</th>
-                            <th className="text-center p-4 font-medium bg-[#FEF5F1]">Pro</th>
-                            <th className="text-center p-4 font-medium">Enterprise</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* Preismodelle */}
-                          <tr>
-                            <td className="p-4 font-bold text-gray-900" colSpan={4}>Preismodelle</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Monatliche Gebühr</td>
-                            <td className="text-center p-4">199€</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">549€</td>
-                            <td className="text-center p-4">ab 1.490€</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Inkludierte Minuten pro Monat</td>
-                            <td className="text-center p-4">250</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">1000</td>
-                            <td className="text-center p-4">Individuell</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Extra Minuten</td>
-                            <td className="text-center p-4">ab 0,49€/Min.</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">ab 0,29€/Min.</td>
-                            <td className="text-center p-4">Individuell</td>
-                          </tr>
-                          
-                          {/* Nutzer & Agenten */}
-                          <tr>
-                            <td className="p-4 font-bold text-gray-900" colSpan={4}>Nutzer & Agenten</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Max User</td>
-                            <td className="text-center p-4">1</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">5</td>
-                            <td className="text-center p-4">Unlimited</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Max aktive Agenten</td>
-                            <td className="text-center p-4">3</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">12</td>
-                            <td className="text-center p-4">Unlimited</td>
-                          </tr>
-
-                          {/* KI-Agenten & Logik */}
-                          <tr>
-                            <td className="p-4 font-bold text-gray-900" colSpan={4}>KI-Agenten & Logik</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Sofortanruf bei neuen Leads</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Verhalten des Agenten anpassbar</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Individueller Agent-Prompt</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-
-                          {/* Funktionen */}
-                          <tr>
-                            <td className="p-4 font-bold text-gray-900" colSpan={4}>Funktionen</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Leads & CRM</td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Analytics & Reporting</td>
-                            <td className="text-center p-4">Basic</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">Advanced</td>
-                            <td className="text-center p-4">Custom</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">API Zugang</td>
-                            <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-
-                          {/* Support */}
-                          <tr>
-                            <td className="p-4 font-bold text-gray-900" colSpan={4}>Support</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Support-Kanal</td>
-                            <td className="text-center p-4">Email</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]">Priority Email</td>
-                            <td className="text-center p-4">24/7 Phone & Email</td>
-                          </tr>
-                          <tr className="border-b">
-                            <td className="p-4">Persönliches Onboarding</td>
-                            <td className="text-center p-4">-</td>
-                            <td className="text-center p-4 bg-[#FEF5F1]"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                            <td className="text-center p-4"><Check className="h-4 w-4 text-[#FE5B25] mx-auto" /></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
                       )}
 
