@@ -339,24 +339,17 @@ function EventTypeStep4({ formData, setFormData, availableCalendars }: { formDat
       </div>
 
       <div>
-        <Label>Mindestvorlaufzeit</Label>
+        <Label>Mindestvorlaufzeit (Stunden)</Label>
         <p className="text-sm text-muted-foreground mb-2">
           Mindestens diese Zeit vor Buchung und Gerplan-Termin
         </p>
-        <Select 
-          value={formData.days_buffer.toString()}
-          onValueChange={(value) => setFormData({...formData, days_buffer: parseInt(value)})}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">Keine Mindestvorlaufzeit</SelectItem>
-            <SelectItem value="1">3 Stunden</SelectItem>
-            <SelectItem value="2">6 Stunden</SelectItem>
-            <SelectItem value="3">1 Tag</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input
+          type="number"
+          min="0"
+          max="72"
+          value={formData.days_buffer}
+          onChange={(e) => setFormData({...formData, days_buffer: parseInt(e.target.value) || 0})}
+        />
       </div>
     </div>
   );
