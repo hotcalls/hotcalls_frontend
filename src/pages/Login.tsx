@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { authService, agentService } from "@/lib/authService";
-import { subscriptionService } from "@/lib/subscriptionService";
-import { workspaceAPI } from "@/lib/apiService";
+import { workspaceAPI, paymentAPI } from "@/lib/apiService";
 import { toast } from "sonner";
 
 const Login = () => {
@@ -25,10 +24,10 @@ const Login = () => {
   // Handle registration success message and pre-fill email
   useEffect(() => {
     const state = location.state as { message?: string; email?: string } | null;
-    
+
     if (state?.message) {
-      toast.success("Registrierung erfolgreich! " + state.message, { 
-        duration: 8000 
+      toast.success("Registrierung erfolgreich! " + state.message, {
+        duration: 8000
       });
     }
 
@@ -65,39 +64,54 @@ const Login = () => {
     try {
       const loginResponse = await authService.login(formData.email, formData.password);
 
-      // Show welcome only if any workspace has an active/trial subscription
+      // Nach Login: Abo-Status robust prüfen (Payments API → Workspace-Fallback)
+      let hasActiveSubscription = false;
       try {
         const workspaces = await workspaceAPI.getMyWorkspaces();
-        let hasActive = false;
-        for (const ws of workspaces || []) {
+        const primaryWs = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces[0] : null;
+        if (primaryWs?.id) {
           try {
-            const sub = await subscriptionService.getSubscriptionStatus(String(ws.id));
-            const status = sub?.subscription?.status;
-            if (sub?.has_subscription && (status === 'active' || status === 'trial')) {
-              hasActive = true; break;
-            }
+            const sub = await paymentAPI.getSubscription(String(primaryWs.id));
+            hasActiveSubscription = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
           } catch {}
-        }
-        if (hasActive) {
-          toast.success(`Willkommen zurück, ${loginResponse.user.first_name}!`);
+
+          if (!hasActiveSubscription) {
+            try {
+              const ws = await workspaceAPI.getWorkspaceDetails(String(primaryWs.id));
+              hasActiveSubscription = !!(
+                ws?.is_subscription_active ||
+                ws?.has_active_subscription ||
+                ws?.subscription_active ||
+                ws?.active_subscription ||
+                ws?.subscription_status === 'active' ||
+                ws?.plan_status === 'active'
+              );
+            } catch {}
+          }
         }
       } catch {}
 
-      // Brief pause to ensure cookies are set
+      // Kurze Pause, damit Cookies/State stabil sind
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Smart routing: respect `next` param if provided
-      const params = new URLSearchParams(location.search);
-      const nextParam = params.get('next');
-      const nextPath = nextParam && nextParam.startsWith('/') ? nextParam : null;
-      if (nextPath) {
-        if (nextPath.startsWith('/invitations/')) {
-          window.location.assign(nextParam!);
-          return;
+      if (hasActiveSubscription) {
+        // Aktives Abo → Dashboard (oder next, falls vorhanden und erlaubt)
+        const params = new URLSearchParams(location.search);
+        const nextParam = params.get('next');
+        const nextPath = nextParam && nextParam.startsWith('/') ? nextParam : null;
+        if (nextPath) {
+          if (nextPath.startsWith('/invitations/')) {
+            window.location.assign(nextParam!);
+            return;
+          }
+          navigate(nextPath);
+        } else {
+          toast.success(`Willkommen zurück, ${loginResponse.user.first_name}!`);
+          navigate('/dashboard');
         }
-        navigate(nextPath);
       } else {
-        navigate("/dashboard");
+        // Kein aktives Abo → immer zum WelcomeFlow (der entscheidet Step 0 vs. Step 7)
+        navigate('/welcome', { replace: true });
       }
 
       // Optional: fetch agents for logging

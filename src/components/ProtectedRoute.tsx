@@ -77,7 +77,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3d5097] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Überprüfe Anmeldung...</p>
+          <p className="mt-4 text-gray-600">Überprüfe Anmeldung und Subscription...</p>
         </div>
       </div>
     );
@@ -89,6 +89,5 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />;
   }
 
-  // Welcome flow logic is now handled by Layout.tsx
   return <>{children}</>;
 }
