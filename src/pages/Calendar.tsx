@@ -348,7 +348,10 @@ function EventTypeStep4({ formData, setFormData, availableCalendars }: { formDat
           min="0"
           max="72"
           value={formData.days_buffer}
-          onChange={(e) => setFormData({...formData, days_buffer: parseInt(e.target.value) || 0})}
+          onChange={(e) => {
+            const value = Math.max(0, parseInt(e.target.value) || 0);
+            setFormData({...formData, days_buffer: value});
+          }}
         />
       </div>
     </div>
@@ -566,12 +569,10 @@ function EventTypeCard({ eventType, onEdit, onDelete }: {
     return `${Math.floor(minutes / 60)}h ${minutes % 60 > 0 ? `${minutes % 60}m` : ''}`.trim();
   };
 
-  const formatBufferTime = (days: number) => {
-    if (days === 0) return null;
-    if (days === 1) return '3 Stunden';
-    if (days === 2) return '6 Stunden'; 
-    if (days === 3) return '1 Tag';
-    return `${days} Tage`;
+  const formatBufferTime = (hours: number) => {
+    if (hours === 0) return null;
+    if (hours === 1) return '1 Stunde';
+    return `${hours} Stunden`;
   };
 
   return (
