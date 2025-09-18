@@ -53,8 +53,8 @@ export default function MetaIntegration() {
       console.error("❌ Error loading Meta integrations:", error);
       setMetaIntegrations([]);
       toast({
-        title: "Error",
-        description: "Failed to load Meta integrations.",
+        title: "Fehler",
+        description: "Meta-Integrationen konnten nicht geladen werden.",
         variant: "destructive",
       });
     } finally {
@@ -76,8 +76,8 @@ export default function MetaIntegration() {
       // Workspace finished loading but no workspace found
       console.warn('⚠️ No workspace available after loading completed');
       toast({
-        title: "Warning",
-        description: "No workspace context available. Please refresh the page.",
+        title: "Warnung",
+        description: "Kein Arbeitsbereich verfügbar. Bitte laden Sie die Seite neu.",
         variant: "destructive",
       });
     }
@@ -91,8 +91,8 @@ export default function MetaIntegration() {
     if (metaConnected === 'true') {
       console.log('🎉 Meta connection successful, showing success message');
       toast({
-        title: "Meta Integration Successful",
-        description: "Your Facebook page has been connected successfully!",
+        title: "Meta-Integration erfolgreich",
+        description: "Ihre Facebook-Seite wurde erfolgreich verbunden!",
         duration: 5000,
       });
       
@@ -112,8 +112,8 @@ export default function MetaIntegration() {
     if (!workspaceDetails?.id) {
       console.error("No workspace ID available");
       toast({
-        title: "Error",
-        description: "No workspace selected.",
+        title: "Fehler",
+        description: "Kein Arbeitsbereich ausgewählt.",
         variant: "destructive",
       });
       return;
@@ -128,8 +128,8 @@ export default function MetaIntegration() {
     } catch (error) {
       console.error("Failed to get Meta OAuth URL:", error);
       toast({
-        title: "Error",
-        description: "Meta Integration could not be started.",
+        title: "Fehler",
+        description: "Meta-Integration konnte nicht gestartet werden.",
         variant: "destructive",
       });
     }
@@ -146,14 +146,14 @@ export default function MetaIntegration() {
       );
       
       toast({
-        title: "Integration deleted",
-        description: "Meta Integration was successfully removed.",
+        title: "Integration gelöscht",
+        description: "Meta-Integration wurde erfolgreich entfernt.",
       });
     } catch (error) {
       console.error("Failed to delete Meta integration:", error);
       toast({
-        title: "Error",
-        description: "Integration could not be deleted.",
+        title: "Fehler",
+        description: "Integration konnte nicht gelöscht werden.",
         variant: "destructive",
       });
     }
@@ -175,7 +175,7 @@ export default function MetaIntegration() {
       <div className={layoutStyles.page}>
         <div className="flex items-center justify-center min-h-96">
           <div className="animate-pulse text-gray-500">
-            {workspaceLoading ? 'Loading workspace...' : 'Loading Meta integrations...'}
+            {workspaceLoading ? 'Arbeitsbereich wird geladen...' : 'Meta-Integrationen werden geladen...'}
           </div>
         </div>
       </div>
@@ -189,13 +189,13 @@ export default function MetaIntegration() {
         <div className="flex flex-col items-center justify-center min-h-96 space-y-4">
           <AlertCircle className="h-12 w-12 text-red-500" />
           <div className="text-center">
-            <h2 className="text-lg font-medium text-gray-900">Workspace Error</h2>
-            <p className="text-gray-500">Failed to load workspace context.</p>
+            <h2 className="text-lg font-medium text-gray-900">Arbeitsbereich-Fehler</h2>
+            <p className="text-gray-500">Arbeitsbereich-Kontext konnte nicht geladen werden.</p>
             <button 
               onClick={() => window.location.reload()}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Refresh Page
+              Seite aktualisieren
             </button>
           </div>
         </div>
@@ -210,13 +210,13 @@ export default function MetaIntegration() {
         <div className="flex flex-col items-center justify-center min-h-96 space-y-4">
           <AlertCircle className="h-12 w-12 text-yellow-500" />
           <div className="text-center">
-            <h2 className="text-lg font-medium text-gray-900">No Workspace</h2>
-            <p className="text-gray-500">Please select a workspace to view Meta integrations.</p>
+            <h2 className="text-lg font-medium text-gray-900">Kein Arbeitsbereich</h2>
+            <p className="text-gray-500">Bitte wählen Sie einen Arbeitsbereich aus, um Meta-Integrationen anzuzeigen.</p>
             <button 
               onClick={() => window.location.reload()}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
-              Refresh Page
+              Seite aktualisieren
             </button>
           </div>
         </div>
@@ -229,9 +229,9 @@ export default function MetaIntegration() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className={textStyles.pageTitle}>Meta Integration</h1>
+          <h1 className={textStyles.pageTitle}>Meta-Integration</h1>
           <p className={textStyles.description}>
-            Connect your Meta (Facebook) Lead Ads to automatically receive leads
+            Verbinden Sie Ihre Meta (Facebook) Lead Ads, um automatisch Leads zu erhalten
           </p>
         </div>
         <button
@@ -239,20 +239,20 @@ export default function MetaIntegration() {
           className={buttonStyles.create.default}
         >
           <Plus className={iconSizes.small} />
-          <span>Connect Meta</span>
+          <span>Meta verbinden</span>
         </button>
       </div>
 
       {/* Meta Integrations Section */}
       <div className="space-y-6">
         <div>
-          <h2 className={textStyles.sectionTitle}>Active Meta Integrations</h2>
+          <h2 className={textStyles.sectionTitle}>Aktive Meta-Integrationen</h2>
           {metaIntegrations.length === 0 ? (
             <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
               <Share2 className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No Meta integrations</h3>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">Keine Meta-Integrationen</h3>
               <p className="mt-2 text-gray-500">
-                Connect your Meta (Facebook) account to start receiving leads from your Lead Ads campaigns.
+                Verbinden Sie Ihr Meta (Facebook) Konto, um Leads aus Ihren Lead Ads Kampagnen zu erhalten.
               </p>
               <div className="mt-6">
                 <button
@@ -260,7 +260,7 @@ export default function MetaIntegration() {
                   className={buttonStyles.create.default}
                 >
                   <Plus className={iconSizes.small} />
-                  <span>Connect Meta Account</span>
+                  <span>Meta-Konto verbinden</span>
                 </button>
               </div>
             </div>
@@ -278,7 +278,7 @@ export default function MetaIntegration() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <Share2 className="h-5 w-5 text-blue-600" />
+                        <img src="/facebook.png" alt="Facebook" className="h-5 w-5 object-contain" />
                         <h3 className="text-lg font-semibold text-gray-900">
                           {integration.page_name || `Page ${integration.page_id}`}
                         </h3>
@@ -289,19 +289,19 @@ export default function MetaIntegration() {
                             ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {(integration.status || 'inactive') === 'active' ? 'Active' : 
-                           (integration.status || 'inactive') === 'error' ? 'Error' : 'Inactive'}
+                          {(integration.status || 'inactive') === 'active' ? 'Aktiv' :
+                           (integration.status || 'inactive') === 'error' ? 'Fehler' : 'Inaktiv'}
                         </div>
                       </div>
                       <div className="text-sm text-gray-600 space-y-1">
-                        <p><strong>Page ID:</strong> {integration.page_id || 'Unknown'}</p>
-                        <p><strong>Created:</strong> {integration.created_at ? formatDate(integration.created_at) : 'Unknown'}</p>
-                        <p><strong>Last Updated:</strong> {integration.updated_at ? formatDate(integration.updated_at) : 'Unknown'}</p>
+                        <p><strong>Seiten-ID:</strong> {integration.page_id || 'Unbekannt'}</p>
+                        <p><strong>Erstellt:</strong> {integration.created_at ? formatDate(integration.created_at) : 'Unbekannt'}</p>
+                        <p><strong>Zuletzt aktualisiert:</strong> {integration.updated_at ? formatDate(integration.updated_at) : 'Unbekannt'}</p>
                         {integration.forms && integration.forms.length > 0 && (
-                          <p><strong>Lead Forms:</strong> {integration.forms.length} form(s)</p>
+                          <p><strong>Lead-Formulare:</strong> {integration.forms.length} Formular(e)</p>
                         )}
                         {integration.lead_forms_count !== undefined && (
-                          <p><strong>Lead Forms:</strong> {integration.lead_forms_count} form(s)</p>
+                          <p><strong>Lead-Formulare:</strong> {integration.lead_forms_count} Formular(e)</p>
                         )}
                       </div>
                     </div>
@@ -312,14 +312,14 @@ export default function MetaIntegration() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className={buttonStyles.secondary.default}
-                        title="View Facebook Page"
+                        title="Facebook-Seite anzeigen"
                       >
                         <ExternalLink className={iconSizes.small} />
                       </a>
                       <button
                         onClick={() => handleDeleteIntegration(integration.id)}
                         className={buttonStyles.danger.default}
-                        title="Delete Integration"
+                        title="Integration löschen"
                       >
                         <Trash2 className={iconSizes.small} />
                       </button>
@@ -328,11 +328,11 @@ export default function MetaIntegration() {
                   
                   {integration.forms && integration.forms.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Lead Forms:</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Lead-Formulare:</h4>
                       <div className="grid gap-2">
                         {integration.forms.map((form: any, index: number) => (
                           <div key={form.id || index} className="text-sm text-gray-600 bg-gray-50 rounded p-2">
-                            <div className="font-medium">{form.name || `Form ${index + 1}`}</div>
+                            <div className="font-medium">{form.name || `Formular ${index + 1}`}</div>
                             {form.id && <div className="text-xs text-gray-500">ID: {form.id}</div>}
                           </div>
                         ))}
