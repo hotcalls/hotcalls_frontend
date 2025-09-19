@@ -76,7 +76,6 @@ interface EventType {
   title: string;
   duration: number;
   bookingBuffer: number;
-  conflictCheckCalendars: string[];
   targetCalendar: string;
   limitBookingsPerDay: boolean;
   maxBookingsPerDay: number;
