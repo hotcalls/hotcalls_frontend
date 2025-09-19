@@ -650,8 +650,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         console.log('Audio can play');
       };
       
-      audio.onerror = (error) => {
-        console.error('Audio error:', error);
+      audio.onerror = (event) => {
+        console.error('Audio error:', event);
         toast.error('Audio-Fehler', {
           description: `Voice-Sample für ${voice.name} konnte nicht geladen werden.`
         });

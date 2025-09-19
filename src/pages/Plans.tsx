@@ -9,6 +9,7 @@ import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus, TrialEligib
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
+import { usageService } from "@/lib/usageService";
 
 export default function Plans() {
   const navigate = useNavigate();
@@ -27,6 +28,11 @@ export default function Plans() {
   
   // Get current plan from usage data
   const currentPlan = usage?.workspace?.plan || null;
+
+  // Get subscription status display info
+  const subscriptionStatusDisplay = usage ? usageService.getSubscriptionStatusDisplay(usage) : null;
+  const isTrialCancelled = usage ? usageService.isSubscriptionCancelled(usage) && usageService.isOnTrial(usage) : false;
+  const trialEndDate = usage ? usageService.getTrialEndDate(usage) : null;
 
   // Redirect non-admins away from this page
   useEffect(() => {
@@ -146,7 +152,7 @@ export default function Plans() {
     <div className={layoutStyles.pageContainer}>
       {/* Page Header */}
       <div className="space-y-4 mb-6">
-        <button 
+        <button
           className={buttonStyles.navigation.back}
           onClick={() => navigate('/settings?tab=billing')}
         >
@@ -158,6 +164,31 @@ export default function Plans() {
           <p className={textStyles.pageSubtitle}>Wähle den passenden Plan für dein Business</p>
         </div>
       </div>
+
+      {/* Subscription Status Banner */}
+      {isTrialCancelled && (
+        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="flex items-center space-x-3">
+            <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-orange-800">
+                Dein Trial wurde gekündigt
+              </div>
+              <div className="text-sm text-orange-700 mt-1">
+                {trialEndDate ? (
+                  <>Trial endet am {new Intl.DateTimeFormat('de-DE', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  }).format(trialEndDate)}. Wähle einen Plan aus, um weiterzumachen.</>
+                ) : (
+                  <>Wähle einen Plan aus, um nach dem Trial weiterzumachen.</>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Plan Cards - OBEN */}
       <div className="grid md:grid-cols-3 gap-8 mb-12 max-w-6xl mx-auto">

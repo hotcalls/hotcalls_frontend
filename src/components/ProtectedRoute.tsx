@@ -135,7 +135,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         setHasActiveSubscription(subscriptionActive);
 
       } catch (error: any) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] ProtectedRoute validation:", error);
 
         // Handle all API failures as authentication failures
         console.log('🔒 API validation failed - clearing auth and redirecting to login');
@@ -151,7 +151,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
 
     } catch (error) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] ProtectedRoute outer catch:", error);
 
       // On any error, clear auth state and redirect
       authService.clearUser();

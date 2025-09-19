@@ -100,7 +100,7 @@ export default function OAuthCallback() {
         }
 
       } catch (err) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] OAuthCallback:", err);
         setStatus('error');
         setMessage(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
         

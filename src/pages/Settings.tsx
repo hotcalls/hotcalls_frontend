@@ -25,6 +25,7 @@ import { paymentAPI, workspaceAPI, plansAPI } from "@/lib/apiService";
 import { useToast } from "@/hooks/use-toast";
 import { apiConfig } from "@/lib/apiConfig";
 import WelcomePlanCards from "@/components/billing/WelcomePlanCards";
+import { usageService } from "@/lib/usageService";
 
 // Minute packages will be loaded dynamically from database via @core module
 
@@ -60,6 +61,11 @@ export default function Settings() {
   const callMinutesFeature = features.find(f => f.name === 'call_minutes');
   const maxUsersFeature = features.find(f => f.name === 'max_users');
   const maxAgentsFeature = features.find(f => f.name === 'max_agents');
+
+  // Get subscription status display info
+  const subscriptionStatusDisplay = usage ? usageService.getSubscriptionStatusDisplay(usage) : null;
+  const isTrialCancelled = usage ? usageService.isSubscriptionCancelled(usage) && usageService.isOnTrial(usage) : false;
+  const trialEndDate = usage ? usageService.getTrialEndDate(usage) : null;
   const usedUsers = maxUsersFeature?.used || 0;
   const limitUsers = maxUsersFeature?.limit || null;
   const isAtUserLimit = !!limitUsers && usedUsers >= (limitUsers as number);
@@ -117,7 +123,7 @@ export default function Settings() {
         
         setAvailablePlans(list);
       } catch (e) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] Settings loadPlans:", e);
       } finally {
         setLoadingPlans(false);
       }
@@ -165,8 +171,7 @@ export default function Settings() {
           });
         }
       } catch (error) {
-        console.error("[ERROR]:", error);
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] Settings loadPlanDetails:", error);
         // FORCE FALLBACK - Don't stay in loading state!
         setPlanDetails({
           name: planName,
@@ -296,7 +301,7 @@ export default function Settings() {
       window.location.href = checkoutSession.checkout_url;
       
     } catch (error) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] changePlan:", error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : 'Plan-Änderung fehlgeschlagen',
@@ -350,7 +355,7 @@ export default function Settings() {
         
         setSubscriptionStatus(subscriptionData);
       } catch (error) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] loadSubscription:", error);
         toast({
           title: "Fehler",
           description: "Fehler beim Laden des Abonnement-Status",
@@ -397,7 +402,7 @@ export default function Settings() {
       setSubscriptionStatus(subscriptionData);
       
     } catch (error: any) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] cancelSubscription:", error);
       toast({
         title: "Fehler beim Kündigen",
         description: error.message || 'Bitte versuche es erneut oder kontaktiere den Support.',
@@ -438,7 +443,7 @@ export default function Settings() {
       const subscriptionData = await paymentAPI.getSubscription(primaryWorkspace.id);
       setSubscriptionStatus(subscriptionData);
     } catch (error: any) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] resumeSubscription:", error);
       toast({ title: 'Fehler beim Zurücknehmen', description: error.message || 'Bitte erneut versuchen', variant: 'destructive' });
     }
   };
@@ -463,7 +468,7 @@ export default function Settings() {
       window.open(portalSession.url, '_blank');
       
     } catch (error: any) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] openPortal:", error);
       toast({
         title: "Fehler",
         description: error.message || 'Fehler beim Öffnen der Abonnement-Verwaltung. Bitte versuche es erneut.',
@@ -532,7 +537,7 @@ export default function Settings() {
         description: "Workspace erfolgreich aktualisiert!",
       });
     } catch (error: any) {
-      console.error('Failed to update workspace:', error);
+      console.error('[ERROR] updateWorkspace:', error);
       toast({
         title: "Fehler",
         description: error.message || 'Fehler beim Speichern des Workspace. Bitte versuchen Sie es erneut.',
@@ -588,7 +593,7 @@ export default function Settings() {
       setShowInviteModal(false);
       
     } catch (error: any) {
-      console.error('Failed to invite user:', error);
+      console.error('[ERROR] inviteUser:', error);
       toast({
         title: "Fehler beim Versenden",
         description: error.message || "Bitte versuchen Sie es erneut",
@@ -623,7 +628,7 @@ export default function Settings() {
         description: "Profil erfolgreich aktualisiert!",
       });
     } catch (error: any) {
-      console.error('Failed to update profile:', error);
+      console.error('[ERROR] saveProfile:', error);
       toast({
         title: "Fehler",
         description: error.message || 'Fehler beim Speichern des Profils. Bitte versuchen Sie es erneut.',
@@ -984,6 +989,64 @@ export default function Settings() {
         {/* Pläne & Guthaben Tab (ausgeblendet) */}
         {SHOW_BILLING && (
         <TabsContent value="billing" className="space-y-6">
+
+          {/* Subscription Status Card */}
+          {subscriptionStatusDisplay && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <CreditCard className="h-5 w-5" />
+                  <span>Abonnement Status</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Status:</span>
+                  <Badge
+                    variant={subscriptionStatusDisplay.color === 'green' ? 'default' :
+                            subscriptionStatusDisplay.color === 'orange' ? 'destructive' : 'secondary'}
+                    className={subscriptionStatusDisplay.color === 'blue' ? 'bg-blue-100 text-blue-800' : ''}
+                  >
+                    {subscriptionStatusDisplay.text}
+                  </Badge>
+                </div>
+
+                {isTrialCancelled && trialEndDate && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="h-4 w-4 text-orange-600" />
+                      <div className="text-sm">
+                        <div className="font-medium text-orange-800">Trial gekündigt</div>
+                        <div className="text-orange-700">
+                          Endet am {new Intl.DateTimeFormat('de-DE', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          }).format(trialEndDate)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {usage?.subscription && (
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
+                    <div>
+                      <span className="text-gray-500">Plan:</span>
+                      <div className="font-medium">{usage.workspace.plan || 'Unbekannt'}</div>
+                    </div>
+                    {usage.billing_period?.days_remaining !== null && (
+                      <div>
+                        <span className="text-gray-500">Verbleibende Tage:</span>
+                        <div className="font-medium">{usage.billing_period.days_remaining}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Exakt das Layout aus dem Welcome Flow */}
           <WelcomePlanCards
             plans={(availablePlans && availablePlans.length > 0

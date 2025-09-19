@@ -73,7 +73,7 @@ export default function CreateAgentWizard({ workspaceId, onComplete, onSkip }: C
           console.warn('⚠️ No voices received from API');
         }
       } catch (error) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR] CreateAgentWizard loadVoices:", error);
         toast({
           title: "Fehler beim Laden der Stimmen",
           description: "Stimmen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",

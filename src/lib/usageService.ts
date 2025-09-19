@@ -21,11 +21,33 @@ export interface FeatureUsage {
   unit: string;
 }
 
+export interface SubscriptionInfo {
+  has_subscription: boolean;
+  workspace_subscription_status: string;
+  stripe_customer_id: string | null;
+  id: string | null;
+  status: string | null;
+  cancel_at_period_end: boolean | null;
+  canceled_at: number | null;
+  current_period_end: number | null;
+  trial_end: number | null;
+  created: number | null;
+  days_until_expiry: number | null;
+}
+
+export interface AccessStatus {
+  features_available: boolean;
+  expires_in_days: number | null;
+  expiry_message: string | null;
+}
+
 export interface UsageStatus {
   workspace: WorkspaceInfo;
   billing_period: BillingPeriod | null;
   features: Record<string, FeatureUsage>;
   cosmetic_features?: Record<string, any>;
+  subscription?: SubscriptionInfo;
+  access_status?: AccessStatus;
 }
 
 export interface UsageAPIResponse {
@@ -48,6 +70,24 @@ export interface UsageAPIResponse {
     unit: string;
   }>;
   cosmetic_features?: Record<string, any>;
+  subscription?: {
+    has_subscription: boolean;
+    workspace_subscription_status: string;
+    stripe_customer_id: string | null;
+    id: string | null;
+    status: string | null;
+    cancel_at_period_end: boolean | null;
+    canceled_at: number | null;
+    current_period_end: number | null;
+    trial_end: number | null;
+    created: number | null;
+    days_until_expiry: number | null;
+  };
+  access_status?: {
+    features_available: boolean;
+    expires_in_days: number | null;
+    expiry_message: string | null;
+  };
 }
 
 class UsageService {
@@ -98,6 +138,8 @@ class UsageService {
         billing_period: data.billing_period,
         features: data.features,
         cosmetic_features: data.cosmetic_features,
+        subscription: data.subscription,
+        access_status: data.access_status,
       };
       
       
@@ -193,6 +235,60 @@ class UsageService {
       return '0%';
     }
     return `${Math.round(featureUsage.percentage_used)}%`;
+  }
+
+  /**
+   * Check if subscription is cancelled
+   */
+  isSubscriptionCancelled(usageStatus: UsageStatus): boolean {
+    return usageStatus.subscription?.cancel_at_period_end === true;
+  }
+
+  /**
+   * Check if subscription is on trial
+   */
+  isOnTrial(usageStatus: UsageStatus): boolean {
+    return usageStatus.subscription?.workspace_subscription_status === 'trial';
+  }
+
+  /**
+   * Get subscription status display info
+   */
+  getSubscriptionStatusDisplay(usageStatus: UsageStatus): { text: string; color: string; showAlert: boolean } {
+    const subscription = usageStatus.subscription;
+
+    if (!subscription) {
+      return { text: 'No Subscription', color: 'gray', showAlert: false };
+    }
+
+    const isTrialing = this.isOnTrial(usageStatus);
+    const isCancelled = this.isSubscriptionCancelled(usageStatus);
+
+    if (isTrialing && isCancelled) {
+      return { text: 'Trial Cancelled', color: 'orange', showAlert: true };
+    }
+
+    if (isTrialing) {
+      return { text: 'Trial Active', color: 'blue', showAlert: false };
+    }
+
+    if (isCancelled) {
+      return { text: 'Cancelled', color: 'orange', showAlert: true };
+    }
+
+    if (subscription.status === 'active') {
+      return { text: 'Active', color: 'green', showAlert: false };
+    }
+
+    return { text: subscription.status || 'Unknown', color: 'gray', showAlert: false };
+  }
+
+  /**
+   * Get trial end date if applicable
+   */
+  getTrialEndDate(usageStatus: UsageStatus): Date | null {
+    const trialEnd = usageStatus.subscription?.trial_end;
+    return trialEnd ? new Date(trialEnd * 1000) : null;
   }
 }
 
