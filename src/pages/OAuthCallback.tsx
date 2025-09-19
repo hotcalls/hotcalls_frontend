@@ -28,8 +28,8 @@ export default function OAuthCallback() {
           
           // Redirect to calendar page after short delay
           setTimeout(() => {
-            navigate('/dashboard/calendar', { 
-              state: { 
+            navigate('/dashboard/calendar', {
+              state: {
                 message: `Google Kalender für ${email} wurde erfolgreich verbunden! ${calendarsCount} Kalender synchronisiert.`,
                 type: 'success',
                 newConnection: true,
@@ -86,8 +86,8 @@ export default function OAuthCallback() {
           
           // Redirect to calendar page after short delay
           setTimeout(() => {
-            navigate('/dashboard/calendar', { 
-              state: { 
+            navigate('/dashboard/calendar', {
+              state: {
                 message: 'Google Kalender wurde erfolgreich verbunden!',
                 type: 'success',
                 newConnection: true,

@@ -950,7 +950,7 @@ export default function Calendar() {
       console.log('📅 Raw calendar API response:', { calendarsResponse, calendars, count: calendars.length });
 
       if (!Array.isArray(calendars)) {
-        console.error("[ERROR]:", error);
+        console.error("[ERROR]: Invalid calendars response - expected array but got:", typeof calendars);
         throw new Error('Invalid calendars response');
       }
 
@@ -1052,7 +1052,7 @@ export default function Calendar() {
       if (cal) await calendarAPI.syncCalendar(cal.id);
       toast({ title: 'Aktualisiert', description: 'Kalender synchronisiert.' });
     } catch (e) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", e);
       toast({ title: 'Fehler', description: 'Aktualisieren fehlgeschlagen.', variant: 'destructive' });
     } finally {
       setMsRefreshingConnectionId(null);
@@ -1083,7 +1083,7 @@ export default function Calendar() {
         throw new Error(res?.message || 'Trennen fehlgeschlagen');
       }
     } catch (e) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", e);
       toast({ title: 'Fehler', description: 'Trennen fehlgeschlagen.', variant: 'destructive' });
     } finally {
       setMsDisconnectingConnectionId(null);
@@ -1705,7 +1705,7 @@ function CalendarCard({
       // Optimistic UI: remove from local state by reloading calendars/events in parent via storage/event
       window.dispatchEvent(new CustomEvent('hotcalls-calendars-updated'));
     } catch (e) {
-      console.error("[ERROR]:", error);
+      console.error("[ERROR]:", e);
     } finally {
       setIsDeleting(false);
     }
