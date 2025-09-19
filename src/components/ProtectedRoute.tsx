@@ -7,6 +7,45 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+// Cache utilities for subscription state
+const SUBSCRIPTION_CACHE_KEY = 'subscription_cache';
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+interface SubscriptionCache {
+  hasActiveSubscription: boolean;
+  timestamp: number;
+  workspaceId: string;
+}
+
+const getSubscriptionCache = (): SubscriptionCache | null => {
+  try {
+    const cached = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setSubscriptionCache = (hasActiveSubscription: boolean, workspaceId: string) => {
+  const cache: SubscriptionCache = {
+    hasActiveSubscription,
+    timestamp: Date.now(),
+    workspaceId
+  };
+  localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify(cache));
+};
+
+const clearSubscriptionCache = () => {
+  localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+};
+
+const isCacheValid = (cache: SubscriptionCache, currentWorkspaceId: string): boolean => {
+  return (
+    cache.workspaceId === currentWorkspaceId &&
+    Date.now() - cache.timestamp < CACHE_DURATION
+  );
+};
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -46,31 +85,49 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         console.log('✅ Token validation successful:', profileResponse.email);
         setIsAuthenticated(true);
 
-        // After auth: verify subscription status EXACTLY like in Login
+        // After auth: verify subscription status with caching
         let subscriptionActive = false;
+        let workspaceId = '';
+
         try {
           const workspaces = await workspaceAPI.getMyWorkspaces();
           const primaryWs = Array.isArray(workspaces) && workspaces.length > 0 ? workspaces[0] : null;
-          if (primaryWs?.id) {
-            // Payments API (source of truth)
-            try {
-              const sub = await paymentAPI.getSubscription(String(primaryWs.id));
-              subscriptionActive = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
-            } catch {}
 
-            // Workspace details fallback
-            if (!subscriptionActive) {
+          if (primaryWs?.id) {
+            workspaceId = String(primaryWs.id);
+
+            // Check cache first
+            const cache = getSubscriptionCache();
+            if (cache && isCacheValid(cache, workspaceId)) {
+              console.log('📦 Using cached subscription status:', cache.hasActiveSubscription);
+              subscriptionActive = cache.hasActiveSubscription;
+            } else {
+              console.log('🔄 Cache miss or expired, fetching subscription status from backend...');
+
+              // Payments API (source of truth)
               try {
-                const ws = await workspaceAPI.getWorkspaceDetails(String(primaryWs.id));
-                subscriptionActive = !!(
-                  ws?.is_subscription_active ||
-                  ws?.has_active_subscription ||
-                  ws?.subscription_active ||
-                  ws?.active_subscription ||
-                  ws?.subscription_status === 'active' ||
-                  ws?.plan_status === 'active'
-                );
+                const sub = await paymentAPI.getSubscription(workspaceId);
+                subscriptionActive = !!(sub?.has_subscription && sub?.subscription?.status === 'active');
               } catch {}
+
+              // Workspace details fallback
+              if (!subscriptionActive) {
+                try {
+                  const ws = await workspaceAPI.getWorkspaceDetails(workspaceId);
+                  subscriptionActive = !!(
+                    ws?.is_subscription_active ||
+                    ws?.has_active_subscription ||
+                    ws?.subscription_active ||
+                    ws?.active_subscription ||
+                    ws?.subscription_status === 'active' ||
+                    ws?.plan_status === 'active'
+                  );
+                } catch {}
+              }
+
+              // Update cache with fresh data
+              setSubscriptionCache(subscriptionActive, workspaceId);
+              console.log('💾 Updated subscription cache:', subscriptionActive);
             }
           }
         } catch {}
@@ -88,6 +145,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userLoggedIn');
         localStorage.removeItem('user');
+        clearSubscriptionCache();
 
         setIsAuthenticated(false);
       }
@@ -97,6 +155,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
       // On any error, clear auth state and redirect
       authService.clearUser();
+      clearSubscriptionCache();
       setIsAuthenticated(false);
     } finally {
       setIsValidating(false);
