@@ -86,7 +86,6 @@ interface EventTypeFormData {
   name: string;
   duration: number;
   calendar: string;
-  conflictCheckCalendars: string[];
   workdays: string[];
   from_time: string;
   to_time: string;
@@ -170,17 +169,12 @@ function EventTypeStep2({ formData, setFormData, availableCalendars, workspaceId
         <p className="text-sm text-muted-foreground mb-2">
           Wählen Sie den Kalender aus, in den die Buchungen dieses Event-Types eingetragen werden sollen.
         </p>
-        <Select 
+        <Select
           value={formData.calendar}
           onValueChange={(value) => {
-            // Auto-select target as conflict (purely visual) and keep unique
-            const targetId = value;
-            const conflicts = new Set([...(formData.conflictCheckCalendars || [])]);
-            if (targetId && targetId !== 'none') conflicts.add(targetId);
             setFormData({
               ...formData,
-              calendar: value,
-              conflictCheckCalendars: Array.from(conflicts)
+              calendar: value
             });
           }}
         >
@@ -196,43 +190,6 @@ function EventTypeStep2({ formData, setFormData, availableCalendars, workspaceId
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div>
-        <Label>Kalender für Verfügbarkeitsprüfung</Label>
-        <p className="text-sm text-muted-foreground mb-3">
-          Wählen Sie die Kalender aus, die auf Konflikte geprüft werden sollen.
-        </p>
-        <div className="space-y-2">
-          {(loadingSubs ? [] : subAccounts).map((sa) => (
-            <div key={sa.id} className="flex items-center space-x-2">
-              <Checkbox 
-                id={sa.id}
-                checked={formData.conflictCheckCalendars.includes(sa.id)}
-                disabled
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    setFormData({
-                      ...formData, 
-                      conflictCheckCalendars: [...formData.conflictCheckCalendars, sa.id]
-                    });
-                  } else {
-                    setFormData({
-                      ...formData,
-                      conflictCheckCalendars: formData.conflictCheckCalendars.filter(id => id !== sa.id)
-                    });
-                  }
-                }}
-              />
-              <Label htmlFor={sa.id} className="flex items-center space-x-2">
-                <span>{sa.label} <span className="text-xs text-muted-foreground">({sa.provider === 'outlook' ? 'Microsoft 365' : 'Google Calendar'})</span></span>
-                {formData.calendar === sa.id && formData.calendar !== 'none' && (
-                  <Badge className="bg-[#FE5B25] text-white text-xs">Zielkalender</Badge>
-                )}
-              </Label>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -426,7 +383,6 @@ function EventTypeModal({
     name: '',
     duration: 60,
     calendar: 'none',
-    conflictCheckCalendars: [],
     workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
     from_time: '09:00:00',
     to_time: '17:00:00',
@@ -456,13 +412,9 @@ function EventTypeModal({
       // Build working_hours from workdays + times
       const weekdayMap: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
       const working_hours = (formData.workdays || []).map(d => ({ day_of_week: weekdayMap[d], start_time: formData.from_time, end_time: formData.to_time }));
-      // Build calendar_mappings from selected target + conflicts
+      // Build calendar_mappings with only the target calendar
       const targetId = formData.calendar !== 'none' ? formData.calendar : null;
-      const conflictIds = (formData.conflictCheckCalendars || []).filter(id => id && id !== targetId);
-      const calendar_mappings = [
-        ...(targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : []),
-        ...conflictIds.map(id => ({ sub_account_id: id, role: 'conflict' as const }))
-      ];
+      const calendar_mappings = targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : [];
       const payload = {
         name: formData.name,
         duration: formData.duration,
@@ -487,7 +439,6 @@ function EventTypeModal({
         name: '',
         duration: 60,
         calendar: 'none',
-        conflictCheckCalendars: [],
         workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         from_time: '09:00:00',
         to_time: '17:00:00',
@@ -643,7 +594,6 @@ function EventTypeEditModal({
     name: '',
     duration: 60,
     calendar: 'none',
-    conflictCheckCalendars: [],
     workdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
     from_time: '09:00:00',
     to_time: '17:00:00',
@@ -665,13 +615,11 @@ function EventTypeEditModal({
       const firstWh = wh && wh.length > 0 ? wh[0] : { start_time: '09:00:00', end_time: '17:00:00' };
       const mappings = Array.isArray(eventType.calendar_mappings) ? eventType.calendar_mappings : [];
       const targetMap = mappings.find((m: any) => m.role === 'target');
-      const conflictIds = mappings.filter((m: any) => m.role === 'conflict').map((m: any) => m.sub_account_id);
 
       setEditFormData({
         name: eventType.name || '',
         duration: eventType.duration || 60,
         calendar: targetMap ? String(targetMap.sub_account_id) : 'none',
-        conflictCheckCalendars: conflictIds,
         workdays: enabledDays.length > 0 ? enabledDays as any : ['monday','tuesday','wednesday','thursday','friday'],
         from_time: (firstWh.start_time || '09:00:00'),
         to_time: (firstWh.end_time || '17:00:00'),
@@ -689,11 +637,7 @@ function EventTypeEditModal({
       const weekdayMap: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
       const working_hours = (editFormData.workdays || []).map(d => ({ day_of_week: weekdayMap[d], start_time: editFormData.from_time, end_time: editFormData.to_time }));
       const targetId = editFormData.calendar !== 'none' ? editFormData.calendar : null;
-      const conflictIds = (editFormData.conflictCheckCalendars || []).filter(id => id && id !== targetId);
-      const calendar_mappings = [
-        ...(targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : []),
-        ...conflictIds.map(id => ({ sub_account_id: id, role: 'conflict' as const }))
-      ];
+      const calendar_mappings = targetId ? [{ sub_account_id: targetId, role: 'target' as const }] : [];
       const payload = {
         name: editFormData.name,
         duration: editFormData.duration,
