@@ -27,16 +27,20 @@ export function UsageAlertOverlay() {
         const periodEnd = usage.billing_period?.end || 'unknown';
 
         // Check subscription status first (higher priority)
-        const subStatus = usageService.getSubscriptionStatusDisplay(usage);
-        if (subStatus.showAlert) {
-          const subKey = `subscriptionAlertDismissed:${primary.id}:${usage.subscription?.id || 'none'}:cancelled`;
-          if (localStorage.getItem(subKey) !== '1') {
-            setSubscriptionStatus(subStatus);
-            setTrialEndDate(usageService.getTrialEndDate(usage));
-            setAlertType('subscription');
-            setDismissKey(subKey);
-            setVisible(true);
-            return;
+        // Only show subscription alerts if welcome flow is completed
+        const welcomeCompleted = localStorage.getItem('welcomeCompleted');
+        if (welcomeCompleted) {
+          const subStatus = usageService.getSubscriptionStatusDisplay(usage);
+          if (subStatus.showAlert) {
+            const subKey = `subscriptionAlertDismissed:${primary.id}:${usage.subscription?.id || 'none'}:cancelled`;
+            if (localStorage.getItem(subKey) !== '1') {
+              setSubscriptionStatus(subStatus);
+              setTrialEndDate(usageService.getTrialEndDate(usage));
+              setAlertType('subscription');
+              setDismissKey(subKey);
+              setVisible(true);
+              return;
+            }
           }
         }
 

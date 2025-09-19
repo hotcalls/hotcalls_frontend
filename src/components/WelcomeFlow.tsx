@@ -733,7 +733,7 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
         call_from: '09:00:00',
         call_to: '17:00:00', 
         character: formData.personality,
-        prompt: formData.script, // Use user's task definition as prompt
+        script_template: formData.script, // Use user's task definition as prompt
         config_id: null,
         calendar_configuration: null
       };
@@ -1322,7 +1322,8 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
                               if (isContact) {
                                 window.open('https://cal.com/leonhardpopeppel/austausch-mit-leonhard-poeppel', '_blank');
                               } else {
-                                handlePlanSelection(plan.id, plan.name, plan.price);
+                                const planPrice = plan.price_monthly !== null ? `${plan.price_monthly}€` : 'Individuell';
+                                handlePlanSelection(plan.id, plan.name, planPrice);
                               }
                             }}
                             disabled={isProcessingPayment && !isContact}
