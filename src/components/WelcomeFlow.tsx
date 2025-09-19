@@ -988,9 +988,9 @@ export function WelcomeFlow({ onComplete }: WelcomeFlowProps) {
             <div className="w-full max-w-lg space-y-8 text-center animate-slide-in">
               <div className="space-y-6">
                 <div className="flex justify-center mb-6">
-                  <img 
-                    src="public/HC%20Logo.png"
-                    alt="Hotcalls Logo" 
+                  <img
+                    src="/HC%20Logo.png"
+                    alt="Hotcalls Logo"
                     className="h-16 w-auto"
                   />
                 </div>
