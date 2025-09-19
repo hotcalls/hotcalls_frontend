@@ -1071,27 +1071,20 @@ export default function Calendar() {
     if (!id) return;
     try {
       setMsDisconnectingConnectionId(id);
-      // Delete all calendars for this Microsoft account (same pattern as Google)
-      const allCalendars = await calendarAPI.getCalendars();
-      const microsoftCalendars = (Array.isArray(allCalendars) ? allCalendars : (allCalendars as any)?.results || [])
-        .filter((c: any) => c.provider === 'outlook' || c.provider === 'microsoft');
 
-      // Find the connection to get the email for filtering
-      const connection = microsoftConnections.find(c => c.id === id);
-      const connectionEmail = connection?.primary_email;
-
-      for (const cal of microsoftCalendars) {
-        // Only delete calendars that belong to this specific connection
-        if (connectionEmail && (cal.id === id || (cal as any)?.provider_details?.primary_email === connectionEmail)) {
-          try { await calendarAPI.deleteCalendar(cal.id); } catch {}
-        }
-      }
+      // The connection ID is the calendar ID, so delete it directly
+      // Backend will handle token revocation and cleanup via signals
+      await calendarAPI.deleteCalendar(id);
 
       // Update UI
       setMicrosoftConnections(prev => prev.filter(c => c.id !== id));
       const map = { ...msCalendarsByConnection };
       delete map[id];
       setMsCalendarsByConnection(map);
+
+      // Refresh calendar list to reflect deletion
+      await loadCalendarsFromBackend();
+
       toast({ title: 'Verbindung getrennt', description: 'Microsoft 365 wurde getrennt.' });
       try { await loadEventTypes(); } catch {}
     } catch (e) {
