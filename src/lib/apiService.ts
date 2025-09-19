@@ -162,7 +162,7 @@ async function apiCall<T>(
   if (authToken) {
     headers['Authorization'] = `Token ${authToken}`;
   } else {
-    console.error("[ERROR]:", error);
+    console.warn("⚠️ No auth token found in localStorage");
   }
   
   // Add CSRF token for non-GET requests
@@ -215,7 +215,7 @@ async function apiCall<T>(
     const errorData = await response.json().catch(() => ({
       error: `HTTP ${response.status}: ${response.statusText}`
     }));
-    console.error("[ERROR]:", error, {
+    console.error("[ERROR] API call failed:", {
       status: response.status,
       statusText: response.statusText,
       url: url,
@@ -783,8 +783,8 @@ const formatAppointmentDate = (isoDateTime: string): string => {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${day}.${month}.${year} ${hours}:${minutes}`;
-  } catch (error) {
-    console.error("[ERROR]:", error);
+  } catch (e) {
+    console.error("[ERROR] formatAppointmentDate:", e);
     return isoDateTime; // Fallback to original
   }
 };
@@ -796,8 +796,8 @@ const formatCallDate = (isoDateTime: string): string => {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
-  } catch (error) {
-    console.error("[ERROR]:", error);
+  } catch (e) {
+    console.error("[ERROR] formatCallDate:", e);
     return isoDateTime; // Fallback to original
   }
 };
@@ -908,9 +908,6 @@ export const callAPI = {
       }
       if (params?.has_appointment !== undefined) {
         searchParams.append('has_appointment', String(params.has_appointment));
-      }
-      if (params?.successful !== undefined) {
-        searchParams.append('successful', String(params.successful));
       }
       if (params?.direction) {
         searchParams.append('direction', params.direction);
@@ -2047,8 +2044,7 @@ export const metaAPI = {
       
       return response;
     } catch (error) {
-      console.error("[ERROR]:", error);
-      console.error("[ERROR]:", error);
+      console.error("[ERROR] updateFormSelections:", error);
       throw error;
     }
   },
