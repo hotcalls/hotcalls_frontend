@@ -43,6 +43,15 @@ export interface CheckoutSessionRequest {
 export interface CheckoutSessionResponse {
   checkout_url: string;
   session_id: string;
+  trial_applied?: boolean;
+}
+
+export interface TrialEligibilityResponse {
+  eligible_for_trial: boolean;
+  has_used_trial: boolean;
+  has_active_subscription: boolean;
+  current_status: string;
+  workspace_id: string;
 }
 
 class SubscriptionService {
@@ -108,7 +117,7 @@ class SubscriptionService {
     try {
       // Use main plans API which includes stripe_price_id_monthly (pricing API doesn't!)
       const plans = await this.getPlans();
-      return plans.find(plan => plan.plan_name === planName) || null;
+      return plans.find(plan => plan.name === planName) || null;
     } catch (error) {
       console.error("[ERROR]:", error);
       return null;
@@ -123,6 +132,30 @@ class SubscriptionService {
       return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/subscription/`);
     } catch (error) {
       console.error("[ERROR]:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if workspace is eligible for a 14-day trial
+   */
+  async checkTrialEligibility(workspaceId: string): Promise<TrialEligibilityResponse> {
+    try {
+      return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/trial-eligibility/`);
+    } catch (error) {
+      console.error("[ERROR] Trial eligibility check failed:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug subscription status for troubleshooting
+   */
+  async debugSubscriptionStatus(workspaceId: string): Promise<any> {
+    try {
+      return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/debug-subscription/`);
+    } catch (error) {
+      console.error("[ERROR] Debug subscription status failed:", error);
       throw error;
     }
   }
@@ -175,9 +208,14 @@ class SubscriptionService {
   }
 
   /**
-   * Cancel subscription at period end
+   * Cancel subscription (immediate for trials, at period end for regular)
    */
-  async cancelSubscription(workspaceId: string): Promise<{ message: string; cancel_at: number }> {
+  async cancelSubscription(workspaceId: string): Promise<{
+    message: string;
+    cancel_at?: number;
+    immediate_cancellation: boolean;
+    was_trial: boolean;
+  }> {
     try {
       return await this.fetchWithAuth(`/api/payments/workspaces/${workspaceId}/subscription/cancel/`, {
         method: 'POST',

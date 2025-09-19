@@ -5,7 +5,7 @@ import { Check, Phone, ArrowLeft, MessageCircle, Loader2, AlertTriangle, Crown, 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { buttonStyles, textStyles, iconSizes, layoutStyles, spacingStyles } from "@/lib/buttonStyles";
-import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus } from "@/lib/subscriptionService";
+import { subscriptionService, PlanInfo, WorkspaceSubscriptionStatus, TrialEligibilityResponse } from "@/lib/subscriptionService";
 import { useAllFeaturesUsage } from "@/hooks/use-usage-status";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useToast } from "@/hooks/use-toast";
@@ -18,8 +18,10 @@ export default function Plans() {
   
   const [plans, setPlans] = useState<PlanInfo[]>([]);
   const [subscriptionStatus, setSubscriptionStatus] = useState<WorkspaceSubscriptionStatus | null>(null);
+  const [trialEligibility, setTrialEligibility] = useState<TrialEligibilityResponse | null>(null);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+  const [isLoadingTrial, setIsLoadingTrial] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const isProcessing = processingPlan !== null;
   
@@ -33,7 +35,7 @@ export default function Plans() {
     }
   }, [isAdmin, navigate]);
 
-  // Load plans and subscription status
+  // Load plans, subscription status, and trial eligibility
   useEffect(() => {
     const loadData = async () => {
       if (!primaryWorkspace?.id) return;
@@ -41,14 +43,17 @@ export default function Plans() {
       try {
         setIsLoadingPlans(true);
         setIsLoadingSubscription(true);
-        
-        const [plansData, subStatus] = await Promise.all([
+        setIsLoadingTrial(true);
+
+        const [plansData, subStatus, trialData] = await Promise.all([
           subscriptionService.getPlans(),
           subscriptionService.getSubscriptionStatus(primaryWorkspace.id),
+          subscriptionService.checkTrialEligibility(primaryWorkspace.id),
         ]);
-        
+
         setPlans(plansData);
         setSubscriptionStatus(subStatus);
+        setTrialEligibility(trialData);
       } catch (error) {
         console.error("Failed to load data:", error);
         toast({
@@ -59,6 +64,7 @@ export default function Plans() {
       } finally {
         setIsLoadingPlans(false);
         setIsLoadingSubscription(false);
+        setIsLoadingTrial(false);
       }
     };
 
@@ -103,23 +109,33 @@ export default function Plans() {
     if (!primaryWorkspace?.id || !subscriptionStatus?.has_subscription) return;
 
     try {
-      
-      
       const result = await subscriptionService.cancelSubscription(primaryWorkspace.id);
-      
-      toast({
-        title: "Subscription cancelled",
-        description: "Your subscription will be cancelled at the end of the billing period",
-      });
-      
-      // Refresh subscription status
-      const newStatus = await subscriptionService.getSubscriptionStatus(primaryWorkspace.id);
+
+      // Show appropriate message based on whether it was a trial or regular subscription
+      if (result.was_trial && result.immediate_cancellation) {
+        toast({
+          title: "Trial cancelled",
+          description: "Your trial has been cancelled immediately with no charge",
+        });
+      } else {
+        toast({
+          title: "Subscription cancelled",
+          description: "Your subscription will be cancelled at the end of the billing period",
+        });
+      }
+
+      // Refresh subscription status and trial eligibility
+      const [newStatus, newTrialData] = await Promise.all([
+        subscriptionService.getSubscriptionStatus(primaryWorkspace.id),
+        subscriptionService.checkTrialEligibility(primaryWorkspace.id),
+      ]);
       setSubscriptionStatus(newStatus);
-      
+      setTrialEligibility(newTrialData);
+
     } catch (error) {
       console.error("Cancellation failed:", error);
       toast({
-        title: "Cancellation failed", 
+        title: "Cancellation failed",
         description: error instanceof Error ? error.message : "Unable to cancel subscription",
         variant: "destructive",
       });
