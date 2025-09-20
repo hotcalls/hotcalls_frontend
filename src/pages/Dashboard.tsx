@@ -582,15 +582,39 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // ONLY use real database data - no fallbacks
+  // SIMPLE CHART DATA: Just count leads per day from the real leads data
   const enhancedAnalyticsData = useMemo(() => {
-    console.log('🔍 realChartData:', realChartData);
-    console.log('🔍 realChartData type:', typeof realChartData);
-    console.log('🔍 realChartData is array:', Array.isArray(realChartData));
+    console.log('🔍 leadsStats:', leadsStats);
+    console.log('🔍 Using real leads data to build chart');
 
-    // ALWAYS return real data - even if empty
-    return realChartData || [];
-  }, [realChartData]);
+    if (!leadsStats?.results || !Array.isArray(leadsStats.results)) {
+      console.log('❌ No leads data available');
+      return [];
+    }
+
+    // Group leads by day and count them
+    const leadsByDay = new Map();
+
+    leadsStats.results.forEach(lead => {
+      if (lead.created_at) {
+        const date = new Date(lead.created_at);
+        const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        leadsByDay.set(dayKey, (leadsByDay.get(dayKey) || 0) + 1);
+      }
+    });
+
+    // Convert to chart data format
+    const chartData = Array.from(leadsByDay.entries()).map(([date, count]) => ({
+      date: new Date(date).toISOString(),
+      leads: count,
+      calls: 0, // Will add real calls data later
+      appointments: 0, // Will add real appointments data later
+      conversion: 0
+    }));
+
+    console.log('📊 Generated chart data from real leads:', chartData);
+    return chartData;
+  }, [leadsStats]);
 
   // Metriken-Definitionen
   const metricConfig = {
