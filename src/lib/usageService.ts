@@ -14,6 +14,8 @@ export interface BillingPeriod {
 
 export interface FeatureUsage {
   used: number;
+  base_limit?: number;
+  extra_minutes?: number;
   limit: number | null;
   remaining: number | null;
   unlimited: boolean;
@@ -63,6 +65,8 @@ export interface UsageAPIResponse {
   } | null;
   features: Record<string, {
     used: number;
+    base_limit?: number;
+    extra_minutes?: number;
     limit: number | null;
     remaining: number | null;
     unlimited: boolean;
