@@ -596,17 +596,20 @@ export default function Dashboard() {
     const callsByDay = new Map();
 
     realRecentCalls.forEach((call, index) => {
-      console.log(`🔍 Call ${index}:`, call);
-      console.log(`🔍 Call timestamp:`, call.timestamp);
+      console.log(`🔍 Call ${index} fields:`, Object.keys(call));
 
-      if (call.timestamp) {
-        const date = new Date(call.timestamp);
+      // Try different possible date fields
+      const dateField = call.timestamp || call.date || call.created_at || call.call_date || call.datetime;
+      console.log(`🔍 Call ${index} date field:`, dateField);
+
+      if (dateField) {
+        const date = new Date(dateField);
         console.log(`🔍 Parsed date:`, date);
         const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
         console.log(`🔍 Day key:`, dayKey);
         callsByDay.set(dayKey, (callsByDay.get(dayKey) || 0) + 1);
       } else {
-        console.log(`❌ Call ${index} has no timestamp`);
+        console.log(`❌ Call ${index} has no date field`);
       }
     });
 
