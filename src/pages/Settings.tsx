@@ -1037,8 +1037,10 @@ export default function Settings() {
                     </div>
                     {usage.billing_period?.end && (
                       <div>
-                        <span className="text-gray-500">Verlängert am:</span>
-                        <div className="font-medium">
+                        <span className="text-gray-500">
+                          {isTrialCancelled ? 'Läuft ab am:' : 'Verlängert am:'}
+                        </span>
+                        <div className={`font-medium ${isTrialCancelled ? 'text-red-600' : ''}`}>
                           {new Date(usage.billing_period.end).toLocaleDateString('de-DE')}
                         </div>
                       </div>
