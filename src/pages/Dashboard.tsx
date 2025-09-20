@@ -598,8 +598,8 @@ export default function Dashboard() {
     realRecentCalls.forEach((call, index) => {
       console.log(`🔍 Call ${index} fields:`, Object.keys(call));
 
-      // Try different possible date fields
-      const dateField = call.timestamp || call.date || call.created_at || call.call_date || call.datetime;
+      // Use the same date field that "Letzte Anrufe" table uses
+      const dateField = call.date;
       console.log(`🔍 Call ${index} date field:`, dateField);
 
       if (dateField) {
