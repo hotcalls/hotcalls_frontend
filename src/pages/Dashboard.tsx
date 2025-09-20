@@ -582,17 +582,14 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // Always use real database data when available
+  // ONLY use real database data - no fallbacks
   const enhancedAnalyticsData = useMemo(() => {
-    // Always display real data from database when API calls succeed
-    if (realChartData && realChartData.length > 0) {
-      console.log('📊 Displaying real database data:', realChartData.length, 'data points');
-      return realChartData;
-    }
+    console.log('🔍 realChartData:', realChartData);
+    console.log('🔍 realChartData type:', typeof realChartData);
+    console.log('🔍 realChartData is array:', Array.isArray(realChartData));
 
-    // Only show empty state when no data is returned from database
-    console.log('📊 No data returned from database - showing empty state');
-    return [];
+    // ALWAYS return real data - even if empty
+    return realChartData || [];
   }, [realChartData]);
 
   // Metriken-Definitionen
@@ -789,106 +786,85 @@ export default function Dashboard() {
               </div>
               
               <div className="flex-1">
-                {chartLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-muted-foreground">
-                      <div className="text-sm">Lade Daten...</div>
-                    </div>
-                  </div>
-                ) : chartError ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-muted-foreground">
-                      <div className="text-sm">Fehler beim Laden der Daten</div>
-                      <div className="text-xs">{chartError}</div>
-                    </div>
-                  </div>
-                ) : enhancedAnalyticsData.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center text-muted-foreground">
-                      <div className="text-sm">Keine Daten für den ausgewählten Zeitraum</div>
-                    </div>
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={enhancedAnalyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
-                      {/* Gradient Definition für Area */}
-                      <defs>
-                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
-                          <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={enhancedAnalyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
+                    {/* Gradient Definition für Area */}
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
+                        <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
 
-                      {/* Horizontale Gridlines */}
-                      <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    {/* Horizontale Gridlines */}
+                    <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
 
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 14, fill: '#6b7280' }}
-                        tickMargin={8}
-                        padding={{ left: 20, right: 20 }}
-                        tickFormatter={(value) => {
-                          const date = new Date(value);
-                          if (isSingleDay) {
-                            return format(date, "dd. MMM yyyy, HH:mm 'h'", { locale: de });
-                          } else {
-                            return format(date, "dd. MMM yyyy", { locale: de });
-                          }
-                        }}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 14, fill: '#6b7280' }}
-                        width={35}
-                        tickMargin={5}
-                      />
-                      <Tooltip
-                        labelFormatter={(value) => {
-                          const date = new Date(value);
-                          if (isSingleDay) {
-                            return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
-                          } else {
-                            return format(date, "dd. MMM yyyy", { locale: de });
-                          }
-                        }}
-                        formatter={(value, name) => {
-                          const suffix = selectedMetric === 'conversion' ? '%' : '';
-                          return [`${value}${suffix}`, metricConfig[selectedMetric].name];
-                        }}
-                        contentStyle={{
-                          backgroundColor: '#fff',
-                          border: 'none',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                          fontSize: '14px'
-                        }}
-                        cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
-                      />
-                      {/* Area mit Gradient-Fill */}
-                      <Area
-                        type="monotone"
-                        dataKey={selectedMetric}
-                        stroke="none"
-                        fill="url(#areaGradient)"
-                        name={metricConfig[selectedMetric].name}
-                      />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 14, fill: '#6b7280' }}
+                      tickMargin={8}
+                      padding={{ left: 20, right: 20 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        if (isSingleDay) {
+                          return format(date, "dd. MMM yyyy, HH:mm 'h'", { locale: de });
+                        } else {
+                          return format(date, "dd. MMM yyyy", { locale: de });
+                        }
+                      }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 14, fill: '#6b7280' }}
+                      width={35}
+                      tickMargin={5}
+                    />
+                    <Tooltip
+                      labelFormatter={(value) => {
+                        const date = new Date(value);
+                        if (isSingleDay) {
+                          return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
+                        } else {
+                          return format(date, "dd. MMM yyyy", { locale: de });
+                        }
+                      }}
+                      formatter={(value, name) => {
+                        const suffix = selectedMetric === 'conversion' ? '%' : '';
+                        return [`${value}${suffix}`, metricConfig[selectedMetric].name];
+                      }}
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        fontSize: '14px'
+                      }}
+                      cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
+                    />
+                    {/* Area mit Gradient-Fill */}
+                    <Area
+                      type="monotone"
+                      dataKey={selectedMetric}
+                      stroke="none"
+                      fill="url(#areaGradient)"
+                      name={metricConfig[selectedMetric].name}
+                    />
 
-                      {/* Linie über der Area */}
-                      <Line
-                        type="monotone"
-                        dataKey={selectedMetric}
-                        stroke="#FE5B25"
-                        strokeWidth={2.5}
-                        name={metricConfig[selectedMetric].name}
-                        dot={false}
-                        activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                )}
+                    {/* Linie über der Area */}
+                    <Line
+                      type="monotone"
+                      dataKey={selectedMetric}
+                      stroke="#FE5B25"
+                      strokeWidth={2.5}
+                      name={metricConfig[selectedMetric].name}
+                      dot={false}
+                      activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
