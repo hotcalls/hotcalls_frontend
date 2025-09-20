@@ -342,27 +342,36 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
 
-  // API Call für Leads Count
+  // API Call für Leads Count - WITH DATE RANGE FILTER
   useEffect(() => {
     const fetchLeadsCount = async () => {
+      console.log('🔄 Fetching leads with date range:', {
+        from: dateRange.from.toISOString(),
+        to: dateRange.to.toISOString()
+      });
+
       setLeadsLoading(true);
       setLeadsError(null);
-      
+
       try {
         const authToken = localStorage.getItem('authToken');
         if (!authToken) {
-          // Fallback to dummy data if no token (user not logged in)
           console.warn('No authentication token found, using dummy data');
-          setLeadsStats({
-            count: 0
-          });
+          setLeadsStats({ count: 0, results: [] });
           setLeadsLoading(false);
           return;
         }
 
-        // Get count filtered by current workspace
-        const data = await leadAPI.getLeads({ page_size: 1, workspace: String(primaryWorkspace?.id || '') });
-        setLeadsStats({ count: data.count || 0 });
+        // Get leads filtered by workspace AND date range
+        const data = await leadAPI.getLeads({
+          page_size: 1000, // Get all leads in date range
+          workspace: String(primaryWorkspace?.id || ''),
+          created_after: dateRange.from.toISOString(),
+          created_before: dateRange.to.toISOString()
+        });
+
+        console.log('📊 Fetched leads data:', data);
+        setLeadsStats({ count: data.count || 0, results: data.results || [] });
       } catch (error) {
         console.error('Error fetching leads count:', error);
         setLeadsError(error instanceof Error ? error.message : 'Failed to load leads data');
@@ -372,7 +381,7 @@ export default function Dashboard() {
     };
 
     if (primaryWorkspace?.id) fetchLeadsCount();
-  }, [primaryWorkspace?.id]);
+  }, [primaryWorkspace?.id, dateRange]); // NOW DEPENDS ON DATE RANGE!
 
   // API Call für Reached Leads Count
   useEffect(() => {
@@ -582,49 +591,63 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // SIMPLE CHART DATA: Use the SAME data that "Letzte Anrufe" uses!
+  // CHART DATA: Use REAL CALL STATUS data for all metrics!
   const enhancedAnalyticsData = useMemo(() => {
     console.log('🔍 realRecentCalls:', realRecentCalls);
-    console.log('🔍 Using SAME data as "Letzte Anrufe" section');
+    console.log('🔍 Using REAL CALL STATUS data for all metrics');
 
     if (!realRecentCalls || !Array.isArray(realRecentCalls)) {
-      console.log('❌ No recent calls data available');
+      console.log('❌ No calls data available');
       return [];
     }
 
-    // Group calls by day and count them (same as "Letzte Anrufe")
-    const callsByDay = new Map();
+    // Group calls by day and count by status
+    const dailyMetrics = new Map();
 
     realRecentCalls.forEach((call, index) => {
-      console.log(`🔍 Call ${index} fields:`, Object.keys(call));
+      console.log(`🔍 Call ${index} status:`, call.status);
 
-      // Use the same date field that "Letzte Anrufe" table uses
       const dateField = call.date;
-      console.log(`🔍 Call ${index} date field:`, dateField);
-
       if (dateField) {
         const date = new Date(dateField);
-        console.log(`🔍 Parsed date:`, date);
         const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        console.log(`🔍 Day key:`, dayKey);
-        callsByDay.set(dayKey, (callsByDay.get(dayKey) || 0) + 1);
-      } else {
-        console.log(`❌ Call ${index} has no date field`);
+
+        if (!dailyMetrics.has(dayKey)) {
+          dailyMetrics.set(dayKey, {
+            totalCalls: 0,
+            erreicht: 0,
+            termine: 0
+          });
+        }
+
+        const dayData = dailyMetrics.get(dayKey);
+        dayData.totalCalls++;
+
+        // Count by status
+        if (call.status === "Erreicht") {
+          dayData.erreicht++;
+        } else if (call.status === "Termin vereinbart") {
+          dayData.termine++;
+        }
       }
     });
 
-    console.log('🔍 callsByDay Map:', Array.from(callsByDay.entries()));
+    console.log('🔍 dailyMetrics Map:', Array.from(dailyMetrics.entries()));
 
-    // Convert to chart data format
-    const chartData = Array.from(callsByDay.entries()).map(([date, count]) => ({
-      date: new Date(date).toISOString(),
-      leads: count,  // Use call count as leads since that's what we see
-      calls: count,
-      appointments: 0,
-      conversion: 0
-    }));
+    // Convert to chart data format with REAL metrics
+    const chartData = Array.from(dailyMetrics.entries()).map(([date, metrics]) => {
+      const conversionRate = metrics.totalCalls > 0 ? ((metrics.termine / metrics.totalCalls) * 100) : 0;
 
-    console.log('📊 Generated chart data from SAME DATA as Letzte Anrufe:', chartData);
+      return {
+        date: new Date(date).toISOString(),
+        leads: metrics.totalCalls,      // Total calls = leads
+        calls: metrics.erreicht,        // Calls with "Erreicht" status
+        appointments: metrics.termine,  // Calls with "Termin vereinbart" status
+        conversion: conversionRate      // Real conversion rate
+      };
+    });
+
+    console.log('📊 Generated chart data from REAL CALL STATUS:', chartData);
     console.log('📊 Total calls found:', realRecentCalls.length);
     return chartData;
   }, [realRecentCalls]);
