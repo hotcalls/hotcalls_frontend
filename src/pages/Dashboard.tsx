@@ -595,13 +595,22 @@ export default function Dashboard() {
     // Group calls by day and count them (same as "Letzte Anrufe")
     const callsByDay = new Map();
 
-    realRecentCalls.forEach(call => {
+    realRecentCalls.forEach((call, index) => {
+      console.log(`🔍 Call ${index}:`, call);
+      console.log(`🔍 Call timestamp:`, call.timestamp);
+
       if (call.timestamp) {
         const date = new Date(call.timestamp);
+        console.log(`🔍 Parsed date:`, date);
         const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        console.log(`🔍 Day key:`, dayKey);
         callsByDay.set(dayKey, (callsByDay.get(dayKey) || 0) + 1);
+      } else {
+        console.log(`❌ Call ${index} has no timestamp`);
       }
     });
+
+    console.log('🔍 callsByDay Map:', Array.from(callsByDay.entries()));
 
     // Convert to chart data format
     const chartData = Array.from(callsByDay.entries()).map(([date, count]) => ({
