@@ -610,8 +610,11 @@ export default function Dashboard() {
     });
 
     const totalLeads = actualLeads.length;
-    const erreichtLeads = actualLeads.filter(lead => lead.status === "Erreicht").length;
     const terminLeads = actualLeads.filter(lead => lead.status === "Termin vereinbart").length;
+    // ERREICHTE = Leads with "Erreicht" OR "Termin" (because Termin means you reached them!)
+    const erreichtLeads = actualLeads.filter(lead =>
+      lead.status === "Erreicht" || lead.status === "Termin vereinbart"
+    ).length;
     const conversionRate = totalLeads > 0 ? ((terminLeads / totalLeads) * 100) : 0;
 
     // Just use today's date as single data point
@@ -757,12 +760,14 @@ export default function Dashboard() {
         {stats.map((stat) => (
           <div
             key={stat.title}
-            className={`bg-white rounded-lg border p-6 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-gray-300 group ${
-              selectedMetric === stat.id 
-                ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5' 
-                : 'border-gray-200'
+            className={`bg-white rounded-lg border p-6 transition-all duration-200 group ${
+              stat.id === 'conversion'
+                ? 'border-gray-200 cursor-default' // Conversion rate is not clickable
+                : selectedMetric === stat.id
+                  ? 'border-[#FE5B25]/30 bg-[#FE5B25]/5 cursor-pointer hover:shadow-md hover:border-gray-300'
+                  : 'border-gray-200 cursor-pointer hover:shadow-md hover:border-gray-300'
             }`}
-            onClick={() => setSelectedMetric(stat.id as any)}
+            onClick={stat.id === 'conversion' ? undefined : () => setSelectedMetric(stat.id as any)}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
