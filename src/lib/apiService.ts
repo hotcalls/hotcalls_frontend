@@ -2274,22 +2274,34 @@ export const chartAPI = {
    * Generate real chart data by combining multiple API sources
    */
   async generateRealChartData(dateRange: {from: Date, to: Date}, workspaceId?: string): Promise<ChartDataPoint[]> {
-    
+    console.log('🎯 chartAPI.generateRealChartData called with:', {
+      dateRange: {
+        from: dateRange.from.toISOString(),
+        to: dateRange.to.toISOString()
+      },
+      workspaceId
+    });
+
     try {
       const startDate = dateRange.from.toISOString();
       const endDate = dateRange.to.toISOString();
-      
+
       // Check if this is a single day
       const isSingleDay = dateRange.from.toDateString() === dateRange.to.toDateString();
-      
+      console.log('📅 Date range type:', isSingleDay ? 'single day' : 'multi-day');
+
+      let result;
       if (isSingleDay) {
-        return await this.generateSingleDayHourlyData(dateRange.from, workspaceId);
+        result = await this.generateSingleDayHourlyData(dateRange.from, workspaceId);
       } else {
-        return await this.generateMultiDayData(dateRange, workspaceId);
+        result = await this.generateMultiDayData(dateRange, workspaceId);
       }
+
+      console.log('✅ chartAPI returning data:', result.length, 'points');
+      return result;
     } catch (error) {
-      console.error("[ERROR]:", error);
-      
+      console.error("❌ chartAPI error:", error);
+
       // Fallback to empty data on error
       return [];
     }
