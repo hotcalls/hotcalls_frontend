@@ -3,9 +3,12 @@ import { Button } from './ui/button';
 import { workspaceAPI } from '@/lib/apiService';
 import { useWorkspace } from '@/hooks/use-workspace';
 import { usageService } from '@/lib/usageService';
+import { subscriptionService } from '@/lib/subscriptionService';
+import { useToast } from '@/hooks/use-toast';
 
 export function UsageAlertOverlay() {
-  const { isAdmin } = useWorkspace();
+  const { isAdmin, primaryWorkspace } = useWorkspace();
+  const { toast } = useToast();
   const [visible, setVisible] = useState(false);
   const [threshold, setThreshold] = useState<75 | 90 | null>(null);
   const [dismissKey, setDismissKey] = useState<string | null>(null);
@@ -123,7 +126,25 @@ export function UsageAlertOverlay() {
           <div className="flex items-center gap-2 pt-1">
             <Button
               className="bg-[#3d5097] hover:bg-[#3d5097] text-white"
-              onClick={() => (window.location.href = '/plans')}
+              onClick={async () => {
+                if (alertType === 'subscription') {
+                  // Redirect to Stripe customer portal like "Abonnement verwalten"
+                  if (!primaryWorkspace?.id) return;
+                  try {
+                    const portal = await subscriptionService.createCustomerPortalSession(primaryWorkspace.id);
+                    window.open(portal.url, '_blank');
+                  } catch (e: any) {
+                    toast({
+                      title: 'Portal konnte nicht geöffnet werden',
+                      description: e?.message || 'Bitte später erneut versuchen',
+                      variant: 'destructive'
+                    });
+                  }
+                } else {
+                  // For usage alerts, keep the original behavior
+                  window.location.href = '/plans';
+                }
+              }}
             >
               {alertType === 'subscription' ? 'Plan wählen' : 'Jetzt upgraden'}
             </Button>
