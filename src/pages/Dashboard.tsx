@@ -544,46 +544,27 @@ export default function Dashboard() {
   // Fetch Real Chart Data
   useEffect(() => {
     const fetchRealChartData = async () => {
+      console.log('🔄 Date range changed, fetching new chart data:', {
+        from: dateRange.from.toISOString(),
+        to: dateRange.to.toISOString(),
+        workspaceId: primaryWorkspace?.id
+      });
+
       setChartLoading(true);
       setChartError(null);
       // DON'T clear realChartData immediately - keep previous data during loading
-      
+
       try {
-        
-        
         // Get real chart data from APIs with workspace filter
         const chartData = await chartAPI.generateRealChartData(dateRange, primaryWorkspace?.id ? String(primaryWorkspace.id) : undefined);
-        
+
+        console.log('📊 Received chart data from API:', chartData.length, 'data points');
         setRealChartData(chartData);
       } catch (error) {
-        console.error('Error fetching real chart data:', error);
+        console.error('❌ Error fetching real chart data:', error);
         setChartError(error instanceof Error ? error.message : 'Failed to load chart data');
-        // Fallback to zero-filled data on error
-        const zeros = (() => {
-          const isSingle = format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
-          if (isSingle) {
-            const arr: any[] = [];
-            for (let h = 0; h < 24; h++) {
-              const d = new Date(dateRange.from);
-              d.setHours(h, 0, 0, 0);
-              arr.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
-            }
-            return arr;
-          }
-          const start = new Date(dateRange.from);
-          start.setHours(0,0,0,0);
-          const end = new Date(dateRange.to);
-          end.setHours(23,59,59,999);
-          const days = Math.ceil((end.getTime()-start.getTime())/(1000*60*60*24))+1;
-          const arr: any[] = [];
-          for (let i=0;i<days;i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate()+i);
-            arr.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
-          }
-          return arr;
-        })();
-        setRealChartData(zeros);
+        // Fallback to empty array on error (let enhancedAnalyticsData handle the fallback logic)
+        setRealChartData([]);
       } finally {
         setChartLoading(false);
       }
@@ -601,52 +582,18 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // Use Real Chart Data or Fallback to zero-filled data
+  // Always use real database data when available
   const enhancedAnalyticsData = useMemo(() => {
-    // For single day, we expect 24 points; for multi-day, days count
-    const expectedDataPoints = isSingleDay ? 24 : Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    // If we have sufficient real chart data, use it
-    if (realChartData.length >= expectedDataPoints) {
-      
+    // Always display real data from database when API calls succeed
+    if (realChartData && realChartData.length > 0) {
+      console.log('📊 Displaying real database data:', realChartData.length, 'data points');
       return realChartData;
     }
-    
-    // Zero-fill structure, no fake numbers
-    
-    if (isSingleDay) {
-      // Generate 24 hours of ZERO data for single day
-      const minimalData = [];
-      for (let hour = 0; hour < 24; hour++) {
-        const date = new Date(dateRange.from);
-        date.setHours(hour, 0, 0, 0);
-        minimalData.push({
-          date: date.toISOString(),
-          leads: 0,
-          calls: 0,
-          appointments: 0,
-          conversion: 0
-        });
-      }
-      
-      return minimalData;
-    } else {
-      // For multi-day, generate zero-filled days
-      const start = new Date(dateRange.from);
-      start.setHours(0,0,0,0);
-      const end = new Date(dateRange.to);
-      end.setHours(23,59,59,999);
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000*60*60*24)) + 1;
-      const zeros = [] as any[];
-      for (let i=0;i<days;i++) {
-        const d = new Date(start);
-        d.setDate(start.getDate()+i);
-        zeros.push({ date: d.toISOString(), leads: 0, calls: 0, appointments: 0, conversion: 0 });
-      }
-      
-      return zeros;
-    }
-  }, [realChartData, isSingleDay, dateRange]);
+
+    // Only show empty state when no data is returned from database
+    console.log('📊 No data returned from database - showing empty state');
+    return [];
+  }, [realChartData]);
 
   // Metriken-Definitionen
   const metricConfig = {
@@ -656,17 +603,17 @@ export default function Dashboard() {
     conversion: { key: 'conversion', name: 'Konversionsrate', icon: TrendingUp, suffix: '%' }
   };
 
-  // Statistiken basierend auf echten API-Daten + Dummy-Daten berechnen
+  // Statistiken basierend auf echten API-Daten berechnen
   const stats = useMemo(() => {
     // Real Reached Leads Data von Call API
     const totalCalls = reachedLeadsCount;
-    
+
     // Real Appointments Data von Call API
     const totalAppointments = appointmentStats?.total_appointments || 0;
-    
+
     // Real Leads Data von API
     const totalLeads = leadsStats?.count || 0;
-    
+
     const conversionRate = totalLeads > 0 ? ((totalAppointments / totalLeads) * 100) : 0;
 
     // Statische Vergleichswerte (nicht zeitraumabhängig für Cards)
@@ -842,85 +789,106 @@ export default function Dashboard() {
               </div>
               
               <div className="flex-1">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={enhancedAnalyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
-                    {/* Gradient Definition für Area */}
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
-                        <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    
-                    {/* Horizontale Gridlines */}
-                    <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                    
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 14, fill: '#6b7280' }}
-                      tickMargin={8}
-                      padding={{ left: 20, right: 20 }}
-                      tickFormatter={(value) => {
-                        const date = new Date(value);
-                        if (isSingleDay) {
-                          return format(date, "dd. MMM yyyy, HH:mm 'h'", { locale: de });
-                        } else {
-                          return format(date, "dd. MMM yyyy", { locale: de });
-                        }
-                      }}
-                    />
-                    <YAxis 
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 14, fill: '#6b7280' }}
-                      width={35}
-                      tickMargin={5}
-                    />
-                    <Tooltip 
-                      labelFormatter={(value) => {
-                        const date = new Date(value);
-                        if (isSingleDay) {
-                          return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
-                        } else {
-                          return format(date, "dd. MMM yyyy", { locale: de });
-                        }
-                      }}
-                      formatter={(value, name) => {
-                        const suffix = selectedMetric === 'conversion' ? '%' : '';
-                        return [`${value}${suffix}`, metricConfig[selectedMetric].name];
-                      }}
-                      contentStyle={{
-                        backgroundColor: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                        fontSize: '14px'
-                      }}
-                      cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
-                    />
-                    {/* Area mit Gradient-Fill */}
-                    <Area
-                      type="monotone"
-                      dataKey={selectedMetric}
-                      stroke="none"
-                      fill="url(#areaGradient)"
-                      name={metricConfig[selectedMetric].name}
-                    />
-                    
-                    {/* Linie über der Area */}
-                    <Line 
-                      type="monotone" 
-                      dataKey={selectedMetric} 
-                      stroke="#FE5B25" 
-                      strokeWidth={2.5}
-                      name={metricConfig[selectedMetric].name}
-                      dot={false}
-                      activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
+                {chartLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-muted-foreground">
+                      <div className="text-sm">Lade Daten...</div>
+                    </div>
+                  </div>
+                ) : chartError ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-muted-foreground">
+                      <div className="text-sm">Fehler beim Laden der Daten</div>
+                      <div className="text-xs">{chartError}</div>
+                    </div>
+                  </div>
+                ) : enhancedAnalyticsData.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-muted-foreground">
+                      <div className="text-sm">Keine Daten für den ausgewählten Zeitraum</div>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={enhancedAnalyticsData} margin={{ top: 20, right: 20, left: 25, bottom: 20 }}>
+                      {/* Gradient Definition für Area */}
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#FE5B25" stopOpacity={0.15}/>
+                          <stop offset="100%" stopColor="#FE5B25" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+
+                      {/* Horizontale Gridlines */}
+                      <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 14, fill: '#6b7280' }}
+                        tickMargin={8}
+                        padding={{ left: 20, right: 20 }}
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          if (isSingleDay) {
+                            return format(date, "dd. MMM yyyy, HH:mm 'h'", { locale: de });
+                          } else {
+                            return format(date, "dd. MMM yyyy", { locale: de });
+                          }
+                        }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 14, fill: '#6b7280' }}
+                        width={35}
+                        tickMargin={5}
+                      />
+                      <Tooltip
+                        labelFormatter={(value) => {
+                          const date = new Date(value);
+                          if (isSingleDay) {
+                            return format(date, "dd. MMM yyyy, HH:mm 'Uhr'", { locale: de });
+                          } else {
+                            return format(date, "dd. MMM yyyy", { locale: de });
+                          }
+                        }}
+                        formatter={(value, name) => {
+                          const suffix = selectedMetric === 'conversion' ? '%' : '';
+                          return [`${value}${suffix}`, metricConfig[selectedMetric].name];
+                        }}
+                        contentStyle={{
+                          backgroundColor: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          fontSize: '14px'
+                        }}
+                        cursor={{ stroke: '#FE5B25', strokeWidth: 1, strokeDasharray: '5 5' }}
+                      />
+                      {/* Area mit Gradient-Fill */}
+                      <Area
+                        type="monotone"
+                        dataKey={selectedMetric}
+                        stroke="none"
+                        fill="url(#areaGradient)"
+                        name={metricConfig[selectedMetric].name}
+                      />
+
+                      {/* Linie über der Area */}
+                      <Line
+                        type="monotone"
+                        dataKey={selectedMetric}
+                        stroke="#FE5B25"
+                        strokeWidth={2.5}
+                        name={metricConfig[selectedMetric].name}
+                        dot={false}
+                        activeDot={{ r: 5, fill: "#FE5B25", strokeWidth: 0 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
