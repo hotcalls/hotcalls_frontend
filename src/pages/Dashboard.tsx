@@ -582,39 +582,40 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // SIMPLE CHART DATA: Just count leads per day from the real leads data
+  // SIMPLE CHART DATA: Use the SAME data that "Letzte Anrufe" uses!
   const enhancedAnalyticsData = useMemo(() => {
-    console.log('🔍 leadsStats:', leadsStats);
-    console.log('🔍 Using real leads data to build chart');
+    console.log('🔍 realRecentCalls:', realRecentCalls);
+    console.log('🔍 Using SAME data as "Letzte Anrufe" section');
 
-    if (!leadsStats?.results || !Array.isArray(leadsStats.results)) {
-      console.log('❌ No leads data available');
+    if (!realRecentCalls || !Array.isArray(realRecentCalls)) {
+      console.log('❌ No recent calls data available');
       return [];
     }
 
-    // Group leads by day and count them
-    const leadsByDay = new Map();
+    // Group calls by day and count them (same as "Letzte Anrufe")
+    const callsByDay = new Map();
 
-    leadsStats.results.forEach(lead => {
-      if (lead.created_at) {
-        const date = new Date(lead.created_at);
+    realRecentCalls.forEach(call => {
+      if (call.timestamp) {
+        const date = new Date(call.timestamp);
         const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-        leadsByDay.set(dayKey, (leadsByDay.get(dayKey) || 0) + 1);
+        callsByDay.set(dayKey, (callsByDay.get(dayKey) || 0) + 1);
       }
     });
 
     // Convert to chart data format
-    const chartData = Array.from(leadsByDay.entries()).map(([date, count]) => ({
+    const chartData = Array.from(callsByDay.entries()).map(([date, count]) => ({
       date: new Date(date).toISOString(),
-      leads: count,
-      calls: 0, // Will add real calls data later
-      appointments: 0, // Will add real appointments data later
+      leads: count,  // Use call count as leads since that's what we see
+      calls: count,
+      appointments: 0,
       conversion: 0
     }));
 
-    console.log('📊 Generated chart data from real leads:', chartData);
+    console.log('📊 Generated chart data from SAME DATA as Letzte Anrufe:', chartData);
+    console.log('📊 Total calls found:', realRecentCalls.length);
     return chartData;
-  }, [leadsStats]);
+  }, [realRecentCalls]);
 
   // Metriken-Definitionen
   const metricConfig = {
