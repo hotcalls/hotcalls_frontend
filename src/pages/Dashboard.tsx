@@ -591,81 +591,44 @@ export default function Dashboard() {
     return isSingle;
   }, [dateRange]);
   
-  // CHART DATA: Show LEADS metrics correctly!
+  // CHART DATA: Count calls with contact info as LEADS!
   const enhancedAnalyticsData = useMemo(() => {
-    console.log('🔍 leadsStats:', leadsStats);
-    console.log('🔍 realRecentCalls:', realRecentCalls);
-    console.log('🔍 Building LEADS chart with call status data');
+    console.log('🔍 LEADS = Calls with (name + email + phone):');
 
-    // Use leads data for date grouping, calls data for status
-    if (!leadsStats?.results || !Array.isArray(leadsStats.results)) {
-      console.log('❌ No leads data available');
+    if (!realRecentCalls || !Array.isArray(realRecentCalls)) {
       return [];
     }
 
-    // Group LEADS by day
-    const dailyMetrics = new Map();
+    // LEADS = calls that have contact name, email, and phone
+    const actualLeads = realRecentCalls.filter(call =>
+      call.lead && call.email && call.phone
+    );
 
-    // First, count actual LEADS per day
-    leadsStats.results.forEach((lead, index) => {
-      const dateField = lead.created_at;
-      if (dateField) {
-        const date = new Date(dateField);
-        const dayKey = date.toISOString().split('T')[0];
-
-        if (!dailyMetrics.has(dayKey)) {
-          dailyMetrics.set(dayKey, {
-            totalLeads: 0,
-            erreichtLeads: 0,
-            appointmentLeads: 0
-          });
-        }
-
-        dailyMetrics.get(dayKey).totalLeads++;
-      }
+    console.log(`📊 Found ${actualLeads.length} LEADS (calls with full contact info)`);
+    actualLeads.forEach((lead, i) => {
+      console.log(`  Lead ${i}: ${lead.lead} (${lead.status})`);
     });
 
-    // Then, count leads that were reached and got appointments from calls
-    if (realRecentCalls && Array.isArray(realRecentCalls)) {
-      realRecentCalls.forEach((call) => {
-        const dateField = call.date;
-        if (dateField) {
-          const date = new Date(dateField);
-          const dayKey = date.toISOString().split('T')[0];
+    const totalLeads = actualLeads.length;
+    const erreichtLeads = actualLeads.filter(lead => lead.status === "Erreicht").length;
+    const terminLeads = actualLeads.filter(lead => lead.status === "Termin vereinbart").length;
+    const conversionRate = totalLeads > 0 ? ((terminLeads / totalLeads) * 100) : 0;
 
-          if (dailyMetrics.has(dayKey)) {
-            const dayData = dailyMetrics.get(dayKey);
+    // Just use today's date as single data point
+    const today = new Date().toISOString();
 
-            if (call.status === "Erreicht") {
-              dayData.erreichtLeads++;
-            } else if (call.status === "Termin vereinbart") {
-              dayData.appointmentLeads++;
-              dayData.erreichtLeads++; // Appointment also means reached
-            }
-          }
-        }
-      });
-    }
+    const chartData = [{
+      date: today,
+      leads: totalLeads,        // Calls with full contact info (2)
+      calls: erreichtLeads,     // Those leads with "Erreicht" status
+      appointments: terminLeads, // Those leads with "Termin vereinbart" status
+      conversion: conversionRate // Conversion rate
+    }];
 
-    console.log('🔍 dailyMetrics Map:', Array.from(dailyMetrics.entries()));
-
-    // Convert to chart data format
-    const chartData = Array.from(dailyMetrics.entries()).map(([date, metrics]) => {
-      const conversionRate = metrics.totalLeads > 0 ? ((metrics.appointmentLeads / metrics.totalLeads) * 100) : 0;
-
-      return {
-        date: new Date(date).toISOString(),
-        leads: metrics.totalLeads,           // ACTUAL leads created
-        calls: metrics.erreichtLeads,        // Leads that were reached
-        appointments: metrics.appointmentLeads, // Leads that became appointments
-        conversion: conversionRate           // Conversion rate percentage
-      };
-    });
-
-    console.log('📊 Chart shows LEADS metrics:', chartData);
-    console.log('📊 Total leads:', leadsStats.results.length);
+    console.log('📊 FINAL chart data:', chartData);
+    console.log(`📊 Leads: ${totalLeads}, Erreicht: ${erreichtLeads}, Termine: ${terminLeads}`);
     return chartData;
-  }, [leadsStats, realRecentCalls]);
+  }, [realRecentCalls]);
 
   // Metriken-Definitionen
   const metricConfig = {
