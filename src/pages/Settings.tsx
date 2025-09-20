@@ -1035,12 +1035,33 @@ export default function Settings() {
                       <span className="text-gray-500">Plan:</span>
                       <div className="font-medium">{usage.workspace.plan || 'Unbekannt'}</div>
                     </div>
-                    {usage.billing_period?.days_remaining !== null && (
-                      <div>
-                        <span className="text-gray-500">Verbleibende Tage:</span>
-                        <div className="font-medium">{usage.billing_period.days_remaining}</div>
-                      </div>
-                    )}
+                    {(() => {
+                      const isCancelled = usage.subscription?.cancel_at_period_end ||
+                                        usage.subscription?.status === 'cancelled';
+
+                      if (isCancelled) {
+                        return (
+                          <div>
+                            <span className="text-gray-500">Status:</span>
+                            <div className="font-medium text-red-600">GEKÜNDIGT</div>
+                          </div>
+                        );
+                      }
+
+                      const renewalDate = usage.subscription?.current_period_end;
+                      if (renewalDate) {
+                        const date = new Date(renewalDate * 1000);
+                        const formattedDate = date.toLocaleDateString('de-DE');
+                        return (
+                          <div>
+                            <span className="text-gray-500">Verlängert am:</span>
+                            <div className="font-medium">{formattedDate}</div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })()}
                   </div>
                 )}
               </CardContent>

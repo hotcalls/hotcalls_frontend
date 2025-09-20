@@ -258,29 +258,29 @@ class UsageService {
     const subscription = usageStatus.subscription;
 
     if (!subscription) {
-      return { text: 'No Subscription', color: 'gray', showAlert: false };
+      return { text: 'Kein Abonnement', color: 'gray', showAlert: false };
     }
 
     const isTrialing = this.isOnTrial(usageStatus);
     const isCancelled = this.isSubscriptionCancelled(usageStatus);
 
     if (isTrialing && isCancelled) {
-      return { text: 'Trial Cancelled', color: 'orange', showAlert: true };
+      return { text: 'Testversion Gekündigt', color: 'orange', showAlert: true };
     }
 
     if (isTrialing) {
-      return { text: 'Trial Active', color: 'blue', showAlert: false };
+      return { text: 'Testversion Aktiv', color: 'blue', showAlert: false };
     }
 
     if (isCancelled) {
-      return { text: 'Cancelled', color: 'orange', showAlert: true };
+      return { text: 'GEKÜNDIGT', color: 'red', showAlert: true };
     }
 
     if (subscription.status === 'active') {
-      return { text: 'Active', color: 'green', showAlert: false };
+      return { text: 'Aktiv', color: 'green', showAlert: false };
     }
 
-    return { text: subscription.status || 'Unknown', color: 'gray', showAlert: false };
+    return { text: subscription.status || 'Unbekannt', color: 'gray', showAlert: false };
   }
 
   /**
