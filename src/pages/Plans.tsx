@@ -172,7 +172,7 @@ export default function Plans() {
             <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0" />
             <div className="flex-1">
               <div className="text-sm font-medium text-orange-800">
-                Dein Trial wurde gekündigt
+                Dein Plan is gekündigt!
               </div>
               <div className="text-sm text-orange-700 mt-1">
                 {trialEndDate ? (

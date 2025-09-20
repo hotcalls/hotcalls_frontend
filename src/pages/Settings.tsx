@@ -990,66 +990,6 @@ export default function Settings() {
         {SHOW_BILLING && (
         <TabsContent value="billing" className="space-y-6">
 
-          {/* Subscription Status Card */}
-          {subscriptionStatusDisplay && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CreditCard className="h-5 w-5" />
-                  <span>Abonnement Status</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Status:</span>
-                  <Badge
-                    variant={subscriptionStatusDisplay.color === 'green' ? 'default' :
-                            subscriptionStatusDisplay.color === 'orange' ? 'destructive' : 'secondary'}
-                    className={subscriptionStatusDisplay.color === 'blue' ? 'bg-blue-100 text-blue-800' : ''}
-                  >
-                    {subscriptionStatusDisplay.text}
-                  </Badge>
-                </div>
-
-                {isTrialCancelled && trialEndDate && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                    <div className="flex items-center space-x-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-600" />
-                      <div className="text-sm">
-                        <div className="font-medium text-orange-800">Trial gekündigt</div>
-                        <div className="text-orange-700">
-                          Endet am {new Intl.DateTimeFormat('de-DE', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          }).format(trialEndDate)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {usage && (
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t text-sm">
-                    <div>
-                      <span className="text-gray-500">Plan:</span>
-                      <div className="font-medium">{usage.workspace.plan || 'Unbekannt'}</div>
-                    </div>
-                    {usage.billing_period?.end && (
-                      <div>
-                        <span className="text-gray-500">
-                          {isTrialCancelled ? 'Läuft ab am:' : 'Verlängert am:'}
-                        </span>
-                        <div className={`font-medium ${isTrialCancelled ? 'text-red-600' : ''}`}>
-                          {new Date(usage.billing_period.end).toLocaleDateString('de-DE')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Exakt das Layout aus dem Welcome Flow */}
           <WelcomePlanCards

@@ -108,7 +108,7 @@ export function UsageAlertOverlay() {
         <div className="p-4 space-y-3">
           {alertType === 'subscription' ? (
             <div className="text-sm text-gray-800">
-              <div className="font-medium mb-2">Dein Trial wurde gekündigt</div>
+              <div className="font-medium mb-2">Dein Plan is gekündigt!</div>
               {trialEndDate && (
                 <div className="text-xs text-gray-600 mb-2">
                   Trial endet am: {formatDate(trialEndDate)}
