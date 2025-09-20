@@ -1036,28 +1036,51 @@ export default function Settings() {
                       <div className="font-medium">{usage.workspace.plan || 'Unbekannt'}</div>
                     </div>
                     {(() => {
-                      const isCancelled = usage.subscription?.cancel_at_period_end ||
-                                        usage.subscription?.status === 'cancelled';
+                      const subscription = usage.subscription;
+                      if (!subscription) return null;
 
-                      if (isCancelled) {
-                        return (
-                          <div>
-                            <span className="text-gray-500">Status:</span>
-                            <div className="font-medium text-red-600">GEKÜNDIGT</div>
-                          </div>
-                        );
-                      }
+                      const isTrialing = subscription.workspace_subscription_status === 'trial';
+                      const isCancelled = subscription.cancel_at_period_end || subscription.status === 'cancelled';
 
-                      const renewalDate = usage.subscription?.current_period_end;
-                      if (renewalDate) {
-                        const date = new Date(renewalDate * 1000);
-                        const formattedDate = date.toLocaleDateString('de-DE');
-                        return (
-                          <div>
-                            <span className="text-gray-500">Verlängert am:</span>
-                            <div className="font-medium">{formattedDate}</div>
-                          </div>
-                        );
+                      if (isTrialing) {
+                        // Show trial end date
+                        const trialEndTimestamp = subscription.trial_end;
+                        if (trialEndTimestamp) {
+                          const date = new Date(trialEndTimestamp * 1000);
+                          const formattedDate = date.toLocaleDateString('de-DE');
+                          return (
+                            <div>
+                              <span className="text-gray-500">Testversion endet:</span>
+                              <div className="font-medium">{formattedDate}</div>
+                            </div>
+                          );
+                        }
+                      } else if (isCancelled) {
+                        // Show expiry date for cancelled subscriptions
+                        const expiryTimestamp = subscription.current_period_end;
+                        if (expiryTimestamp) {
+                          const date = new Date(expiryTimestamp * 1000);
+                          const formattedDate = date.toLocaleDateString('de-DE');
+                          return (
+                            <div>
+                              <span className="text-gray-500">Läuft ab am:</span>
+                              <div className="font-medium text-red-600">{formattedDate}</div>
+                            </div>
+                          );
+                        }
+                      } else {
+                        // Show renewal date for active subscriptions
+                        const renewalTimestamp = subscription.current_period_end;
+                        if (renewalTimestamp) {
+                          const date = new Date(renewalTimestamp * 1000);
+                          const formattedDate = date.toLocaleDateString('de-DE');
+                          return (
+                            <div>
+                              <span className="text-gray-500">Wird verlängert am:</span>
+                              <div className="font-medium">{formattedDate}</div>
+                            </div>
+                          );
+                        }
                       }
 
                       return null;
