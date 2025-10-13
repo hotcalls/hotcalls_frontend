@@ -16,6 +16,7 @@ COPY tailwind.config.ts postcss.config.js components.json ./
 # Copy source directories
 COPY public/ public/
 COPY src/ src/
+COPY .env* ./
 
 # Build the app
 RUN npm run build
