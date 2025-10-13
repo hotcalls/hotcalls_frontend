@@ -12,11 +12,11 @@ RUN npm ci
 COPY index.html ./
 COPY vite.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json ./
 COPY tailwind.config.ts postcss.config.js components.json ./
+COPY .env* ./
 
 # Copy source directories
 COPY public/ public/
 COPY src/ src/
-COPY .env* ./
 
 # Build the app
 RUN npm run build
