@@ -138,7 +138,7 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-Mail</Label>
-              <Input id="email" name="email" type="email" placeholder="max.mustermann@example.com" value={formData.email} onChange={handleInputChange} required />
+              <Input id="email" name="email" type="email" placeholder="vorname.nachname@example.com" value={formData.email} onChange={handleInputChange} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Passwort</Label>
