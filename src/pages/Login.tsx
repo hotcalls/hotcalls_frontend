@@ -131,7 +131,7 @@ const Login = () => {
           <div className="mx-auto mb-6 flex flex-col items-center">
             <img src="/HC Logo.png" alt="HC Logo" className="h-10 w-auto" />
           </div>
-          <CardTitle className="text-2xl font-bold">Hallo</CardTitle>
+          <CardTitle className="text-2xl font-bold">Staging Login</CardTitle>
           <CardDescription>Melde dich bei deinem Hotcalls Konto an</CardDescription>
         </CardHeader>
         <CardContent>
